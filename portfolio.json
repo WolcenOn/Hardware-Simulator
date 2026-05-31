@@ -1,0 +1,10 @@
+{
+  "categoria": "Educación",
+  "icono": "📚",
+  "etiquetas": ["hardware", "simulador", "informática", "aprendizaje"],
+  "descripcion": "Simulador o recurso interactivo para aprender conceptos de hardware e informática.",
+  "demo": "",
+  "destacado": true,
+  "orden": 12,
+  "ocultar": false
+}
