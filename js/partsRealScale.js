@@ -203,6 +203,13 @@ export function buildRealScale(p) {
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
   const ssdText=label('SATA SSD',.75,.15);ssdText.position.set(0,.18,0);sataDrive.add(ssdText);
+  // Disco HDD 3.5" estándar aproximado 147x101.6x26.1 mm.
+  const hddDrive=new THREE.Group();storage.add(hddDrive);
+  hddDrive.position.set(3.08,.12,-2.00);
+  rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
+  rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
+  const hddText=label('HDD 3.5',.79,.17);
+  hddText.position.set(0,mm(26.1)+.025,0);hddDrive.add(hddText);
   const m2Drive=new THREE.Group();storage.add(m2Drive);
   rounded(mm(80),.046,mm(22),.01,materials.pcbdark,m2Drive,0,0,0);
   for(let i=0;i<4;i++)rounded(.22,.024,.21,.006,dark,m2Drive,-.50+i*.29,.035,0);
@@ -227,16 +234,18 @@ export function buildRealScale(p) {
     for(const [key,obj] of Object.entries(videoCards))obj.visible=key===card;
     gpu.position.set(cfg.pcieX,.46,cfg.pcieZ+.01);
     m2Drive.position.set(cfg.x-.80,.49,cfg.z+.08);
-    sataDrive.visible=s?.selected?.storage!=='nvmeSSD';
+    sataDrive.visible=s?.selected?.storage==='sataSSD';
+    hddDrive.visible=s?.selected?.storage==='hdd';
     m2Drive.visible=s?.selected?.storage==='nvmeSSD';
+    const needsSata=sataDrive.visible||hddDrive.visible;
     anchors.eps.set(cfg.epsX,.94,cfg.epsZ);
     anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
-    anchors.sata.set(sataDrive.visible?3.07:cfg.x-.80, sataDrive.visible?.37:.76,
-      sataDrive.visible?-2.0:cfg.z+.08);
+    anchors.sata.set(needsSata?3.07:cfg.x-.80,needsSata?.77:.76,
+      needsSata?-2.0:cfg.z+.08);
     anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
-    return {cfg,anchors,sataDrive,m2Drive};
+    return {cfg,anchors,sataDrive,hddDrive,m2Drive,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,
-    configure,anchors,motherboardModels,videoCards,sataDrive,m2Drive};
+    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive};
 }
