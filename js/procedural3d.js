@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildRealScale } from './partsRealScale.js';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -13,12 +14,12 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
-scene.fog=new THREE.Fog(0x101923,13,25);
-const camera=new THREE.PerspectiveCamera(37,1,.1,60);
-camera.position.set(5.9,6.0,7.8);
+scene.fog=new THREE.Fog(0x101923,20,44);
+const camera=new THREE.PerspectiveCamera(41,1,.1,90);
+camera.position.set(9.5,10.0,13.6);
 const controls=new OrbitControls(camera,view);
-controls.enableDamping=true;controls.enablePan=false;controls.minDistance=3.5;controls.maxDistance=13;
-controls.maxPolarAngle=Math.PI/2.07;controls.target.set(0,.55,0);
+controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.8;controls.maxDistance=24;
+controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.30,.72,0);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
@@ -50,181 +51,86 @@ function fan(parent,x,y,z,r=.27){const housing=new THREE.Group();parent.add(hous
   return housing;
 }
 const rotors=[];
-const chassis=group('case');
-// Bandeja de trabajo, tornillos y superficie de apoyo.
-rounded(7.65,.17,5.6,.16,materials.case,chassis,.16,-.12,.13);
-rounded(7.38,.08,5.34,.12,materials.black2,chassis,.16,.002,.13);
-for(let x of [-3.22,3.4])for(let z of [-2.20,2.45])cylinder(.095,.03,materials.silver,chassis,x,.065,z,12);
-// PLACA BASE: cuerpo, pistas, tornillos, slots y condensadores.
-const board=group('board');
-rounded(5.3,.11,3.55,.07,materials.pcb,board,-.30,.18,-.18);
-for(let x of [-2.65,1.95])for(let z of [-1.60,1.22]){
-  cylinder(.092,.014,materials.gold,board,x,.249,z,16);cylinder(.038,.018,materials.black2,board,x,.26,z,16);
-}
-// Pistas deterministas en torno a áreas funcionales.
-for(let i=0;i<64;i++){
-  let z=-1.49+(i%26)*.107, x=-2.65+(i%14)*.21;
-  if((x>-.85&&x<.58&&z>-.98&&z<.38)||(x>.60&&x<1.75&&z<-1))continue;
-  trace(x,z,x+.15+(i%3)*.07,z,(.244),i%5===0?materials.gold:materials.green,board,.005);
-}
-// Socket principal.
-rounded(1.15,.08,1.15,.06,materials.silver,board,-.95,.30,-.54);
-rounded(1.01,.04,1.01,.035,materials.black,board,-.95,.36,-.54);
-const cpu=group('cpu');
-rounded(.83,.045,.83,.025,materials.silver,cpu,-.95,.40,-.54);
-let cpuText=label('CPU',.37,.14);cpuText.position.set(-.95,.429,-.54);cpu.add(cpuText);
-// Ranuras y conectores RAM DDR5.
-for(let i=0;i<4;i++){
-  let x=.40+i*.34;rounded(.18,.10,2.04,.026,materials.black2,board,x,.31,-.55);
-  for(let z of [-1.55,.45])box(.24,.10,.12,materials.silver,board,x,.34,z);
-}
-// PCIe y M2.
-for(let z of [.67,1.13]){
-  rounded(2.6,.10,.13,.015,materials.black2,board,-.75,.30,z);
-  rounded(2.24,.015,.034,.003,materials.gold,board,-.75,.358,z);
-}
-for(let z of [.07,.37])rounded(1.5,.06,.12,.016,materials.black2,board,-1.4,.30,z);
-// Puertos de borde, VRM, condensadores.
-for(let i=0;i<9;i++) rounded(.18,.17,.17,.02,materials.black,board,-2.50+i*.24,.36,-1.37);
-for(let i=0;i<18;i++) {
-  const x=-2.58+(i%9)*.23,z=-1.03+Math.floor(i/9)*.27;
-  if(x<-.85) cylinder(.045,.16,materials.aluminium,board,x,.38,z,12);
-}
-for(let i=0;i<5;i++)rounded(.16,.23,.25,.017,materials.aluminium,board,1.88,.38,-1.28+i*.48);
-rounded(.68,.17,.65,.03,materials.aluminium,board,1.14,.37,.82);
-rounded(.37,.22,.80,.04,materials.black2,board,2.22,.35,-.62);
-rounded(.37,.20,.48,.03,materials.black2,board,-2.79,.35,-1.08);
-for(let i=0;i<3;i++)rounded(.18,.21,.34,.01,materials.black2,board,-2.83,.35,.13+i*.39);
-// RAM: dos módulos con chips y dientes metálicos.
-const ram=group('ram');
-for(let i=0;i<2;i++){
-  const m=new THREE.Group();ram.add(m);m.position.set(.4+i*.67,.50,-.56);
-  rounded(.105,.78,1.70,.025,materials.pcbdark,m,0,.30,0);
-  for(let j=0;j<10;j++)box(.115,.075,.077,materials.gold,m,0,-.04,-.64+j*.142);
-  for(let j=0;j<6;j++)rounded(.012,.26,.16,.006,materials.black2,m,.064,.33,-.6+j*.23);
-  rounded(.14,.43,1.56,.055,materials.black,m,0,.39,0);
-  const chip=label('DDR5',.62,.13);chip.position.set(.077,.44,0);chip.rotation.set(0,Math.PI/2,0);m.add(chip);
-  rounded(.155,.035,1.42,.01,materials.silver,m,0,.626,0);
-}
-// Cooler: heatpipes, aletas y ventilador superior.
-const cooler=group('cooler');cooler.position.set(-.95,.45,-.54);
-for(let i=0;i<14;i++)rounded(1.07,.035,.94,.018,materials.aluminium,cooler,0,.21+i*.076,0);
-for(let x of [-.34,.34])for(let z of [-.25,.25])cylinder(.038,1.18,materials.gold,cooler,x,.57,z,10);
-fan(cooler,0,1.31,0,.40);
-// GPU con dos ventiladores.
-const gpu=group('gpu');gpu.position.set(-.75,.60,.95);
-rounded(3.1,.11,.98,.07,materials.pcbdark,gpu,0,0,0);
-rounded(2.98,.33,.98,.1,materials.black,gpu,0,.29,0);
-rounded(2.92,.055,.88,.07,materials.aluminium,gpu,0,.49,0);
-for(let i=0;i<17;i++)box(.055,.16,.66,materials.silver,gpu,-1.35+i*.17,.22,0);
-for(let i=0;i<2;i++)fan(gpu,-.72+i*1.43,.56,0,.34);
-rounded(.27,.18,.28,.025,materials.black2,gpu,1.22,.60,-.25);
-for(let i=0;i<6;i++)box(.05,.025,.09,materials.gold,gpu,-1.3+i*.12,-.06,.35);
-// PSU compacta.
-const psu=group('psu');psu.position.set(2.80,.39,1.40);
-rounded(1.33,.76,1.25,.075,materials.case,psu,0,0,0);
-rounded(1.17,.07,1.09,.05,materials.black,psu,0,.40,0);
-fan(psu,0,.45,0,.42);
-for(let i=0;i<3;i++)rounded(.05,.22,.19,.02,materials.black2,psu,-.46+i*.17,.13,-.6);
-// Toma de tierra, contactos y pequeños detalles del banco.
-const grid=new THREE.GridHelper(18,36,0x304e5b,0x1b303e);grid.position.y=-.32;scene.add(grid);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),metal(0x111c25,.92,.08));floor.rotation.x=-Math.PI/2;floor.position.y=-.35;floor.receiveShadow=true;scene.add(floor);
 
-// Disco SATA y módulo NVMe (geometría procedural).
-const storage=group('storage');
-const sataDrive=new THREE.Group();storage.add(sataDrive);
-rounded(1.02,.18,.68,.045,materials.black,sataDrive,1.35,.40,.34);
-rounded(.80,.012,.44,.01,materials.aluminium,sataDrive,1.35,.50,.34);
-const ssdLabel=label('SSD',.43,.15);ssdLabel.position.set(1.35,.51,.34);sataDrive.add(ssdLabel);
-const m2Drive=new THREE.Group();storage.add(m2Drive);
-rounded(1.18,.045,.24,.015,materials.pcbdark,m2Drive,-1.45,.35,.24);
-for(let i=0;i<5;i++) rounded(.12,.025,.14,.01,materials.black2,m2Drive,-1.85+i*.18,.387,.24);
-box(.13,.014,.21,materials.gold,m2Drive,-.88,.36,.24);
+const assembly=buildRealScale({THREE,scene,group,rounded,box,cylinder,trace,label,fan,materials});
 
-// Marcadores de conectores y pasos pendientes: solo son indicadores visuales.
-// El estado real continúa dependiendo del simulador de montaje y POST.
+// Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();scene.add(markerGroup);
 const markerMaterial=new THREE.MeshBasicMaterial({
-  color:0xffb85b,transparent:true,opacity:.95,depthTest:false
+  color:0xffbb67,transparent:true,opacity:.95,depthTest:false
 });
-function makeMarker(x,y,z,r=.19) {
-  const marker=new THREE.Mesh(new THREE.TorusGeometry(r,.025,7,32),markerMaterial);
-  marker.rotation.x=Math.PI/2;
-  marker.position.set(x,y,z);
-  marker.visible=false;
-  marker.renderOrder=5;
-  markerGroup.add(marker);
-  return marker;
+function marker(radius=.20){
+  const obj=new THREE.Mesh(new THREE.TorusGeometry(radius,.030,8,32),markerMaterial);
+  obj.rotation.x=Math.PI/2;obj.renderOrder=5;obj.visible=false;
+  markerGroup.add(obj);return obj;
 }
-const markers={
-  eps:makeMarker(-2.79,.59,-1.07),
-  ram:makeMarker(.40,1.13,-.56,.23),
-  sata:makeMarker(2.22,.59,.10),
-  gpu:makeMarker(.47,1.33,.70),
-  fan:makeMarker(-.95,1.97,-.54,.27)
-};
-const led=new THREE.PointLight(0x54edbd,0,3);
-led.position.set(-2.4,.72,-1.48);
-scene.add(led);
+const markers={eps:marker(),ram:marker(.22),sata:marker(),gpu:marker(.24),fan:marker(.28)};
+const powerLight=new THREE.PointLight(0x55ecae,0,5);
+powerLight.position.set(-3,.8,-2.7);scene.add(powerLight);
 
 let current=null;
-const home=new Map(Object.entries(partGroups).map(([k,v])=>[k,v.position.clone()]));
+const home=new Map(Object.entries(partGroups).map(([id,g])=>[id,g.position.clone()]));
 const spreads={
-  case:[0,0,0],board:[0,0,0],cpu:[-.3,.8,-.3],ram:[.25,1.25,-.3],
-  gpu:[-.3,1.15,.65],cooler:[-.55,1.55,-.3],psu:[.5,.85,.55],
-  storage:[.2,.7,.45]
+  case:[0,0,0],board:[0,0,0],cpu:[-.20,.72,-.20],
+  ram:[.50,.85,-.20],gpu:[.65,.55,.75],cooler:[-.45,.95,-.60],
+  psu:[.30,.55,.55],storage:[.25,.35,-.25]
 };
-function sync(s) {
-  if(!s)return;
-  current=s;
-  const installed=s.installed||{};
-  const visible={
-    case:!!installed.case,
-    board:!!installed.motherboard,
-    cpu:!!installed.cpu,
-    ram:!!installed.ram,
-    gpu:!!installed.gpu && s.selected?.gpu!=='none',
-    cooler:!!installed.cooler,
-    psu:!!installed.psu,
+function sync(state){
+  if(!state)return;
+  current=state;
+  const {anchors,sataDrive}=assembly.configure(state);
+  // Se conserva la posición de instalación como origen de cada animación.
+  for(const [id,part] of Object.entries(partGroups)){
+    home.set(id,part.position.clone());
+  }
+  const installed=state.installed||{};
+  const shown={
+    case:!!installed.case,board:!!installed.motherboard,
+    cpu:!!installed.cpu,ram:!!installed.ram,
+    gpu:!!installed.gpu&&state.selected?.gpu!=='none',
+    cooler:!!installed.cooler,psu:!!installed.psu,
     storage:!!installed.storage
   };
-  for(const [key,group] of Object.entries(partGroups))group.visible=!!visible[key];
-  const isSata=s.selected?.storage==='sataSSD'||s.selected?.storage==='hdd';
-  sataDrive.visible=isSata;
-  m2Drive.visible=!isSata;
-  markers.eps.visible=visible.board&&visible.psu&&!s.eps;
-  markers.ram.visible=visible.ram&&!s.ramSeated;
-  markers.sata.visible=visible.storage&&isSata&&(!s.sataData||!s.sataPower);
-  markers.gpu.visible=visible.gpu&&!s.gpuPower;
-  markers.fan.visible=visible.cooler&&!s.cpuFan;
-  led.intensity=s.power?0.7:0;
+  for(const [id,part] of Object.entries(partGroups))part.visible=!!shown[id];
+  markers.eps.visible=shown.board&&shown.psu&&!state.eps;
+  markers.ram.visible=shown.ram&&!state.ramSeated;
+  markers.sata.visible=shown.storage&&sataDrive.visible&&(!state.sataData||!state.sataPower);
+  markers.gpu.visible=shown.gpu&&!state.gpuPower;
+  markers.fan.visible=shown.cooler&&!state.cpuFan;
+  for(const [id,mark] of Object.entries(markers)){
+    mark.position.copy(anchors[id]);
+  }
+  powerLight.intensity=state.power?.85:0;
 }
+
 const raycaster=new THREE.Raycaster();
 const pointer=new THREE.Vector2();
-let down=null, selectionHelper=null,selected='';
-function select3D(id) {
+let press=null,highlight=null,selected='';
+function select3D(id){
   selected=id;
-  if(selectionHelper){
-    scene.remove(selectionHelper);
-    selectionHelper.geometry.dispose();
-    selectionHelper.material.dispose();
-    selectionHelper=null;
+  if(highlight){
+    scene.remove(highlight);
+    highlight.geometry.dispose();
+    highlight.material.dispose();
+    highlight=null;
   }
-  const group=partGroups[id];
-  if(!group||!group.visible)return;
-  selectionHelper=new THREE.BoxHelper(group,0x56eac0);
-  scene.add(selectionHelper);
+  const obj=partGroups[id];
+  if(!obj?.visible)return;
+  highlight=new THREE.BoxHelper(obj,0x68e5c0);
+  scene.add(highlight);
   window.dispatchEvent(new CustomEvent('pc3d-select',{detail:{part:id}}));
 }
 view.addEventListener('pointerdown',e=>{
-  down={x:e.clientX,y:e.clientY};
+  press={x:e.clientX,y:e.clientY};
 });
 view.addEventListener('pointerup',e=>{
-  if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>7)return;
-  const b=view.getBoundingClientRect();
-  pointer.set(((e.clientX-b.left)/b.width)*2-1, -((e.clientY-b.top)/b.height)*2+1);
+  if(!press || Math.hypot(e.clientX-press.x,e.clientY-press.y)>7)return;
+  const bounds=view.getBoundingClientRect();
+  pointer.set(2*(e.clientX-bounds.left)/bounds.width-1,
+     1-2*(e.clientY-bounds.top)/bounds.height);
   raycaster.setFromCamera(pointer,camera);
-  const hits=raycaster.intersectObjects(Object.values(partGroups).filter(g=>g.visible),true);
+  const hits=raycaster.intersectObjects(
+    Object.values(partGroups).filter(g=>g.visible),true);
   if(hits.length){
     let obj=hits[0].object;
     while(obj&&!obj.userData.partId)obj=obj.parent;
@@ -232,47 +138,51 @@ view.addEventListener('pointerup',e=>{
   }
 });
 function resize(){
-  const w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientHeight);
-  renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+  const width=Math.max(1,stage.clientWidth),height=Math.max(1,stage.clientHeight);
+  renderer.setSize(width,height,false);
+  camera.aspect=width/height;
+  camera.updateProjectionMatrix();
 }
 function resetView(){
-  camera.position.set(5.9,6,7.8);
-  controls.target.set(0,.55,0);controls.update();
+  camera.position.set(9.5,10.0,13.6);
+  controls.target.set(.30,.72,0);controls.update();
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);
-window.addEventListener('resize',resize);
-resize();
-const tmp=new THREE.Vector3();
+window.addEventListener('resize',resize);resize();
+const desired=new THREE.Vector3();
 let previous=performance.now();
-function tick(time){
-  requestAnimationFrame(tick);
-  if(document.hidden){previous=time;return;}
-  const dt=Math.min(.05,Math.max(0,(time-previous)/1000));previous=time;
-  for(const [id,g] of Object.entries(partGroups)){
-    const base=home.get(id),offset=spreads[id],e=current?.explode?1:0;
-    const loose=id==='ram'&&current?.installed?.ram&&!current?.ramSeated? .22:0;
-    tmp.set(base.x+offset[0]*e,base.y+offset[1]*e+loose,base.z+offset[2]*e);
-    g.position.lerp(tmp,Math.min(1,dt*7));
+function animate(now){
+  requestAnimationFrame(animate);
+  if(document.hidden){previous=now;return;}
+  const dt=Math.max(0,Math.min(.05,(now-previous)/1000));previous=now;
+  for(const [id,part] of Object.entries(partGroups)){
+    const base=home.get(id);
+    const delta=spreads[id];
+    const expanded=current?.explode?1:0;
+    const loose=(id==='ram'&&current?.installed?.ram&&!current?.ramSeated)? .18:0;
+    desired.set(base.x+delta[0]*expanded,
+      base.y+delta[1]*expanded+loose,base.z+delta[2]*expanded);
+    part.position.lerp(desired,Math.min(1,dt*7));
   }
-  if(current?.power)for(const rotor of rotors)rotor.rotation.y+=dt*4.5;
-  if(selectionHelper){selectionHelper.visible=!!partGroups[selected]?.visible;selectionHelper.update();}
-  controls.update();
-  renderer.render(scene,camera);
+  // En rotación, los ventiladores de tarjeta y disipador miran de frente,
+  // mientras que el de PSU apunta hacia arriba.
+  if(current?.power)for(const rotor of rotors)rotor.rotation.y+=dt*4.4;
+  if(highlight){highlight.visible=!!partGroups[selected]?.visible;highlight.update();}
+  controls.update();renderer.render(scene,camera);
 }
 window.PC3D={
   ready:true,
-  update:sync,
-  viewIso:resetView,
+  update:sync,viewIso:resetView,
   viewTop:()=>{
-    camera.position.set(0,9,.001);controls.target.set(0,.55,0);controls.update();
+    camera.position.set(.30,18,.001);controls.target.set(.30,.72,0);controls.update();
   },
-  zoom:d=>{
-    const dir=camera.position.clone().sub(controls.target);
-    const next=Math.max(3.5,Math.min(13,dir.length()+d));
-    camera.position.copy(controls.target).add(dir.normalize().multiplyScalar(next));
+  zoom:amount=>{
+    const axis=camera.position.clone().sub(controls.target);
+    const next=Math.max(4.8,Math.min(24,axis.length()+amount));
+    camera.position.copy(controls.target).add(axis.normalize().multiplyScalar(next));
     controls.update();
   },
-  focus:id=>select3D(id)
+  focus:select3D
 };
-requestAnimationFrame(tick);
+requestAnimationFrame(animate);
 window.dispatchEvent(new Event('pc3d-ready'));
