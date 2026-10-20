@@ -78,10 +78,12 @@ const spreads={
 function sync(state){
   if(!state)return;
   current=state;
-  const {anchors,sataDrive}=assembly.configure(state);
+  const {anchors,needsSata}=assembly.configure(state);
   // Se conserva la posición de instalación como origen de cada animación.
-  for(const [id,part] of Object.entries(partGroups)){
-    home.set(id,part.position.clone());
+  // Solo las piezas con anclajes variables cambian su posición de origen.
+  // Evita acumular desplazamientos en cada render durante la vista explosionada.
+  for(const id of ['cpu','cooler','gpu']){
+    home.set(id,partGroups[id].position.clone());
   }
   const installed=state.installed||{};
   const shown={
@@ -94,7 +96,7 @@ function sync(state){
   for(const [id,part] of Object.entries(partGroups))part.visible=!!shown[id];
   markers.eps.visible=shown.board&&shown.psu&&!state.eps;
   markers.ram.visible=shown.ram&&!state.ramSeated;
-  markers.sata.visible=shown.storage&&sataDrive.visible&&(!state.sataData||!state.sataPower);
+  markers.sata.visible=shown.storage&&needsSata&&(!state.sataData||!state.sataPower);
   markers.gpu.visible=shown.gpu&&!state.gpuPower;
   markers.fan.visible=shown.cooler&&!state.cpuFan;
   for(const [id,mark] of Object.entries(markers)){
