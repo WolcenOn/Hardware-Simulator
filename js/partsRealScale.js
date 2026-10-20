@@ -141,75 +141,102 @@ export function buildRealScale(p) {
     rounded(.15,.055,mm(114),.012,silver,stick,0,.695,0);
   }
 
-  // Cooler tipo torre con huella y altura comparables a NH-U12S redux.
-  // 158 mm de altura, 125 mm de ancho, ventilador de 120 mm en vertical.
+  // Disipador de torre: aletas superpuestas y ventilador cuadrado LATERAL.
   cooler.position.y=.5;
   rounded(.88,.12,.85,.04,copper,cooler,0,.11,0);
   for(let i=0;i<40;i++){
     rounded(mm(125),.025,.82,.012,alu,cooler,0,.35+i*.068,0);
   }
   for(let x of [-.68,-.25,.25,.68])cylinder(.055,2.85,copper,cooler,x,1.69,-.20,12);
-  // Los ventiladores no miran al cielo: el de la torre y los de la GPU son frontales.
-  function frontFan(parent,x,y,z,r){
-    const wrapper=new THREE.Group();wrapper.position.set(x,y,z);
-    wrapper.rotation.x=Math.PI/2;parent.add(wrapper);
-    fan(wrapper,0,0,0,r);
+  // La geometría del fan se crea horizontal y se gira para mirar hacia +Z.
+  function frontFan(parent,x,y,z,r,options={}){
+    const wrapper=new THREE.Group();
+    wrapper.position.set(x,y,z);
+    wrapper.rotation.x=Math.PI/2;
+    parent.add(wrapper);
+    fan(wrapper,0,0,0,r,options);
   }
-  frontFan(cooler,0,1.63,.57,mm(120)/2);
+  frontFan(cooler,0,1.63,.57,mm(120)/2,{kind:'cooler',square:true});
 
-  // Gráficas: alargadas en eje X y PERPENDICULARES a la placa (PCIe).
-  // Modelos seleccionables con dimensiones distintas.
+  // GPU perpendicular a placa base, con ventiladores visibles empotrados
+  // en la cubierta y chapa PCIe diferenciada.
   const videoCards={};
   function makeCard(id,dimensions,color){
     const g=new THREE.Group();gpu.add(g);videoCards[id]=g;
     const [len,hgt,thick]=dimensions.map(mm);
-    // GPU en vertical, plano X/Y, desde la ranura PCIe.
     rounded(len,hgt,thick,.10,color,g,0,hgt/2,0);
-    rounded(len-.14,hgt-.17,.07,.065,black,g,0,hgt/2,thick/2+.02);
+    rounded(len-.14,hgt-.17,.07,.065,black,g,0,hgt/2,thick/2+.015);
+    // Aro/carcasa de GPU y borde para evitar apariencia de placa lisa.
+    for(const x of [-len/2+.10,len/2-.10])
+      rounded(.14,hgt-.15,thick+.05,.04,dark,g,x,hgt/2,0);
+    rounded(len-.25,.13,thick+.07,.03,dark,g,0,hgt-.07,0);
     rounded(len-.30,.06,thick-.10,.014,alu,g,0,hgt+.03,0);
     rounded(len-.06,.035,thick-.10,.013,materials.pcbdark,g,0,.06,0);
-    for(let j=0;j<25;j++){
-      box(.055,.42,thick*.72,alu,g,-len/2+.20+j*(len-.4)/24,hgt/2,0);
-    }
-    const r=Math.min(.91,hgt*.36,len*.195);
-    for(let i=0;i<2;i++){
-      frontFan(g,(i?1:-1)*len*.245,hgt*.55,thick/2+.125,r);
-    }
-    // Chapa metálica de conexiones en la parte trasera.
+    for(let j=0;j<25;j++)
+      box(.048,.38,thick*.68,alu,g,-len/2+.20+j*(len-.4)/24,hgt/2,0);
+    const radius=Math.min(hgt*.40,len*.215);
+    for(let i=0;i<2;i++)
+      frontFan(g,(i?1:-1)*len*.245,hgt*.53,thick/2+.07,radius,{kind:'gpu'});
     rounded(.09,hgt+.20,thick+.10,.02,silver,g,-len/2-.04,hgt/2,0);
-    for(let i=0;i<4;i++){
+    for(let i=0;i<4;i++)
       box(.015,.11,.13,dark,g,-len/2-.10,.45+i*.25,.12);
-    }
-    // Conector PCIe dorado en canto inferior.
     rounded(mm(86),.11,.08,.01,gold,g,-len*.16,.025,0);
-    // Conector de alimentación en extremo superior.
     rounded(id==='rtx4070'?.30:.38,.18,.18,.01,dark,g,len*.37,hgt+.10,0);
   }
   makeCard('rx7600',[245,134,49],metal);
   makeCard('rtx4070',[267.01,133.94,51.13],materials.blue);
 
-  // Fuente: 150 ancho x 140 profundidad x 86 alto. Zona independiente del PCB.
+  // Fuente ATX abierta sólo en la superficie de ventilación; el rotor
+  // queda hundido y una rejilla estacionaria protege su cara superior.
   psu.position.set(3.18,.12,1.35);
-  rounded(mm(150),mm(86),mm(140),.10,metal,psu,0,mm(86)/2,0);
-  rounded(2.82,.06,2.62,.06,dark,psu,0,mm(86)+.04,0);
-  fan(psu,0,mm(86)+.11,0,mm(120)/2);
-  for(let i=0;i<7;i++)rounded(.11,.16,.17,.01,dark,psu,-1.23+i*.38,.42,-1.42);
-  const psuLabel=label('ATX PSU',.9,.19);psuLabel.position.set(0,mm(86)+.18,1.08);psu.add(psuLabel);
+  const pw=mm(150),pd=mm(140),ph=mm(86),wall=.10;
+  rounded(pw,.12,pd,.07,metal,psu,0,.06,0);
+  for(const x of [-pw/2+wall/2,pw/2-wall/2])
+    box(wall,ph-.12,pd,metal,psu,x,ph/2+.06,0);
+  for(const z of [-pd/2+wall/2,pd/2-wall/2])
+    box(pw-.15,ph-.12,wall,metal,psu,0,ph/2+.06,z);
+  for(const x of [-pw/2+.10,pw/2-.10])
+    box(.20,.06,pd-.08,metal,psu,x,ph+.018,0);
+  for(const z of [-pd/2+.10,pd/2-.10])
+    box(pw-.08,.06,.20,metal,psu,0,ph+.018,z);
+  fan(psu,0,ph-.20,0,mm(120)/2,{kind:'psu',grille:true});
+  for(let i=0;i<7;i++)
+    rounded(.11,.16,.17,.01,dark,psu,-1.23+i*.38,.42,-1.40);
+  const psuLabel=label('ATX PSU',.85,.18);
+  psuLabel.position.set(0,ph+.055,1.25);psu.add(psuLabel);
 
-  // Almacenamiento SATA 2.5" 100x69.85x7mm fuera de la placa;
-  // M.2 2280 (80x22mm) sobre la placa, sin ocupar bahía SATA.
+  // Soporte de unidades de la bancada: físicamente separado del PCB,
+  // con raíles para SSD de 2.5 y HDD de 3.5.
+  const tray=new THREE.Group();storage.add(tray);
+  tray.position.set(3.08,0,-2.00);
+  rounded(3.36,.065,2.48,.05,dark,tray,0,.095,0);
+  for(const x of [-1.60,1.60]){
+    rounded(.09,.20,2.36,.02,alu,tray,x,.19,0);
+    for(const z of [-.91,.91])cylinder(.045,.02,silver,tray,x,.295,z,12);
+  }
+  for(const z of [-1.16,1.16])
+    rounded(3.18,.09,.07,.01,metal,tray,0,.16,z);
+
+  // SSD SATA 2.5": 100x69.85x7 mm, sobre el soporte, no en un slot M.2.
   const sataDrive=new THREE.Group();storage.add(sataDrive);
-  sataDrive.position.set(3.08,.12,-2.00);
+  sataDrive.position.set(3.08,.17,-2.00);
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
-  const ssdText=label('SATA SSD',.75,.15);ssdText.position.set(0,.18,0);sataDrive.add(ssdText);
-  // Disco HDD 3.5" estándar aproximado 147x101.6x26.1 mm.
+  rounded(.12,.10,.30,.012,dark,sataDrive,-1.05,.13,-.23);
+  rounded(.12,.10,.48,.012,dark,sataDrive,-1.05,.13,.30);
+  const ssdText=label('SATA SSD',.75,.15);
+  ssdText.position.set(0,.18,0);sataDrive.add(ssdText);
+
+  // HDD SATA 3.5": 147x101.6x26.1 mm, más grande y grueso.
   const hddDrive=new THREE.Group();storage.add(hddDrive);
-  hddDrive.position.set(3.08,.12,-2.00);
+  hddDrive.position.set(3.08,.17,-2.00);
   rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
   rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
+  rounded(.13,.13,.39,.018,dark,hddDrive,-1.52,.23,0);
   const hddText=label('HDD 3.5',.79,.17);
   hddText.position.set(0,mm(26.1)+.025,0);hddDrive.add(hddText);
+
+  // M.2 2280 sobre su conector PCIe/M.2 propio de la placa.
   const m2Drive=new THREE.Group();storage.add(m2Drive);
   rounded(mm(80),.046,mm(22),.01,materials.pcbdark,m2Drive,0,0,0);
   for(let i=0;i<4;i++)rounded(.22,.024,.21,.006,dark,m2Drive,-.50+i*.29,.035,0);
@@ -238,14 +265,15 @@ export function buildRealScale(p) {
     hddDrive.visible=s?.selected?.storage==='hdd';
     m2Drive.visible=s?.selected?.storage==='nvmeSSD';
     const needsSata=sataDrive.visible||hddDrive.visible;
+    tray.visible=needsSata;
     anchors.eps.set(cfg.epsX,.94,cfg.epsZ);
     anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
-    anchors.sata.set(needsSata?3.07:cfg.x-.80,needsSata?.77:.76,
+    anchors.sata.set(needsSata?2.10:cfg.x-.80,needsSata?.58:.76,
       needsSata?-2.0:cfg.z+.08);
     anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
-    return {cfg,anchors,sataDrive,hddDrive,m2Drive,needsSata};
+    return {cfg,anchors,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,
-    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive};
+    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray};
 }
