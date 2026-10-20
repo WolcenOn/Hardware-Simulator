@@ -115,3 +115,36 @@ exclusivamente como referencia visual y dimensional para crear geometrías propi
 - [ ] Vista superior/isométrica y vista explosionada sin desplazamientos acumulados.
 - [ ] Revisar rendimiento móvil y eventos de clic/selección.
 - [ ] Montaje/BIOS/POST/diagnóstico sin regresiones.
+
+
+## Iteración: ventiladores, soportes y cableado (v7.0-alpha, 20 octubre)
+
+- \`js/fanProcedural.js\`: ventiladores axiales con aspas curvas extruidas,
+  rotor y hub separados, carcasa cuadrada opcional, tornillos y parrilla PSU.
+- El ventilador del disipador ahora usa marco cuadrado de 120 mm;
+  GPU incorpora dos ventiladores con aro; PSU usa carcasa abierta sobre el rotor
+  y rejilla fija (el ventilador queda hundido).
+- La visualización del ventilador usa aspas con el equipo en reposo y
+  una superficie semitransparente de giro durante el test de estrés.
+- Los SSD 2,5" y HDD 3,5" aparecen en un soporte lateral con raíles y
+  conectores representativos; dicho soporte se oculta con M.2 NVMe,
+  que continúa ubicado en la ranura de la placa.
+- \`js/cablesProcedural.js\`: rutas para SATA datos, SATA alimentación,
+  EPS, GPU y CPU_FAN. Los cables aparecen sólo cuando los estados de conexión
+  correspondientes están activos, y se ocultan en vista explosionada.
+- Las rutas se regeneran únicamente al cambiar el tipo de placa, GPU o unidad;
+  al reemplazarlas, se liberan las geometrías anteriores.
+
+### Comprobaciones efectuadas
+
+- [x] Sintaxis válida de los cuatro módulos 3D.
+- [x] Crear ventilador tipo GPU, torre y PSU.
+- [x] Nueve combinaciones placa/almacenamiento: un solo disco visible.
+- [x] SSD/HDD con soporte lateral; NVMe sin soporte/cables SATA.
+- [x] Los cables desaparecen cuando su conexión está pendiente.
+- [ ] Revisión visual de posiciones y ocultación desde navegador WebGL real.
+- [ ] Prueba visual de las aspas y su modo de giro rápido en dispositivo real.
+- [ ] Evaluar fotogramas por segundo en móviles modestos.
+
+No se ha sustituido la simulación física por animaciones: el diagnóstico
+y las conexiones siguen gobernados por el estado de Hardware Simulator.
