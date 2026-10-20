@@ -5,6 +5,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js';
 import { createProceduralFan } from './fanProcedural.js';
+import { createCableHarness } from './cablesProcedural.js';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -52,6 +53,7 @@ function fan(parent,x,y,z,r=.27,options={}){
 }
 
 const assembly=buildRealScale({THREE,scene,group,rounded,box,cylinder,trace,label,fan,materials});
+const cables=createCableHarness(THREE,scene);
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();scene.add(markerGroup);
@@ -77,7 +79,8 @@ const spreads={
 function sync(state){
   if(!state)return;
   current=state;
-  const {anchors,needsSata}=assembly.configure(state);
+  const {anchors,needsSata,cfg}=assembly.configure(state);
+  cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
   // Solo las piezas con anclajes variables cambian su posición de origen.
   // Evita acumular desplazamientos en cada render durante la vista explosionada.
