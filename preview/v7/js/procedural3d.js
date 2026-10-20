@@ -4,6 +4,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js';
+import { createProceduralFan } from './fanProcedural.js';
+import { createCableHarness } from './cablesProcedural.js';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -43,16 +45,15 @@ function box(w,h,d,mat,parent,x,y,z){const mesh=new THREE.Mesh(new THREE.BoxGeom
 function cylinder(rad,hei,mat,parent,x,y,z,segments=28){let mesh=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,hei,segments),mat);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);return mesh}
 function trace(x1,z1,x2,z2,y,mat,parent,r=.009){const a=new THREE.Vector3(x1,y,z1),b=new THREE.Vector3(x2,y,z2),dir=new THREE.Vector3().subVectors(b,a);const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,dir.length(),5),mat);mesh.position.copy(a).addScaledVector(dir,.5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());parent.add(mesh);return mesh}
 function label(text,w=.65,h=.19){const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#151e28';ctx.fillRect(0,0,512,128);ctx.fillStyle='#dce8ed';ctx.font='bold 56px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,68);const tx=new THREE.CanvasTexture(c);tx.colorSpace=THREE.SRGBColorSpace;let m=new THREE.MeshBasicMaterial({map:tx,transparent:true,depthWrite:false});const o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m);o.rotation.x=-Math.PI/2;return o}
-function fan(parent,x,y,z,r=.27){const housing=new THREE.Group();parent.add(housing);housing.position.set(x,y,z);
-  cylinder(r,.07,materials.black2,housing,0,0,0);let ring=new THREE.Mesh(new THREE.TorusGeometry(r*.84,.027,7,42),materials.aluminium);ring.rotation.x=Math.PI/2;ring.position.y=.06;housing.add(ring);
-  const rotor=new THREE.Group();rotor.position.y=.075;housing.add(rotor);cylinder(r*.17,.05,materials.silver,rotor,0,0,0);
-  for(let i=0;i<7;i++){const a=i*Math.PI*2/7;const blade=rounded(r*.31,.026,r*.57,.035,materials.aluminium,rotor,Math.sin(a)*r*.40,0,Math.cos(a)*r*.40);blade.rotation.y=-a+.55}
-  rotors.push(rotor);
-  return housing;
-}
 const rotors=[];
+function fan(parent,x,y,z,r=.27,options={}){
+  const f=createProceduralFan(THREE,parent,materials,[x,y,z],r,options);
+  rotors.push(f);
+  return f.housing;
+}
 
 const assembly=buildRealScale({THREE,scene,group,rounded,box,cylinder,trace,label,fan,materials});
+const cables=createCableHarness(THREE,scene);
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();scene.add(markerGroup);
@@ -78,7 +79,8 @@ const spreads={
 function sync(state){
   if(!state)return;
   current=state;
-  const {anchors,needsSata}=assembly.configure(state);
+  const {anchors,needsSata,cfg}=assembly.configure(state);
+  cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
   // Solo las piezas con anclajes variables cambian su posición de origen.
   // Evita acumular desplazamientos en cada render durante la vista explosionada.
@@ -168,7 +170,12 @@ function animate(now){
   }
   // En rotación, los ventiladores de tarjeta y disipador miran de frente,
   // mientras que el de PSU apunta hacia arriba.
-  if(current?.power)for(const rotor of rotors)rotor.rotation.y+=dt*4.4;
+  const fast=!!current?.power&&!!current?.stress;
+  for(const f of rotors){
+    f.rotor.visible=!fast;
+    f.blur.visible=fast;
+    if(current?.power)f.rotor.rotation.y+=dt*(fast?16:5.4);
+  }
   if(highlight){highlight.visible=!!partGroups[selected]?.visible;highlight.update();}
   controls.update();renderer.render(scene,camera);
 }
