@@ -71,6 +71,7 @@ installHold:'',bootStage:0,bootToken:0,bootCursor:0,biosCfg:safeBios(),power:fal
 if(id==='video')state.monitorCable=false;
 if(id==='keyboard')state.keyboardConnected=false;
 if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storage=true}function install(k){
+  if(state.power){addLog('warn','Apaga el PC antes de instalar piezas.');return render();}
   if(!state.installed.case&&k!=='case'){
     addLog('warn','Primero coloca la caja/chasis antes de instalar hardware.');
     return render();
@@ -126,13 +127,32 @@ function togglePeripheral(which){
   const key={monitor:'monitorCable',keyboard:'keyboardConnected',mouse:'mouseConnected'}[which];
   if(!key)return;
   if(!state.installed.motherboard){addLog('warn','Instala primero la placa y sus puertos USB/vídeo.');return render();}
-  if(state.caseClosed){addLog('warn','Abre el panel para conectar los cables del ordenador.');return render();}
   state[key]=!state[key];
   const names={monitor:'Vídeo GPU/placa',keyboard:'Teclado USB',mouse:'Ratón USB'};
   addLog(state[key]?'ok':'warn',names[which]+(state[key]?' conectado.':' desconectado.'));
   render();
 }
-function name(k){return k==='case'?'Caja':k==='motherboard'?p('motherboard').name:k==='cpu'?p('cpu').name:k==='ram'?p('ram').name:k==='storage'?p('storage').name:k==='gpu'?p('gpu').name:k==='psu'?p('psu').name:'Disipador'}function act(a){if(a==='seat_ram')state.ramSeated=true;if(a==='connect_atx24')state.atx24=true;if(a==='connect_frontpanel')state.frontPanel=true;if(a==='connect_eps')state.eps=true;
+function name(k){return k==='case'?'Caja':k==='motherboard'?p('motherboard').name:k==='cpu'?p('cpu').name:k==='ram'?p('ram').name:k==='storage'?p('storage').name:k==='gpu'?p('gpu').name:k==='psu'?p('psu').name:'Disipador'}function act(a){
+  const internal=new Set(['connect_atx24','connect_frontpanel','connect_eps',
+    'connect_sata','connect_sata_power','connect_fan','gpu_power',
+    'route_psu','remove_gpu','good_paste','seat_ram','replace_disk']);
+  if(internal.has(a)&&state.power){
+    addLog('warn','Apaga el equipo antes de manipular conexiones internas.');return render();
+  }
+  if(internal.has(a)&&state.caseClosed){
+    addLog('warn','Abre el panel del chasis antes de manipular piezas.');return render();
+  }
+  if(a==='route_psu'&&!(state.installed.psu&&!state.installed.motherboard)){
+    addLog('warn','No hace falta apartar la PSU si la placa ya está montada.');return render();
+  }
+  if(a==='remove_gpu'&&!state.installed.gpu){
+    addLog('warn','No hay GPU que retirar.');return render();
+  }
+  if(['connect_keyboard','connect_mouse','connect_monitor'].includes(a)&&
+     !state.installed.motherboard){
+    addLog('warn','Instala la placa base antes de conectar periféricos.');return render();
+  }
+if(a==='seat_ram')state.ramSeated=true;if(a==='connect_atx24')state.atx24=true;if(a==='connect_frontpanel')state.frontPanel=true;if(a==='connect_eps')state.eps=true;
 if(a==='connect_monitor')state.monitorCable=true;
 if(a==='connect_keyboard')state.keyboardConnected=true;
 if(a==='connect_mouse')state.mouseConnected=true;
@@ -147,6 +167,7 @@ if(state.power&&!state.mouseConnected)f.push('mouse');if(state.installed.storage
   if(!state.keyboardConnected){addLog('warn','Conecta primero el teclado USB.');return render()}
   if(!outputAvailable(e)){addLog('warn','Conecta cable de monitor a la GPU o iGPU.');return render()}
   state.bios=!state.bios;
+  if(!state.bios)state.bootStage=4;
   addLog('ok',state.bios?'UEFI abierta: organiza la prioridad de arranque.':'UEFI cerrada.');
   beep('ok');render();
 }
