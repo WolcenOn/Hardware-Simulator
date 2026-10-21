@@ -5,6 +5,14 @@
 export const MM_PER_UNIT = 50;
 const mm = value => value / MM_PER_UNIT;
 
+// Cara modular +X de la PSU: todos los cables de ALIMENTACIÓN salen de aquí.
+export const PSU_CABLE_PORTS = Object.freeze({
+  atx24:[4.80,1.26,1.82],
+  eps:[4.80,1.26,.88],
+  gpu:[4.80,.74,.88],
+  sataPower:[4.80,.74,1.82]
+});
+
 export const BOARD_LAYOUTS = {
   b650: {name:'B650 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:2,m2:2,
     cpuX:-1.55,cpuZ:-1.48,epsX:-3.31,epsZ:-2.73,atxX:1.11,atxZ:-1.25,
@@ -208,8 +216,21 @@ export function buildRealScale(p) {
   for(const z of [-pd/2+.10,pd/2-.10])
     box(pw-.08,.06,.20,metal,psu,0,ph+.018,z);
   fan(psu,0,ph-.20,0,mm(120)/2,{kind:'psu',grille:true});
-  for(let i=0;i<7;i++)
-    rounded(.11,.16,.17,.01,dark,psu,-1.23+i*.38,.42,-1.40);
+  // Panel modular orientado hacia +X, consistente con todos los mazos PSU.
+  rounded(.11,1.36,1.90,.035,dark,psu,pw/2+.018,.95,0);
+  for(const [kind,p] of Object.entries(PSU_CABLE_PORTS)){
+    const yy=p[1]-.12,zz=p[2]-1.35;
+    const big=kind==='atx24';
+    const h=big?.36:.24,d=big?.43:.34;
+    rounded(.12,h,d,.014,black,psu,pw/2+.09,yy,zz);
+    // Pines dorados en dos hileras dentro del conector.
+    for(let col=0;col<(big?5:3);col++)
+      for(let row=0;row<2;row++)
+        box(.016,.026,.026,gold,psu,pw/2+.157,yy+(row?-.058:.058),
+          zz+(col-((big?5:3)-1)/2)*(big?.074:.088));
+  }
+  // Toma IEC AC trasera, diferente de los cuatro conectores modulares.
+  rounded(.57,.34,.075,.02,dark,psu,-.92,.57,-pd/2-.018);
   const psuLabel=label('ATX PSU',.85,.18);
   psuLabel.position.set(0,ph+.055,1.25);psu.add(psuLabel);
 
