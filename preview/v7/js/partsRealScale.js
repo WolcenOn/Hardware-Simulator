@@ -85,6 +85,14 @@ export function buildRealScale(p) {
     // ATX 24 pines (derecha), EPS CPU (esquina superior izquierda).
     rounded(.28,.43,.90,.02,dark,b,cfg.atxX,.60,cfg.atxZ);
     rounded(.40,.32,.48,.02,dark,b,cfg.epsX,.55,cfg.epsZ);
+    // Cabecera F_PANEL y sus dos filas de pines en el borde inferior derecho.
+    const frontX=cfg.x+cfg.w/2-.42,frontZ=cfg.z+cfg.d/2-.32;
+    rounded(.52,.075,.24,.014,dark,b,frontX,.44,frontZ);
+    for(let pin=0;pin<8;pin++){
+      const x=frontX-.19+(pin%4)*.125;
+      const z=frontZ+(pin<4?-.06:.06);
+      box(.025,.12,.027,gold,b,x,.52,z);
+    }
     for(let i=0;i<12;i++) cylinder(.018,.04,gold,b,cfg.atxX,.84,cfg.atxZ-.38+i*.064,6);
     // PCIe principal más ranuras de expansión inferiores.
     for(let i=0;i<cfg.slots;i++){
@@ -244,7 +252,8 @@ export function buildRealScale(p) {
 
   // Marcadores calculados de los conectores de cada placa.
   const anchors={eps:new THREE.Vector3(),ram:new THREE.Vector3(),
-    sata:new THREE.Vector3(),gpu:new THREE.Vector3(),fan:new THREE.Vector3()};
+    sata:new THREE.Vector3(),gpu:new THREE.Vector3(),fan:new THREE.Vector3(),
+    atx:new THREE.Vector3(),frontPanel:new THREE.Vector3()};
   let currentLayout=BOARD_LAYOUTS.b650;
   function configure(s){
     const id=s?.selected?.motherboard in BOARD_LAYOUTS?s.selected.motherboard:'b650';
@@ -267,6 +276,8 @@ export function buildRealScale(p) {
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=needsSata;
     anchors.eps.set(cfg.epsX,.94,cfg.epsZ);
+    anchors.atx.set(cfg.atxX,.82,cfg.atxZ);
+    anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59,cfg.z+cfg.d/2-.32);
     anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
     anchors.sata.set(needsSata?2.10:cfg.x-.80,needsSata?.58:.76,
       needsSata?-2.0:cfg.z+.08);
