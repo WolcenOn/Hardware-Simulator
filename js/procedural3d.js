@@ -18,11 +18,11 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
 scene.fog=new THREE.Fog(0x101923,20,44);
-const camera=new THREE.PerspectiveCamera(44,1,.1,90);
-camera.position.set(10.8,12.3,16.9);
+const camera=new THREE.PerspectiveCamera(46,1,.1,90);
+camera.position.set(12.0,14.3,19.5);
 const controls=new OrbitControls(camera,view);
 controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=31;
-controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.30,.85,0);
+controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.05,2.15,-.65);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
@@ -153,8 +153,12 @@ function resize(){
   camera.updateProjectionMatrix();
 }
 function resetView(){
-  camera.position.set(10.8,12.3,16.9);
-  controls.target.set(.30,.85,0);controls.update();
+  camera.position.set(12.0,14.3,19.5);
+  controls.target.set(.05,2.15,-.65);controls.update();
+}
+function viewHardware(){
+  camera.position.set(8.4,9.6,11.6);
+  controls.target.set(.3,.75,.0);controls.update();
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);
 window.addEventListener('resize',resize);resize();
@@ -186,15 +190,15 @@ function animate(now){
 }
 window.PC3D={
   ready:true,
-  update:sync,viewIso:resetView,
+  update:sync,viewIso:viewHardware,
   viewWorkbench:resetView,
   viewScreen:()=>{
-    camera.position.set(-.85,3.6,.30);
-    controls.target.set(-1.35,1.95,-5.20);
+    camera.position.set(-.55,6.95,8.0);
+    controls.target.set(-.55,5.17,-5.78);
     controls.update();
   },
   viewTop:()=>{
-    camera.position.set(.30,19,.001);controls.target.set(.30,.85,0);controls.update();
+    camera.position.set(.30,20,.001);controls.target.set(.30,.85,0);controls.update();
   },
   zoom:amount=>{
     const axis=camera.position.clone().sub(controls.target);
