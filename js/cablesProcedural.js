@@ -28,7 +28,7 @@ export function createCableHarness(THREE,scene){
     const curve=new THREE.CatmullRomCurve3(points,false,'centripetal',.40);
     const mesh=new THREE.Mesh(
       new THREE.TubeGeometry(curve,Math.max(40,points.length*12),radius,7,false),
-      material
+      material||palette.fan
     );
     mesh.castShadow=false;
     parent.add(mesh);
@@ -85,66 +85,69 @@ export function createCableHarness(THREE,scene){
     }
     for(const id of Object.keys(wires))delete wires[id];
   }
-  function rebuild(cfg,gpuChoice,storageChoice){
+  function rebuild(cfg,gpuChoice,storageChoice,secured){
     clear();
     const len=gpuChoice==='rtx4070'?267.01/50:245/50;
     const height=gpuChoice==='rtx4070'?133.94/50:134/50;
-    const drivePortX=storageChoice==='hdd'?1.56:2.03;
-    const drivePortY=storageChoice==='hdd'?.47:.31;
+    const driveZ=storageChoice==='hdd'?2.72:1.53;
+    const driveX=storageChoice==='hdd'?1.88:2.35;
+    // Con los mazos sujetos, pasan por detrás de la bandeja a altura baja.
+    // Sin fijar, quedan elevados y obstruyen accesos.
+    const runY=secured?.24:1.95;
+    const rimY=secured?.32:1.65;
 
-    // Alimento principal 24 pines: PSU -> borde derecho de motherboard.
     make('atx24',[
-      PSU_CABLE_PORTS.atx24,
-      [5.22,1.13,2.03],[5.36,.52,3.62],
-      [1.73,.43,3.64],[1.59,.42,-.85],
+      PSU_CABLE_PORTS.atx24,[2.05,runY,-.35],
+      [1.58,runY,2.75],[1.57,runY,-1.15],
       [cfg.atxX,.69,cfg.atxZ]
     ],.055);
-    // EPS 8 pines: PSU -> perímetro posterior -> esquina superior izquierda.
     make('eps',[
-      PSU_CABLE_PORTS.eps,
-      [5.24,1.05,.75],[5.38,.43,-.82],
-      [5.15,.36,-3.62],[-3.55,.35,-3.63],
+      PSU_CABLE_PORTS.eps,[4.90,rimY,-.35],
+      [5.02,runY,-3.44],[-3.52,runY,-3.43],
       [cfg.epsX,.78,cfg.epsZ]
     ],.044);
-    // Alimentación GPU: PSU -> arco sobre el borde -> conector superior.
     make('gpu',[
-      PSU_CABLE_PORTS.gpu,
-      [5.14,.89,.83],[5.40,1.02,2.50],
-      [3.20,1.73,2.74],[1.10,2.72,cfg.pcieZ+.78],
+      PSU_CABLE_PORTS.gpu,[4.78,rimY,.35],
+      [4.98,runY,2.88],[1.38,runY,2.90],
+      [1.05,2.70,cfg.pcieZ+.77],
       [cfg.pcieX+len*.37,.46+height+.13,cfg.pcieZ+.12]
     ],.045);
-    // SATA power: PSU -> conector eléctrico lateral de la unidad.
     make('sataPower',[
-      PSU_CABLE_PORTS.sataPower,
-      [5.24,.69,2.02],[5.46,.42,-2.67],
-      [4.20,.38,-2.83],[drivePortX,drivePortY,-2.0]
+      PSU_CABLE_PORTS.sataPower,[4.72,rimY,.25],
+      [5.02,runY,2.77],[4.52,runY,driveZ],
+      [driveX,storageChoice==='hdd'?.47:.31,driveZ]
     ],.033);
 
-    // Datos SATA sale de la motherboard, nunca de la PSU.
+    // SATA DATA nunca nace en la PSU: llega del chipset.
     make('sataData',[
-      [cfg.sataX,.62,cfg.sataZ],
-      [1.72,.46,cfg.sataZ+.23],[1.78,.33,3.48],
-      [5.61,.34,3.59],[5.66,.34,-2.80],
-      [drivePortX,drivePortY,-2.17]
+      [cfg.sataX,.62,cfg.sataZ],[1.51,.39,cfg.sataZ+.23],
+      [1.64,.28,3.45],[5.16,.28,3.44],
+      [5.16,.28,driveZ],[driveX,storageChoice==='hdd'?.47:.31,driveZ-.13]
     ],.023);
 
-    const frontX=cfg.x+cfg.w/2-.42;
-    const frontZ=cfg.z+cfg.d/2-.32;
-    // F_PANEL tiene origen en el botón POWER físico, no en la fuente.
+    const frontX=cfg.x+cfg.w/2-.42,frontZ=cfg.z+cfg.d/2-.32;
     make('frontPanel',[
-      [5.16,-.16,3.27],[4.92,-.20,3.60],
-      [3.10,.30,3.69],[1.63,.32,3.50],
+      [5.16,-.16,3.27],[4.92,.14,3.60],
+      [3.10,.29,3.65],[1.63,.29,3.50],
       [frontX,.52,frontZ]
     ],.018);
-    // CPU_FAN sólo recorre la zona del socket.
     make('fan',[
       [cfg.cpuX+.93,.55,cfg.cpuZ+.88],
       [cfg.cpuX+1.03,.93,cfg.cpuZ+.85],
       [cfg.cpuX+.88,1.93,cfg.cpuZ+.74],
       [cfg.cpuX+.47,2.06,cfg.cpuZ+.63]
     ],.016);
-    // El cable de vídeo puede entrar por una GPU dedicada o por salida iGPU.
-    // Son conectores alternativos: nunca salen simultáneamente.
+    // SYS_FAN: cada ventilador ocupa un cabezal independiente.
+    [
+      [[-1.55,2.16,3.60],[-1.65,.55,3.35],[-2.15,.43,2.65],
+       [cfg.x-.63,.60,cfg.z+2.42]],
+      [[.95,2.16,3.60],[1.10,.57,3.38],[1.34,.41,2.65],
+       [cfg.x+cfg.w/2-.23,.61,cfg.z+1.62]],
+      [[-2.22,2.17,-3.63],[-2.42,.70,-3.48],[-2.69,.42,-2.88],
+       [cfg.x-.93,.60,cfg.z-cfg.d/2+.52]]
+    ].forEach((points,i)=>make('caseFan'+i,points,.018));
+
+    // GPU y salida integrada terminan en el monitor externo.
     make('video',[
       [cfg.pcieX-len/2-.09,1.18,cfg.pcieZ+.10],
       [-4.08,.46,cfg.pcieZ+.38],
@@ -156,12 +159,11 @@ export function createCableHarness(THREE,scene){
       [-4.60,.33,-3.58],[-5.36,.35,-6.24],
       [4.20,.38,-6.22],[4.20,2.65,-5.89]
     ],.028);
-
   }
   function update(state,cfg,needsSata){
-    const key=[state.selected?.motherboard,state.selected?.gpu,state.selected?.storage].join(':');
+    const key=[state.selected?.motherboard,state.selected?.gpu,state.selected?.storage,!!state.psuAccessRouted].join(':');
     if(layoutKey!==key){
-      rebuild(cfg,state.selected?.gpu,state.selected?.storage);
+      rebuild(cfg,state.selected?.gpu,state.selected?.storage,!!state.psuAccessRouted);
       layoutKey=key;
     }
     const installed=state.installed||{};
@@ -179,6 +181,9 @@ export function createCableHarness(THREE,scene){
       !!installed.motherboard&&!!state.frontPanel;
     wires.fan.visible=!exploded&&!!installed.motherboard&&
       !!installed.cooler&&!!state.cpuFan;
+    for(let i=0;i<3;i++)wires['caseFan'+i].visible=!exploded&&
+      !!installed.case&&!!installed.motherboard&&
+      !!state.caseFans?.[i]?.installed&&!!state.caseFans?.[i]?.connected;
     const onGPU=!!installed.gpu&&state.selected?.gpu!=='none';
     wires.video.visible=!exploded&&!!state.monitorCable&&
       !!installed.motherboard&&onGPU;
