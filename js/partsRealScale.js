@@ -45,6 +45,55 @@ export function buildRealScale(p) {
   // Separación visual de la zona PSU/SATA, a la derecha de la bandeja.
   box(.03,.07,7.4,alu,chassis,1.48,.08,0);
 
+  // Chasis ATX horizontal de sobremesa: motherboard + GPU, bahía PSU y
+  // almacenamiento están dentro del mismo volumen, no sobre un tablero suelto.
+  // Se abre por una tapa superior abatible para enseñar las conexiones.
+  const caseFrame=new THREE.Group();chassis.add(caseFrame);
+  const caseW=10.72, caseD=8.30, caseH=4.30;
+  for(const x of [-4.08,5.40])for(const z of [-3.83,3.82])
+    rounded(.16,caseH,.16,.025,metal,caseFrame,x,caseH/2-.09,z);
+  for(const z of [-3.84,3.84]){
+    rounded(caseW,.17,.18,.025,metal,caseFrame,.66,.10,z);
+    rounded(caseW,.15,.18,.025,alu,caseFrame,.66,caseH-.10,z);
+  }
+  for(const x of [-4.08,5.40]){
+    rounded(.18,.17,caseD,.025,metal,caseFrame,x,.10,0);
+    rounded(.18,.16,caseD,.025,alu,caseFrame,x,caseH-.10,0);
+  }
+  // Pared lateral fija y trasera perforada; frontis bajo para acceder al PCB.
+  rounded(.11,2.40,caseD-.28,.035,metal,caseFrame,5.38,1.25,0);
+  rounded(caseW-.35,1.05,.12,.030,metal,caseFrame,.66,.55,-3.80);
+  rounded(caseW-.35,.60,.11,.030,metal,caseFrame,.66,.34,3.80);
+  // Rejillas traseras y pasacables hacia I/O y panel GPU.
+  for(let i=0;i<12;i++){
+    rounded(.29,.025,.10,.008,dark,caseFrame,-3.67+i*.47,1.18,-3.73);
+  }
+  for(let i=0;i<5;i++){
+    rounded(1.18,.035,.12,.008,dark,caseFrame,-3.45,1.52+i*.42,-3.74);
+  }
+  // Cámara/caja lateral PSU y disco; guías y separador, no una segunda mesa.
+  rounded(.14,1.10,7.62,.025,metal,caseFrame,1.54,.58,0);
+  for(const z of [-3.25,3.23])
+    rounded(3.67,.13,.13,.020,alu,caseFrame,3.45,.30,z);
+  // Tapa de vidrio sintético transparente sobre marco articulado.
+  // Abierta por defecto; cerrarla impide instalar componentes.
+  const doorHinge=new THREE.Group();
+  doorHinge.position.set(-4.02,caseH-.11,-3.77);
+  caseFrame.add(doorHinge);
+  const lidMaterial=new THREE.MeshPhysicalMaterial({
+    color:0x8cbfc4,transparent:true,opacity:.13,roughness:.17,
+    metalness:.06,depthWrite:false,side:THREE.DoubleSide
+  });
+  rounded(caseW-.32,.065,caseD-.30,.027,lidMaterial,doorHinge,(caseW-.32)/2,0,(caseD-.30)/2);
+  rounded(caseW-.30,.07,.11,.02,metal,doorHinge,(caseW-.30)/2,.015,.06);
+  rounded(.10,.07,caseD-.30,.018,metal,doorHinge,.03,.015,(caseD-.30)/2);
+  rounded(.10,.07,caseD-.30,.018,metal,doorHinge,caseW-.32,.015,(caseD-.30)/2);
+  // Tornillos, anclajes y gomas antideslizantes.
+  for(const x of [-3.78,5.08])for(const z of [-3.54,3.53])
+    rounded(.36,.24,.36,.03,dark,chassis,x,-.34,z);
+  const CASE_CLOSE_ANGLE=0,CASE_OPEN_ANGLE=-1.62;
+  doorHinge.rotation.y=CASE_OPEN_ANGLE;
+
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
   function createBoard(id,cfg){
@@ -277,6 +326,7 @@ export function buildRealScale(p) {
     atx:new THREE.Vector3(),frontPanel:new THREE.Vector3()};
   let currentLayout=BOARD_LAYOUTS.b650;
   function configure(s){
+    doorHinge.rotation.y=s?.caseClosed?CASE_CLOSE_ANGLE:CASE_OPEN_ANGLE;
     const id=s?.selected?.motherboard in BOARD_LAYOUTS?s.selected.motherboard:'b650';
     const cfg=BOARD_LAYOUTS[id];currentLayout=cfg;
     for(const [key,obj] of Object.entries(motherboardModels))obj.visible=key===id;
@@ -306,6 +356,6 @@ export function buildRealScale(p) {
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
     return {cfg,anchors,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
-  return {chassis,board,cpu,ram,cooler,gpu,psu,storage,
+  return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
     configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray};
 }
