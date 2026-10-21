@@ -91,8 +91,8 @@ export function buildRealScale(p) {
   // Tornillos, anclajes y gomas antideslizantes.
   for(const x of [-3.78,5.08])for(const z of [-3.54,3.53])
     rounded(.36,.24,.36,.03,dark,chassis,x,-.34,z);
-  const CASE_CLOSE_ANGLE=0,CASE_OPEN_ANGLE=-1.62;
-  doorHinge.rotation.y=CASE_OPEN_ANGLE;
+  const CASE_CLOSE_ANGLE=0,CASE_OPEN_ANGLE=1.32;
+  doorHinge.rotation.z=CASE_OPEN_ANGLE;
 
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
@@ -326,7 +326,7 @@ export function buildRealScale(p) {
     atx:new THREE.Vector3(),frontPanel:new THREE.Vector3()};
   let currentLayout=BOARD_LAYOUTS.b650;
   function configure(s){
-    doorHinge.rotation.y=s?.caseClosed?CASE_CLOSE_ANGLE:CASE_OPEN_ANGLE;
+    doorHinge.rotation.z=s?.caseClosed?CASE_CLOSE_ANGLE:CASE_OPEN_ANGLE;
     const id=s?.selected?.motherboard in BOARD_LAYOUTS?s.selected.motherboard:'b650';
     const cfg=BOARD_LAYOUTS[id];currentLayout=cfg;
     for(const [key,obj] of Object.entries(motherboardModels))obj.visible=key===id;
