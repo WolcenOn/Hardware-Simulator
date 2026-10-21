@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=7-0-psu-layout2';
+import { buildRealScale } from './partsRealScale.js?v=7-1-case-boot';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=7-0-psu-layout2';
-import { createWorkbench } from './workbench3d.js?v=7-0-psu-layout2';
+import { createCableHarness } from './cablesProcedural.js?v=7-1-case-boot';
+import { createWorkbench } from './workbench3d.js?v=7-1-case-boot';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -81,7 +81,9 @@ const spreads={
 function sync(state,details={}){
   if(!state)return;
   current=state;
-  workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios);
+  workbench.updateConnections(state);
+  workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
+    !!details.videoSignal);
   const {anchors,needsSata,cfg}=assembly.configure(state);
   cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
@@ -140,6 +142,17 @@ view.addEventListener('pointerup',e=>{
   raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObjects(
     Object.values(partGroups).filter(g=>g.visible),true);
+  // En UEFI, un clic sobre la pantalla virtual selecciona la entrada
+  // del orden de arranque y la desplaza una posición hacia arriba.
+  if(current?.power&&current?.bios&&current?.mouseConnected){
+    const monitorHits=raycaster.intersectObject(workbench.display,false);
+    if(monitorHits.length){
+      const row=workbench.hitBootOption(monitorHits[0].uv);
+      if(row>=0)window.dispatchEvent(
+        new CustomEvent('pc3d-boot-move',{detail:{index:row}}));
+      return;
+    }
+  }
   if(hits.length){
     let obj=hits[0].object;
     while(obj&&!obj.userData.partId)obj=obj.parent;
