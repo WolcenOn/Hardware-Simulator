@@ -273,3 +273,62 @@ no son modelos CAD exactos. No se han añadido dependencias ni assets de pago.
 - [ ] Inspección visual WebGL, rendimiento móvil y colisiones 3D exactas.
 - [ ] Torre vertical y encaje libre mediante drag-and-drop.
 - [ ] USB booteable y servicio PXE simulado para probar prioridad completa.
+
+
+## Iteración 7.2-alpha: GPU, mazos, refrigeración, I/O y encaje asistido (21-10-2026)
+
+### Correcciones importantes
+- El conector auxiliar de la GPU ya no se considera conectado salvo que
+  la GPU y PSU estén instaladas y la fuente disponga de PCIE_8 o 12VHPWR
+  según el catálogo. En caso contrario se registra el motivo exacto.
+- Cambiar de fuente o GPU desconecta el estado antiguo y exige nueva
+  instalación/conexión. Montaje recomendado selecciona PSU850 si hace falta.
+- El botón «Apartar y asegurar mazos PSU» ahora está en Proceso de montaje.
+  Está disponible siempre que haya PSU instalada y cables sin ordenar,
+  incluso después de instalar la placa.
+- Asegurar los cables cambia su geometría: los mazos van por el canal
+  inferior interior, mientras que sin ordenar permanecen elevados.
+
+### Geometría del chasis
+- PSU recolocada en la zona trasera derecha, con el panel modular orientado
+  al interior. Los cuatro conectores comparten coordenadas con los cables.
+- SSD SATA 2,5 y HDD SATA 3,5 en posiciones diferenciadas dentro de las
+  bahías frontales de la caja. M.2 NVMe permanece instalado en la placa.
+- Chapa I/O trasera con huecos para USB y otros puertos.
+  Debe montarse antes de atornillar la placa. Si se olvida, se puede
+  desmontar la placa y el conjunto para corregirlo, con coste de pasos.
+
+### Ventiladores de caja y física simplificada
+- Ranuras para dos ventiladores frontales de entrada y uno trasero de
+  extracción, cada uno de 120 mm. Se pueden instalar, retirar,
+  conectar y desconectar del header SYS_FAN.
+- El rotor 3D sólo gira al alimentar el PC con ventilador conectado.
+- Modelo térmico educativo: base 43 C en reposo / 70 C en estrés,
+  incremento si la caja está cerrada, descuento por cada ventilador
+  instalado+conectado. Pasta térmica y CPU_FAN defectuosos tienen prioridad
+  sobre la refrigeración normal. NO es simulación CFD ni predicción física.
+- La zona Proceso de montaje indica el número de ventiladores efectivos
+  y la temperatura calculada para cada estado.
+
+### Arrastrar y encajar (primer paso)
+- Las tarjetas del catálogo de montaje tienen drag HTML5.
+- El motor 3D muestra un anillo verde sobre la ranura o posición válida.
+- Soltar dentro de una tolerancia de píxeles activa la misma función
+  install() que los botones, conservando dependencias y bloqueos.
+- Es un snap-to-target **asistido**, no colisiones 3D de piezas libres.
+  En móvil permanece el método tradicional de instalar con botón.
+
+### Pruebas
+- [x] PSU antes de placa, reordenación y posterior instalación.
+- [x] Reorganizar mazos con placa instalada.
+- [x] GPU RTX4070 + PSU650 se rechaza; PSU850 permite 12VHPWR.
+- [x] Montaje recomendado adapta la fuente al requisito de GPU.
+- [x] Chapa I/O antes de motherboard y recuperación por desmontaje.
+- [x] Tres ventiladores instalables individualmente; PWM independiente.
+- [x] Temperatura en estrés: caja cerrada/0 fans 82 C,
+      caja cerrada/3 fans 68 C (modelo base actual).
+- [x] 18 combinaciones placa x almacenamiento x mazos asegurados,
+      con anclajes y conectores de GPU/SYS_FAN correctos.
+- [x] Sintaxis JavaScript de motor y módulos.
+- [ ] Comprobar el drag/drop, solapamientos y rendimiento en WebGL real.
+- [ ] Perfeccionar animación de bandejas y colisiones exactas.
