@@ -144,7 +144,7 @@ view.addEventListener('pointerup',e=>{
     Object.values(partGroups).filter(g=>g.visible),true);
   // En UEFI, un clic sobre la pantalla virtual selecciona la entrada
   // del orden de arranque y la desplaza una posición hacia arriba.
-  if(current?.power&&current?.bios&&current?.keyboardConnected){
+  if(current?.power&&current?.bios&&current?.mouseConnected){
     const monitorHits=raycaster.intersectObject(workbench.display,false);
     if(monitorHits.length){
       const row=workbench.hitBootOption(monitorHits[0].uv);
