@@ -1,7 +1,7 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS } from './partsRealScale.js?v=7-0-psu-layout2';
+import { PSU_CABLE_PORTS } from './partsRealScale.js?v=7-1-case-boot';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -143,14 +143,20 @@ export function createCableHarness(THREE,scene){
       [cfg.cpuX+.88,1.93,cfg.cpuZ+.74],
       [cfg.cpuX+.47,2.06,cfg.cpuZ+.63]
     ],.016);
-    // Cable de vídeo desde GPU hasta la toma posterior del monitor,
-    // que ahora se encuentra sobre el banco en Z=-5.78.
+    // El cable de vídeo puede entrar por una GPU dedicada o por salida iGPU.
+    // Son conectores alternativos: nunca salen simultáneamente.
     make('video',[
       [cfg.pcieX-len/2-.09,1.18,cfg.pcieZ+.10],
       [-4.08,.46,cfg.pcieZ+.38],
       [-4.85,.30,-3.64],[-5.36,.35,-6.24],
       [4.20,.38,-6.22],[4.20,2.65,-5.89]
     ],.028);
+    make('videoIGPU',[
+      [cfg.x-cfg.w/2+.13,.64,cfg.z-cfg.d/2+.48],
+      [-4.60,.33,-3.58],[-5.36,.35,-6.24],
+      [4.20,.38,-6.22],[4.20,2.65,-5.89]
+    ],.028);
+
   }
   function update(state,cfg,needsSata){
     const key=[state.selected?.motherboard,state.selected?.gpu,state.selected?.storage].join(':');
@@ -173,8 +179,12 @@ export function createCableHarness(THREE,scene){
       !!installed.motherboard&&!!state.frontPanel;
     wires.fan.visible=!exploded&&!!installed.motherboard&&
       !!installed.cooler&&!!state.cpuFan;
-    wires.video.visible=!exploded&&!!installed.motherboard&&
-      !!installed.gpu&&state.selected?.gpu!=='none';
+    const onGPU=!!installed.gpu&&state.selected?.gpu!=='none';
+    wires.video.visible=!exploded&&!!state.monitorCable&&
+      !!installed.motherboard&&onGPU;
+    wires.videoIGPU.visible=!exploded&&!!state.monitorCable&&
+      !!installed.motherboard&&!onGPU&&state.selected?.gpu==='none'&&
+      !!installed.cpu;
   }
   return {update,root,ports:PSU_CABLE_PORTS};
 }
