@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=7-1-case-boot';
+import { buildRealScale } from './partsRealScale.js?v=7-2-casefans-bays';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=7-1-case-boot';
-import { createWorkbench } from './workbench3d.js?v=7-1-case-boot';
+import { createCableHarness } from './cablesProcedural.js?v=7-2-casefans-bays';
+import { createWorkbench } from './workbench3d.js?v=7-2-casefans-bays';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -72,6 +72,45 @@ const powerLight=new THREE.PointLight(0x55ecae,0,5);
 powerLight.position.set(-3,.8,-2.7);scene.add(powerLight);
 
 let current=null;
+let activeSnapTargets={},draggedPart='';
+const snapMaterial=new THREE.MeshBasicMaterial({
+  color:0x75eec0,transparent:true,opacity:.95,depthTest:false
+});
+const snapRing=new THREE.Mesh(new THREE.TorusGeometry(.58,.042,8,48),snapMaterial);
+snapRing.rotation.x=Math.PI/2;
+snapRing.renderOrder=20;snapRing.visible=false;scene.add(snapRing);
+function dragPart(id){
+  draggedPart=id;
+  const target=activeSnapTargets[id];
+  snapRing.visible=!!target;
+  if(target)snapRing.position.copy(target);
+}
+function cancelDrag(){draggedPart='';snapRing.visible=false}
+function acceptDrop(e){
+  e.preventDefault();e.stopPropagation();
+  const id=e.dataTransfer?.getData('text/plain')||draggedPart;
+  const goal=activeSnapTargets[id];
+  if(!goal){cancelDrag();return}
+  const rect=view.getBoundingClientRect();
+  const projected=goal.clone().project(camera);
+  const px=(projected.x+1)*rect.width/2;
+  const py=(1-projected.y)*rect.height/2;
+  const distance=Math.hypot(e.clientX-rect.left-px,e.clientY-rect.top-py);
+  const tolerance=Math.max(90,Math.min(165,Math.min(rect.width,rect.height)*.25));
+  cancelDrag();
+  if(distance>tolerance||projected.z>1){
+    window.dispatchEvent(new CustomEvent('pc3d-snap-rejected',{
+      detail:{reason:'No coincide con la ranura de encaje. Acerca la pieza al anillo verde.'}
+    }));
+    return;
+  }
+  window.dispatchEvent(new CustomEvent('pc3d-drop',{detail:{part:id}}));
+}
+view.addEventListener('dragover',e=>{
+  if(draggedPart){e.preventDefault();e.dataTransfer.dropEffect='copy'}
+});
+view.addEventListener('drop',acceptDrop);
+view.addEventListener('dragleave',e=>{if(!e.relatedTarget||!view.contains(e.relatedTarget))snapRing.visible=false});
 const home=new Map(Object.entries(partGroups).map(([id,g])=>[id,g.position.clone()]));
 const spreads={
   case:[0,0,0],board:[0,0,0],cpu:[-.20,.72,-.20],
@@ -84,7 +123,12 @@ function sync(state,details={}){
   workbench.updateConnections(state);
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
     !!details.videoSignal);
-  const {anchors,needsSata,cfg}=assembly.configure(state);
+  const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
+  activeSnapTargets=snapTargets;
+  if(draggedPart&&snapTargets[draggedPart]){
+    snapRing.position.copy(snapTargets[draggedPart]);
+    snapRing.visible=true;
+  }
   cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
   // Solo las piezas con anclajes variables cambian su posición de origen.
@@ -194,16 +238,19 @@ function animate(now){
   // mientras que el de PSU apunta hacia arriba.
   const fast=!!current?.power&&!!current?.stress;
   for(const f of rotors){
+    const slot=f.housing?.userData?.caseFanSlot;
+    const spin=!!current?.power&&(slot===undefined||
+      !!current?.caseFans?.[slot]?.connected);
     f.rotor.visible=!fast;
-    f.blur.visible=fast;
-    if(current?.power)f.rotor.rotation.y+=dt*(fast?16:5.4);
+    f.blur.visible=fast&&spin;
+    if(spin)f.rotor.rotation.y+=dt*(fast?16:5.4);
   }
   if(highlight){highlight.visible=!!partGroups[selected]?.visible;highlight.update();}
   controls.update();renderer.render(scene,camera);
 }
 window.PC3D={
   ready:true,
-  update:sync,viewIso:viewHardware,
+  update:sync,dragPart,cancelDrag,viewIso:viewHardware,
   viewWorkbench:resetView,
   viewScreen:()=>{
     camera.position.set(-.55,6.95,8.0);
