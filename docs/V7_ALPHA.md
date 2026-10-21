@@ -184,3 +184,39 @@ y las conexiones siguen gobernados por el estado de Hardware Simulator.
 
 La vista previa se publica en \`/preview/v7/\` de GitHub Pages sin
 sustituir el \`index.html\` de la versión 6.5 estable.
+
+
+## Iteración: cableado modular y proporciones del taller (21 octubre 2026)
+
+A partir de la revisión visual del taller se ajustan:
+
+- **PSU**: cuatro puertos tipificados en una sola cara modular (+X). Sus
+  posiciones son un dato compartido `PSU_CABLE_PORTS` en
+  `js/partsRealScale.js`; las bocas y el punto de nacimiento del cable
+  utilizan exactamente la misma referencia.
+- **Cableado**: mazos de varios conductores con abrazaderas para ATX24,
+  EPS, GPU y SATA power. Rutas guiadas por el perímetro del banco, con
+  conectores en los extremos. SATA datos sigue saliendo de la placa,
+  CPU_FAN del cabezal de ventilador y vídeo de GPU al monitor.
+- **Monitor 24"**: marco 11.02 unidades, pantalla 10.52 x 5.92,
+  equivalentes aproximadamente a 53 x 30 cm. Queda elevado por encima
+  del PC, hacia la parte posterior del banco (z=-5.78), con pedestal.
+- **Teclado**: anchura 9 unidades (45 cm aprox.), frente al equipo.
+- **Ratón**: 2.4 x 1.3 unidades (120 x 65 mm) y alfombrilla dimensionada.
+- **Mesa**: ampliada a 15.4 x 15.1 unidades para acomodar los periféricos.
+- **Cámara**: vista Taller encuadra la mesa completa, Vista iso enfoca
+  el hardware y Monitor 3D encuadra la pantalla elevada.
+
+Las dimensiones y conectores son **representaciones educativas**;
+no son modelos CAD exactos. No se han añadido dependencias ni assets de pago.
+
+### Comprobaciones de esta iteración
+- [x] Sintaxis del motor, modelo de placa, cableado y periféricos.
+- [x] Monitor 3D vuelve a pintar las líneas POST / BOOT desde la consola.
+- [x] Maqueta del teclado y monitor generadas con nuevos tamaños.
+- [x] Los cuatro orígenes de alimentación usan x=4.80 y la misma cara de PSU.
+- [x] Nueve configuraciones B650/A520/Z790 con SSD/HDD/NVMe:
+      cableado SATA sólo con unidades SATA.
+- [x] Los cables se ocultan al desconectar su estado.
+- [ ] Verificación visual WebGL en navegador físico y ajuste fino de curvas,
+      perspectiva, tamaño real percibido y solapamientos.
