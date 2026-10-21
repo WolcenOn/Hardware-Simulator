@@ -267,7 +267,13 @@ function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x
   addLog('ok',state.bios?'UEFI abierta: organiza la prioridad de arranque.':'UEFI cerrada.');
   beep('ok');render();
 }
-function autoBuild(){state.installed={case:true,motherboard:true,cpu:true,cooler:true,ram:true,storage:true,gpu:state.selected.gpu!=='none',psu:true};state.ramSeated=true;state.eps=true;state.atx24=true;state.frontPanel=true;state.sataData=p('storage').interface==='SATA';state.sataPower=p('storage').interface==='SATA';state.cpuFan=true;state.gpuPower=!!p('gpu').power.length;
+function autoBuild(){
+  const gpuConnections=p('gpu').power||[];
+  if(gpuConnections.some(key=>!(p('psu').connectors[key]>0))){
+    state.selected.psu='psu850';
+    addLog('warn','Montaje recomendado: PSU ajustada a 850W ATX 3.0 para el conector de la GPU.');
+  }
+  state.installed={case:true,motherboard:true,cpu:true,cooler:true,ram:true,storage:true,gpu:state.selected.gpu!=='none',psu:true};state.ramSeated=true;state.eps=true;state.atx24=true;state.frontPanel=true;state.sataData=p('storage').interface==='SATA';state.sataPower=p('storage').interface==='SATA';state.cpuFan=true;state.gpuPower=!!p('gpu').power.length;
 state.monitorCable=true;state.keyboardConnected=true;state.mouseConnected=true;
 state.installHistory=['case','motherboard','cpu','ram','cooler','storage','gpu','psu'];
 state.assemblyEffort=state.installHistory.length;
@@ -341,7 +347,25 @@ function selector(cat,items){return `<div class="field"><label>${categories[cat]
   return rows.join('\n');
 }
 function fallbackHTML(){return '<div class="board"><div class="chip ok" style="left:42%;top:24%">CPU</div><div class="chip ok" style="left:63%;top:18%;height:120px">RAM</div><div class="chip ok" style="left:24%;top:68%;width:210px">GPU PCIe</div><div class="chip ok" style="left:42%;top:52%;width:145px">SSD</div><div class="chip bad" style="left:5%;top:6%">EPS</div><div class="chip ok" style="right:5%;top:30%">ATX 24p</div></div>'}
-function render(){try{$('selectors').innerHTML=selector('motherboard',catalog.motherboards)+selector('cpu',catalog.cpus)+selector('ram',catalog.ram)+selector('storage',catalog.storage)+selector('gpu',catalog.gpus)+selector('psu',catalog.psus);document.querySelectorAll('select[data-cat]').forEach(s=>s.onchange=e=>{state.selected[e.target.dataset.cat]=e.target.value;state.focus=e.target.dataset.cat;state.power=false;state.bios=false;state.fixed={};addLog('warn','Selección cambiada: '+categories[state.focus]+'.');render()});let installs=[['case','Caja'],['motherboard',p('motherboard').name],['cpu',p('cpu').name],['cooler','Disipador'],['ram',p('ram').name],['storage',p('storage').name],['gpu',p('gpu').name],['psu',p('psu').name]];$('installList').innerHTML=installs.map(([k,n])=>{let s=cardStatus(k);return `<div class="card ${s[0]}" draggable="true" data-drag-part="${k}" title="Arrastra al 3D para encajar"><div><strong>${n}</strong><small>${s[1]}</small></div><button onclick="install('${k}')">${state.installed[k]?'Reinstalar':'Instalar'}</button></div>`}).join('');$('routePsu').disabled=!!state.power||!!state.caseClosed||!state.installed.psu||!!state.psuAccessRouted;
+function render(){try{$('selectors').innerHTML=selector('motherboard',catalog.motherboards)+selector('cpu',catalog.cpus)+selector('ram',catalog.ram)+selector('storage',catalog.storage)+selector('gpu',catalog.gpus)+selector('psu',catalog.psus);document.querySelectorAll('select[data-cat]').forEach(s=>s.onchange=e=>{const category=e.target.dataset.cat;
+const previous=state.selected[category];
+state.selected[category]=e.target.value;state.focus=category;
+if(previous!==state.selected[category]){
+  const part={motherboard:'motherboard',cpu:'cpu',ram:'ram',gpu:'gpu',
+    storage:'storage',psu:'psu'}[category];
+  if(part)state.installed[part]=false;
+  if(category==='gpu'||category==='psu'){
+    state.gpuPower=false;state.monitorCable=false;
+  }
+  if(category==='psu'){state.atx24=false;state.eps=false;state.psuAccessRouted=false;}
+  if(category==='motherboard'){
+    state.ioShield=false;state.atx24=false;state.eps=false;state.frontPanel=false;
+    state.caseFans.forEach(f=>f.connected=false);
+  }
+  if(category==='storage'){state.sataData=false;state.sataPower=false;}
+  if(category==='ram')state.ramSeated=false;
+}
+state.power=false;state.bios=false;state.fixed={};addLog('warn','Selección cambiada: '+categories[state.focus]+'.');render()});let installs=[['case','Caja'],['motherboard',p('motherboard').name],['cpu',p('cpu').name],['cooler','Disipador'],['ram',p('ram').name],['storage',p('storage').name],['gpu',p('gpu').name],['psu',p('psu').name]];$('installList').innerHTML=installs.map(([k,n])=>{let s=cardStatus(k);return `<div class="card ${s[0]}" draggable="true" data-drag-part="${k}" title="Arrastra al 3D para encajar"><div><strong>${n}</strong><small>${s[1]}</small></div><button onclick="install('${k}')">${state.installed[k]?'Reinstalar':'Instalar'}</button></div>`}).join('');$('routePsu').disabled=!!state.power||!!state.caseClosed||!state.installed.psu||!!state.psuAccessRouted;
 $('routePsu').textContent=state.psuAccessRouted?'✓ Mazos interiores asegurados':'Apartar y asegurar mazos PSU';
 $('ioShieldAction').disabled=!!state.ioShield||!!state.installed.motherboard||!!state.caseClosed||!state.installed.case||!!state.power;
 $('ioShieldAction').textContent=state.ioShield?'✓ Chapa I/O instalada':'Instalar chapa I/O antes de la placa';
