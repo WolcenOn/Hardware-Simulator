@@ -7,10 +7,10 @@ const mm = value => value / MM_PER_UNIT;
 
 // Cara modular +X de la PSU: todos los cables de ALIMENTACIÓN salen de aquí.
 export const PSU_CABLE_PORTS = Object.freeze({
-  atx24:[4.80,1.26,1.82],
-  eps:[4.80,1.26,.88],
-  gpu:[4.80,.74,.88],
-  sataPower:[4.80,.74,1.82]
+  atx24:[2.91,1.26,-.26],
+  eps:[3.85,1.26,-.26],
+  gpu:[3.85,.74,-.26],
+  sataPower:[2.91,.74,-.26]
 });
 
 export const BOARD_LAYOUTS = {
@@ -94,6 +94,39 @@ export function buildRealScale(p) {
   const CASE_CLOSE_ANGLE=0,CASE_OPEN_ANGLE=1.32;
   doorHinge.rotation.z=CASE_OPEN_ANGLE;
 
+  // Chapa I/O trasera: se encaja antes de presentar la motherboard.
+  const ioShield=new THREE.Group();chassis.add(ioShield);
+  const portsPanel=new THREE.MeshStandardMaterial({
+    color:0x8ba1ac,roughness:.40,metalness:.85,side:THREE.DoubleSide
+  });
+  rounded(1.10,1.55,.07,.024,portsPanel,ioShield,-3.40,1.23,-3.68);
+  for(let row=0;row<4;row++)for(let col=0;col<2;col++){
+    rounded(.24,.135,.026,.015,dark,ioShield,-3.63+col*.40,.73+row*.31,-3.615);
+    rounded(.15,.07,.015,.01,col%2?materials.blue:alu,ioShield,
+      -3.63+col*.40,.73+row*.31,-3.59);
+  }
+  // Dos bahías separadas para HDD 3.5" y SSD 2.5", frontales en el chasis.
+  const storageBays=new THREE.Group();chassis.add(storageBays);
+  for(const z of [1.64,2.85]){
+    for(const x of [1.65,5.15])
+      rounded(.11,.60,1.09,.025,alu,storageBays,x,.43,z);
+    rounded(3.70,.065,1.12,.026,dark,storageBays,3.40,.17,z);
+  }
+  // Ventiladores de caja reales: dos entradas delante y una salida detrás.
+  const caseFanMounts=[];
+  for(const [index,pos,rot] of [
+    [0,[-1.55,2.16,3.60],Math.PI/2],
+    [1,[.95,2.16,3.60],Math.PI/2],
+    [2,[-2.22,2.17,-3.63],-Math.PI/2]
+  ]){
+    const holder=new THREE.Group();holder.position.set(...pos);
+    holder.rotation.x=rot;caseFrame.add(holder);
+    const axial=fan(holder,0,0,0,1.13,{kind:'case',square:true});
+    axial.userData.caseFanSlot=index;
+    const fLabels=label(index===2?'OUT':'IN',.37,.13);
+    fLabels.position.set(0,.12,1.08);holder.add(fLabels);
+    caseFanMounts.push(holder);
+  }
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
   function createBoard(id,cfg){
@@ -253,7 +286,8 @@ export function buildRealScale(p) {
 
   // Fuente ATX abierta sólo en la superficie de ventilación; el rotor
   // queda hundido y una rejilla estacionaria protege su cara superior.
-  psu.position.set(3.18,.12,1.35);
+  psu.position.set(3.38,.12,-1.90);
+  psu.rotation.y=-Math.PI/2; // panel modular orientado al interior de la caja
   const pw=mm(150),pd=mm(140),ph=mm(86),wall=.10;
   rounded(pw,.12,pd,.07,metal,psu,0,.06,0);
   for(const x of [-pw/2+wall/2,pw/2-wall/2])
@@ -268,7 +302,7 @@ export function buildRealScale(p) {
   // Panel modular orientado hacia +X, consistente con todos los mazos PSU.
   rounded(.11,1.36,1.90,.035,dark,psu,pw/2+.018,.95,0);
   for(const [kind,p] of Object.entries(PSU_CABLE_PORTS)){
-    const yy=p[1]-.12,zz=p[2]-1.35;
+    const yy=p[1]-.12,zz=3.38-p[0];
     const big=kind==='atx24';
     const h=big?.36:.24,d=big?.43:.34;
     rounded(.12,h,d,.014,black,psu,pw/2+.09,yy,zz);
@@ -286,7 +320,7 @@ export function buildRealScale(p) {
   // Soporte de unidades de la bancada: físicamente separado del PCB,
   // con raíles para SSD de 2.5 y HDD de 3.5.
   const tray=new THREE.Group();storage.add(tray);
-  tray.position.set(3.08,0,-2.00);
+  tray.position.set(3.40,0,2.25);
   rounded(3.36,.065,2.48,.05,dark,tray,0,.095,0);
   for(const x of [-1.60,1.60]){
     rounded(.09,.20,2.36,.02,alu,tray,x,.19,0);
@@ -297,7 +331,7 @@ export function buildRealScale(p) {
 
   // SSD SATA 2.5": 100x69.85x7 mm, sobre el soporte, no en un slot M.2.
   const sataDrive=new THREE.Group();storage.add(sataDrive);
-  sataDrive.position.set(3.08,.17,-2.00);
+  sataDrive.position.set(3.40,.17,2.25);
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
   rounded(.12,.10,.30,.012,dark,sataDrive,-1.05,.13,-.23);
@@ -307,7 +341,7 @@ export function buildRealScale(p) {
 
   // HDD SATA 3.5": 147x101.6x26.1 mm, más grande y grueso.
   const hddDrive=new THREE.Group();storage.add(hddDrive);
-  hddDrive.position.set(3.08,.17,-2.00);
+  hddDrive.position.set(3.40,.17,2.25);
   rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
   rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
   rounded(.13,.13,.39,.018,dark,hddDrive,-1.52,.23,0);
@@ -346,16 +380,20 @@ export function buildRealScale(p) {
     m2Drive.visible=s?.selected?.storage==='nvmeSSD';
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=needsSata;
+    ioShield.visible=!!s?.ioShield;
+    caseFanMounts.forEach((mount,i)=>{
+      mount.visible=!!s?.caseFans?.[i]?.installed;
+    });
     anchors.eps.set(cfg.epsX,.94,cfg.epsZ);
     anchors.atx.set(cfg.atxX,.82,cfg.atxZ);
     anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59,cfg.z+cfg.d/2-.32);
     anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
-    anchors.sata.set(needsSata?2.10:cfg.x-.80,needsSata?.58:.76,
-      needsSata?-2.0:cfg.z+.08);
+    anchors.sata.set(needsSata?1.83:cfg.x-.80,needsSata?.58:.76,
+      needsSata?2.25:cfg.z+.08);
     anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
     return {cfg,anchors,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
-    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray};
+    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts};
 }
