@@ -46,7 +46,7 @@ function moveBoot(index,delta=-1){
   }
   const list=[...(state.biosCfg.bootOrder||['ssd','usb','pxe'])];
   if(index<0||index>=list.length)return;
-  const next=(index+delta+list.length)%list.length;
+  const next=Math.max(0,Math.min(list.length-1,index+delta));
   [list[index],list[next]]=[list[next],list[index]];
   state.biosCfg.bootOrder=list;
   state.biosCfg.boot=list[0];
