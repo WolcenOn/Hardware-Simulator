@@ -27,8 +27,8 @@ export function createWorkbench(THREE,scene,materials) {
   screen.position.set(-1.35,0,-5.20);
   rounded(screen,[4.32,2.55,.17],[0,1.91,0],materials.black);
   rounded(screen,[4.02,2.27,.04],[0,1.94,.102],rubber);
-  rounded(screen,[.19,.85,.18],[0,.73,-.04],edge);
-  rounded(screen,[1.35,.08,.84],[0,.32,-.02],materials.black2);
+  rounded(screen,[.19,1.28,.18],[0,.33,-.04],edge);
+  rounded(screen,[1.35,.08,.84],[0,-.27,-.02],materials.black2);
   const standby=new THREE.Mesh(new THREE.SphereGeometry(.038,10,8),light);
   standby.position.set(1.89,.735,.14);screen.add(standby);
 
@@ -43,6 +43,17 @@ export function createWorkbench(THREE,scene,materials) {
   const display=new THREE.Mesh(new THREE.PlaneGeometry(3.91,2.18),screenMaterial);
   display.position.set(0,1.94,.131);
   screen.add(display);
+
+  // Interruptor físico del panel frontal junto a la bandeja del ordenador.
+  const switchBody=rounded(root,[.68,.13,.68],[5.16,-.25,3.27],materials.black2);
+  const switchRing=new THREE.Mesh(new THREE.TorusGeometry(.20,.032,8,30),light);
+  switchRing.rotation.x=-Math.PI/2;
+  switchRing.position.set(5.16,-.16,3.27);
+  root.add(switchRing);
+  const switchTop=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.07,24),edge);
+  switchTop.position.set(5.16,-.18,3.27);
+  switchTop.name='Botón POWER (panel frontal)';
+  root.add(switchTop);
 
   // Teclado: filas reales y grupos separados, teclas instanciadas para
   // evitar cientos de llamadas de dibujo.
