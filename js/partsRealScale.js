@@ -331,7 +331,7 @@ export function buildRealScale(p) {
 
   // SSD SATA 2.5": 100x69.85x7 mm, sobre el soporte, no en un slot M.2.
   const sataDrive=new THREE.Group();storage.add(sataDrive);
-  sataDrive.position.set(3.40,.17,2.25);
+  sataDrive.position.set(3.40,.17,1.53);
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
   rounded(.12,.10,.30,.012,dark,sataDrive,-1.05,.13,-.23);
@@ -341,7 +341,7 @@ export function buildRealScale(p) {
 
   // HDD SATA 3.5": 147x101.6x26.1 mm, más grande y grueso.
   const hddDrive=new THREE.Group();storage.add(hddDrive);
-  hddDrive.position.set(3.40,.17,2.25);
+  hddDrive.position.set(3.40,.17,2.72);
   rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
   rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
   rounded(.13,.13,.39,.018,dark,hddDrive,-1.52,.23,0);
@@ -389,7 +389,7 @@ export function buildRealScale(p) {
     anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59,cfg.z+cfg.d/2-.32);
     anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
     anchors.sata.set(needsSata?1.83:cfg.x-.80,needsSata?.58:.76,
-      needsSata?2.25:cfg.z+.08);
+      needsSata?(hddDrive.visible?2.72:1.53):cfg.z+.08);
     anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
     return {cfg,anchors,sataDrive,hddDrive,m2Drive,tray,needsSata};
