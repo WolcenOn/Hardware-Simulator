@@ -128,6 +128,7 @@ function togglePeripheral(which){
   if(!key)return;
   if(!state.installed.motherboard){addLog('warn','Instala primero la placa y sus puertos USB/vídeo.');return render();}
   state[key]=!state[key];
+  if(state[key])state.activeFaults=state.activeFaults.filter(id=>id!==({monitor:'video',keyboard:'keyboard',mouse:'mouse'}[which]));
   const names={monitor:'Vídeo GPU/placa',keyboard:'Teclado USB',mouse:'Ratón USB'};
   addLog(state[key]?'ok':'warn',names[which]+(state[key]?' conectado.':' desconectado.'));
   render();
