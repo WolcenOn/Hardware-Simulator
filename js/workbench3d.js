@@ -105,6 +105,33 @@ export function createWorkbench(THREE,scene,materials) {
   ]);
   const wire=new THREE.Mesh(new THREE.TubeGeometry(wireCurve,24,.018,6,false),rubber);
   root.add(wire);
+  // Dos cables USB independientes hacia puertos traseros de la placa base.
+  const usbGroup=new THREE.Group();usbGroup.name='Conexiones USB externas';root.add(usbGroup);
+  function usbCable(id,points,color){
+    const group=new THREE.Group();group.name='usb_'+id;usbGroup.add(group);
+    const jacket=new THREE.MeshStandardMaterial({color,roughness:.85});
+    const path=new THREE.CatmullRomCurve3(points.map(v=>new THREE.Vector3(...v)));
+    const cable=new THREE.Mesh(new THREE.TubeGeometry(path,40,.018,7,false),jacket);
+    group.add(cable);
+    const connector=new THREE.Mesh(new THREE.BoxGeometry(.18,.095,.22),materials.black);
+    connector.position.set(...points[points.length-1]);connector.name='USB-A '+id;
+    group.add(connector);
+    return group;
+  }
+  const keyUsb=usbCable('keyboard',[
+    [kbX,-.10,kbZ-1.28],[-1.6,-.22,3.90],
+    [-4.50,-.17,3.90],[-4.58,.20,-2.40],[-3.98,.58,-2.54]
+  ],0x455768);
+  const mouseUsb=usbCable('mouse',[
+    [mouseX,-.05,mouseZ-1.06],[5.42,-.21,3.66],
+    [5.70,-.18,3.42],[5.70,.20,-3.58],
+    [-3.97,.48,-3.47]
+  ],0x42505d);
+  wire.visible=false; // la nueva ruta USB sustituye al tramo decorativo anterior
+  function updateConnections(s){
+    keyUsb.visible=!!s?.keyboardConnected&&!!s?.installed?.motherboard;
+    mouseUsb.visible=!!s?.mouseConnected&&!!s?.installed?.motherboard;
+  }
 
   let lastSignature='';
   function wrapLine(text,max=48){
@@ -119,12 +146,14 @@ export function createWorkbench(THREE,scene,materials) {
     out.push(current);
     return out;
   }
-  function updateScreen(consoleText, powered=false, bios=false){
-    const signature=[consoleText, powered, bios].join('\u0001');
+  function updateScreen(consoleText, powered=false, bios=false, signal=false){
+    const signature=[consoleText, powered, bios, signal].join('\u0001');
     if(signature===lastSignature)return;
     lastSignature=signature;
     const width=canvas.width,height=canvas.height;
-    ctx.fillStyle=powered?'#05120e':'#080e14';ctx.fillRect(0,0,width,height);
+    ctx.fillStyle=signal?'#05120e':'#03060a';ctx.fillRect(0,0,width,height);
+    standby.material.emissiveIntensity=signal?1.1:.05;
+    if(!signal){tex.needsUpdate=true;return;}
     const grad=ctx.createLinearGradient(0,0,0,height);
     grad.addColorStop(0,powered?'rgba(41,134,107,.17)':'rgba(40,73,96,.08)');
     grad.addColorStop(1,'rgba(0,0,0,0)');
@@ -143,6 +172,23 @@ export function createWorkbench(THREE,scene,materials) {
       ctx.fillStyle=isError?'#ff9b9b':powered?'#a9f3cb':'#a5bdc9';
       ctx.fillText(line,56,164+i*40,1420);
     });
+    if(bios){
+      // Controles de BIOS físicamente dentro de la pantalla.
+      ctx.fillStyle='#173b33';
+      ctx.fillRect(930,568,542,210);
+      ctx.fillStyle='#b0ffe5';
+      ctx.font='bold 29px monospace';
+      ctx.fillText('PRIORIDAD DE ARRANQUE',954,606);
+      const boot=String(consoleText||'').split('\n')
+        .filter(x=>/^[123]\.\s/.test(x)).slice(0,3);
+      boot.forEach((line,i)=>{
+        const y=622+i*48;
+        ctx.fillStyle=i===0?'#275b47':'#20473a';
+        ctx.fillRect(942,y,510,43);
+        ctx.fillStyle='#efffee';ctx.font='bold 27px monospace';
+        ctx.fillText(line+'  [SUBIR]',957,y+31,480);
+      });
+    }
     // LED de alimentación y scanline sutiles.
     ctx.fillStyle=powered?'#66f4bd':'#81909e';
     ctx.fillRect(56,height-50,17,11);
@@ -150,6 +196,18 @@ export function createWorkbench(THREE,scene,materials) {
     for(let y=110;y<height-45;y+=9)ctx.fillRect(32,y,width-64,1);
     tex.needsUpdate=true;
   }
-  updateScreen('Sistema apagado.\nPulsa Encender PC para iniciar POST.',false,false);
-  return {root,updateScreen,screen,keyboard,mouseGroup,texture:tex};
+  function hitBootOption(uv){
+    if(!uv)return -1;
+    const x=uv.x*canvas.width,y=(1-uv.y)*canvas.height;
+    if(x<942||x>1452)return -1;
+    for(let i=0;i<3;i++){
+      const top=622+i*48;
+      if(y>=top&&y<=top+43)return i;
+    }
+    return -1;
+  }
+  updateScreen('Sistema apagado.',false,false,false);
+  updateConnections({});
+  return {root,updateScreen,updateConnections,hitBootOption,display,
+    screen,keyboard,mouseGroup,texture:tex};
 }
