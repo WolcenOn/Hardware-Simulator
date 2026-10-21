@@ -81,7 +81,9 @@ const spreads={
 function sync(state,details={}){
   if(!state)return;
   current=state;
-  workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios);
+  workbench.updateConnections(state);
+  workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
+    !!details.videoSignal);
   const {anchors,needsSata,cfg}=assembly.configure(state);
   cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
@@ -140,6 +142,17 @@ view.addEventListener('pointerup',e=>{
   raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObjects(
     Object.values(partGroups).filter(g=>g.visible),true);
+  // En UEFI, un clic sobre la pantalla virtual selecciona la entrada
+  // del orden de arranque y la desplaza una posición hacia arriba.
+  if(current?.power&&current?.bios&&current?.keyboardConnected){
+    const monitorHits=raycaster.intersectObject(workbench.display,false);
+    if(monitorHits.length){
+      const row=workbench.hitBootOption(monitorHits[0].uv);
+      if(row>=0)window.dispatchEvent(
+        new CustomEvent('pc3d-boot-move',{detail:{index:row}}));
+      return;
+    }
+  }
   if(hits.length){
     let obj=hits[0].object;
     while(obj&&!obj.userData.partId)obj=obj.parent;
