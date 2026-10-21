@@ -9,7 +9,8 @@ export function createCableHarness(THREE,scene){
     gpu:new THREE.MeshStandardMaterial({color:0x30363f,roughness:.72}),
     fan:new THREE.MeshStandardMaterial({color:0x647786,roughness:.75}),
     atx24:new THREE.MeshStandardMaterial({color:0x212c37,roughness:.7}),
-    frontPanel:new THREE.MeshStandardMaterial({color:0x8cacc5,roughness:.7})
+    frontPanel:new THREE.MeshStandardMaterial({color:0x8cacc5,roughness:.7}),
+    video:new THREE.MeshStandardMaterial({color:0x222733,roughness:.71})
   };
   const wires={};
   let layoutKey='';
@@ -90,6 +91,13 @@ export function createCableHarness(THREE,scene){
       [3.70,.20,3.63],[1.52,.27,3.46],
       [frontX,.52,frontZ]
     ],.016);
+    // Cable de vídeo desde la salida de la gráfica al monitor del banco.
+    // Es un elemento visual del taller, conectado al colocar una GPU.
+    make('video',[
+      [cfg.pcieX-length/2-.09,1.18,cfg.pcieZ+.10],
+      [-4.11,.42,cfg.pcieZ+.45],[-4.70,.26,-3.67],
+      [-3.30,.29,-5.82],[.48,1.63,-5.14]
+    ],.027);
     // CPU_FAN es un cable fino de señal, no un cable grueso de potencia.
     make('fan',[
       [cfg.cpuX+.93,.55,cfg.cpuZ+.88],
@@ -112,6 +120,7 @@ export function createCableHarness(THREE,scene){
     wires.eps.visible=!exploded&&base&&!!state.eps;
     wires.atx24.visible=!exploded&&base&&!!state.atx24;
     wires.frontPanel.visible=!exploded&&!!installed.case&&!!installed.motherboard&&!!state.frontPanel;
+    wires.video.visible=!exploded&&!!installed.motherboard&&!!installed.gpu&&state.selected?.gpu!=='none';
     wires.gpu.visible=!exploded&&base&&!!installed.gpu&&state.selected?.gpu!=='none'&&!!state.gpuPower;
     wires.fan.visible=!exploded&&!!installed.motherboard&&!!installed.cooler&&!!state.cpuFan;
   }
