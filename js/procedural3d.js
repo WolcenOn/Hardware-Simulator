@@ -6,6 +6,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js';
+import { createWorkbench } from './workbench3d.js';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -17,11 +18,11 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
 scene.fog=new THREE.Fog(0x101923,20,44);
-const camera=new THREE.PerspectiveCamera(41,1,.1,90);
-camera.position.set(9.5,10.0,13.6);
+const camera=new THREE.PerspectiveCamera(44,1,.1,90);
+camera.position.set(10.8,12.3,16.9);
 const controls=new OrbitControls(camera,view);
-controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.8;controls.maxDistance=24;
-controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.30,.72,0);
+controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=31;
+controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.30,.85,0);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
@@ -54,6 +55,7 @@ function fan(parent,x,y,z,r=.27,options={}){
 
 const assembly=buildRealScale({THREE,scene,group,rounded,box,cylinder,trace,label,fan,materials});
 const cables=createCableHarness(THREE,scene);
+const workbench=createWorkbench(THREE,scene,materials);
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();scene.add(markerGroup);
@@ -65,7 +67,7 @@ function marker(radius=.20){
   obj.rotation.x=Math.PI/2;obj.renderOrder=5;obj.visible=false;
   markerGroup.add(obj);return obj;
 }
-const markers={eps:marker(),ram:marker(.22),sata:marker(),gpu:marker(.24),fan:marker(.28)};
+const markers={eps:marker(),ram:marker(.22),sata:marker(),gpu:marker(.24),fan:marker(.28),atx:marker(.22),frontPanel:marker(.17)};
 const powerLight=new THREE.PointLight(0x55ecae,0,5);
 powerLight.position.set(-3,.8,-2.7);scene.add(powerLight);
 
@@ -76,9 +78,10 @@ const spreads={
   ram:[.50,.85,-.20],gpu:[.65,.55,.75],cooler:[-.45,.95,-.60],
   psu:[.30,.55,.55],storage:[.25,.35,-.25]
 };
-function sync(state){
+function sync(state,details={}){
   if(!state)return;
   current=state;
+  workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios);
   const {anchors,needsSata,cfg}=assembly.configure(state);
   cables.update(state,cfg,needsSata);
   // Se conserva la posición de instalación como origen de cada animación.
@@ -97,6 +100,8 @@ function sync(state){
   };
   for(const [id,part] of Object.entries(partGroups))part.visible=!!shown[id];
   markers.eps.visible=shown.board&&shown.psu&&!state.eps;
+  markers.atx.visible=shown.board&&shown.psu&&!state.atx24;
+  markers.frontPanel.visible=shown.board&&shown.case&&!state.frontPanel;
   markers.ram.visible=shown.ram&&!state.ramSeated;
   markers.sata.visible=shown.storage&&needsSata&&(!state.sataData||!state.sataPower);
   markers.gpu.visible=shown.gpu&&!state.gpuPower;
@@ -148,8 +153,8 @@ function resize(){
   camera.updateProjectionMatrix();
 }
 function resetView(){
-  camera.position.set(9.5,10.0,13.6);
-  controls.target.set(.30,.72,0);controls.update();
+  camera.position.set(10.8,12.3,16.9);
+  controls.target.set(.30,.85,0);controls.update();
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);
 window.addEventListener('resize',resize);resize();
@@ -182,12 +187,18 @@ function animate(now){
 window.PC3D={
   ready:true,
   update:sync,viewIso:resetView,
+  viewWorkbench:resetView,
+  viewScreen:()=>{
+    camera.position.set(-.85,3.6,.30);
+    controls.target.set(-1.35,1.95,-5.20);
+    controls.update();
+  },
   viewTop:()=>{
-    camera.position.set(.30,18,.001);controls.target.set(.30,.72,0);controls.update();
+    camera.position.set(.30,19,.001);controls.target.set(.30,.85,0);controls.update();
   },
   zoom:amount=>{
     const axis=camera.position.clone().sub(controls.target);
-    const next=Math.max(4.8,Math.min(24,axis.length()+amount));
+    const next=Math.max(4.5,Math.min(31,axis.length()+amount));
     camera.position.copy(controls.target).add(axis.normalize().multiplyScalar(next));
     controls.update();
   },
