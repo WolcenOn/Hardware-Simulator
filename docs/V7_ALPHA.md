@@ -148,3 +148,39 @@ exclusivamente como referencia visual y dimensional para crear geometrías propi
 
 No se ha sustituido la simulación física por animaciones: el diagnóstico
 y las conexiones siguen gobernados por el estado de Hardware Simulator.
+
+
+## Iteración: taller 3D, periféricos, consola y nuevos cables (21 octubre 2026)
+
+**Código añadido**
+- \`js/workbench3d.js\`: mesa de taller, patas, monitor con peana, teclado
+  con teclas instanciadas, ratón con rueda y botón POWER representado.
+- El monitor usa \`CanvasTexture\` y sólo repinta si cambia el texto,
+  estado de alimentación o modo BIOS. Su fuente de texto es exactamente
+  \`monitorText(evalState())\` mediante \`PC3D.update(state, {consoleText})\`,
+  de modo que consola HTML y monitor 3D no divergen.
+- Botones \`Taller\` y \`Monitor 3D\` para cambiar el encuadre.
+- \`js/cablesProcedural.js\`: ATX 24 pines, POWER SW/F_PANEL y cable de
+  vídeo de GPU al monitor; conectores físicos en los extremos de los tubos.
+- \`js/partsRealScale.js\`: F_PANEL de dos hileras con pines y
+  puntos de conexión dinámicos por placa para F_PANEL y ATX 24 pines.
+- Motor lógico: \`state.atx24\` y \`state.frontPanel\` son pasos de
+  montaje reales. Si faltan, bloquean el encendido/POST y aparecen
+  en la lista de correcciones. \`Montaje recomendado\` conecta ambos.
+- Monitor 3D, teclado y ratón son decorativos/educativos: el teclado
+  y el ratón no envían pulsaciones al sistema simulado. La BIOS
+  continúa controlándose desde el panel HTML.
+
+**Pruebas ejecutadas**
+- [x] Sintaxis del script original y los cinco módulos 3D.
+- [x] Generación de mesa, monitor, teclado y ratón en un entorno simulado.
+- [x] El texto POST/BOOT/UEFI se envía al lienzo de la pantalla.
+- [x] 9 combinaciones de placas y discos con conectores SATAs correctos.
+- [x] Cables ATX24 y front panel visibles en montaje conectado,
+      ocultos cuando se desconectan.
+- [ ] Pruebas visuales WebGL y rendimiento móvil.
+- [ ] Verificar ubicación real del monitor/teclado en distintas resoluciones.
+- [ ] Tests funcionales completos de la UI desde navegador.
+
+La vista previa se publica en \`/preview/v7/\` de GitHub Pages sin
+sustituir el \`index.html\` de la versión 6.5 estable.
