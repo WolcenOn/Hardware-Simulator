@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=7-1-case-boot';
+import { buildRealScale } from './partsRealScale.js?v=7-2-casefans-bays';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=7-1-case-boot';
-import { createWorkbench } from './workbench3d.js?v=7-1-case-boot';
+import { createCableHarness } from './cablesProcedural.js?v=7-2-casefans-bays';
+import { createWorkbench } from './workbench3d.js?v=7-2-casefans-bays';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
