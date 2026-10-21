@@ -68,7 +68,9 @@ function schedulePostStages(){
 
 function init(){state={selected:{motherboard:'b650',cpu:'r7600',ram:'ddr5_16',storage:'sataSSD',gpu:'rx7600',psu:'psu650'},installed:{},fixed:{},ramSeated:false,eps:false,atx24:false,frontPanel:false,sataData:false,sataPower:false,paste:1,cpuFan:false,gpuPower:false,monitorCable:false,keyboardConnected:false,mouseConnected:false,
 caseClosed:false,installHistory:[],assemblyEffort:0,psuAccessRouted:false,
-installHold:'',bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});state.log=state.log.slice(0,36)}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?4:0)}function ruleList(){let mb=p('motherboard'),cpu=p('cpu'),ram=p('ram'),st=p('storage'),gpu=p('gpu'),psu=p('psu'),r=[];r.push({level:cpu.socket===mb.socket?'ok':'error',text:`Socket ${cpu.socket} ↔ ${mb.socket}`});r.push({level:ram.type===mb.ram?'ok':'error',text:`RAM ${ram.type} ↔ ${mb.ram}`});r.push({level:(st.interface==='SATA'&&mb.slots.sata)||(st.interface==='M2_NVME'&&mb.slots.m2)?'ok':'error',text:`Almacenamiento ${st.interface}`});if(gpu.power.length)gpu.power.forEach(c=>r.push({level:(psu.connectors[c]||0)>0?'ok':'error',text:`GPU requiere ${c}: PSU tiene ${psu.connectors[c]||0}`}));let m=Math.round(watts()*1.25);r.push({level:m<=psu.max?'ok':'warn',text:`Pico ${watts()} W; recomendado ≥ ${m} W; PSU ${psu.max} W`});if(!cpu.igpu&&state.selected.gpu==='none')r.push({level:'error',text:'CPU sin iGPU y sin GPU dedicada'});return r}function compatible(){return !ruleList().some(x=>x.level==='error')}function addFault(id){if(!state.activeFaults.includes(id))state.activeFaults.push(id);applyFault(id);state.fixed={};addLog('warn','Avería: '+faults[id].name+'. '+faults[id].msg);beep(faults[id].beep);render()}function applyFault(id){if(id==='ram')state.ramSeated=false;if(id==='eps')state.eps=false;if(id==='atx24')state.atx24=false;if(id==='frontpanel')state.frontPanel=false;if(id==='sata')state.sataData=false;if(id==='satap')state.sataPower=false;if(id==='paste')state.paste=.2;if(id==='fan')state.cpuFan=false;if(id==='gpu')state.gpuPower=false;if(id==='boot'){state.biosCfg.boot='pxe';state.biosCfg.bootOrder=['pxe','usb','ssd'];}
+installHold:'',ioShield:false,
+caseFans:[{installed:false,connected:false},{installed:false,connected:false},{installed:false,connected:false}],
+bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});state.log=state.log.slice(0,36)}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?4:0)}function ruleList(){let mb=p('motherboard'),cpu=p('cpu'),ram=p('ram'),st=p('storage'),gpu=p('gpu'),psu=p('psu'),r=[];r.push({level:cpu.socket===mb.socket?'ok':'error',text:`Socket ${cpu.socket} ↔ ${mb.socket}`});r.push({level:ram.type===mb.ram?'ok':'error',text:`RAM ${ram.type} ↔ ${mb.ram}`});r.push({level:(st.interface==='SATA'&&mb.slots.sata)||(st.interface==='M2_NVME'&&mb.slots.m2)?'ok':'error',text:`Almacenamiento ${st.interface}`});if(gpu.power.length)gpu.power.forEach(c=>r.push({level:(psu.connectors[c]||0)>0?'ok':'error',text:`GPU requiere ${c}: PSU tiene ${psu.connectors[c]||0}`}));let m=Math.round(watts()*1.25);r.push({level:m<=psu.max?'ok':'warn',text:`Pico ${watts()} W; recomendado ≥ ${m} W; PSU ${psu.max} W`});if(!cpu.igpu&&state.selected.gpu==='none')r.push({level:'error',text:'CPU sin iGPU y sin GPU dedicada'});return r}function compatible(){return !ruleList().some(x=>x.level==='error')}function addFault(id){if(!state.activeFaults.includes(id))state.activeFaults.push(id);applyFault(id);state.fixed={};addLog('warn','Avería: '+faults[id].name+'. '+faults[id].msg);beep(faults[id].beep);render()}function applyFault(id){if(id==='ram')state.ramSeated=false;if(id==='eps')state.eps=false;if(id==='atx24')state.atx24=false;if(id==='frontpanel')state.frontPanel=false;if(id==='sata')state.sataData=false;if(id==='satap')state.sataPower=false;if(id==='paste')state.paste=.2;if(id==='fan')state.cpuFan=false;if(id==='gpu')state.gpuPower=false;if(id==='boot'){state.biosCfg.boot='pxe';state.biosCfg.bootOrder=['pxe','usb','ssd'];}
 if(id==='video')state.monitorCable=false;
 if(id==='keyboard')state.keyboardConnected=false;
 if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storage=true}function install(k){
@@ -94,6 +96,11 @@ if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storag
     addLog('warn','PSU instalada antes de la placa: los cables tapan separadores. Usa «Apartar y asegurar mazos PSU» antes de colocar la placa (+1 paso).');
     return render();
   }
+  if(k==='gpu'&&state.installed.psu&&p('gpu').power.length){
+    const needs=p('gpu').power;
+    if(!needs.every(id=>(p('psu').connectors[id]||0)>0))
+      addLog('warn','GPU instalada, pero la fuente elegida no tiene el conector '+needs.join(', ')+'.');
+  }
   if(k==='storage'&&p('storage').interface==='M2_NVME'&&state.installed.gpu){
     state.installHold='storage';
     addLog('warn','La GPU obstruye la ranura M.2: retírala antes de insertar el NVMe.');
@@ -104,8 +111,10 @@ if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storag
   state.installHold='';
   state.assemblyEffort+=wasInstalled?2:1;
   state.installHistory.push((wasInstalled?'reinstall:':'')+k);
+  if(k==='motherboard'&&!state.ioShield)
+    addLog('warn','Falta instalar la chapa I/O: tendrás que retirar la placa para colocarla correctamente.');
   clickSound();
-  if(k==='psu'){state.atx24=false;state.eps=false;}
+  if(k==='psu'){state.atx24=false;state.eps=false;state.gpuPower=false;state.psuAccessRouted=false;}
   if(k==='case')state.frontPanel=false;
   if(k==='ram'){state.ramSeated=false;addLog('warn','RAM colocada: presiona ambos cierres DIMM.');}
   else if(k==='storage'&&p('storage').interface==='SATA'){
@@ -116,6 +125,52 @@ if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storag
     addLog('warn','GPU encajada en PCIe: conecta alimentación y cable de vídeo.');
   }else if(k==='cooler'){state.cpuFan=false;addLog('warn','Disipador instalado: falta CPU_FAN.');}
   else addLog('ok',name(k)+(wasInstalled?' reinstalado.':' encajado en el chasis.'));
+  render();
+}
+function installIOShield(){
+  if(state.power||state.caseClosed||!state.installed.case){
+    addLog('warn','Necesitas una caja abierta y el PC apagado para montar la chapa I/O.');return render();
+  }
+  if(state.installed.motherboard){
+    addLog('warn','La placa ya está atornillada: retírala para encajar la chapa I/O desde dentro.');return render();
+  }
+  if(state.ioShield){addLog('ok','Chapa I/O ya instalada.');return render();}
+  state.ioShield=true;state.assemblyEffort++;state.installHistory.push('io_shield');
+  addLog('ok','Chapa I/O encajada en la abertura trasera del chasis.');
+  render();
+}
+function removeMotherboard(){
+  if(state.power||state.caseClosed||!state.installed.motherboard){
+    addLog('warn','Necesitas la placa montada, caja abierta y PC apagado.');return render();
+  }
+  // Se retira el conjunto: se desconectan auxiliares y se reserva espacio
+  // para volver a colocar la placa con su chapa I/O.
+  ['motherboard','cpu','ram','cooler','gpu','storage'].forEach(k=>state.installed[k]=false);
+  state.atx24=false;state.eps=false;state.frontPanel=false;state.gpuPower=false;
+  state.cpuFan=false;state.sataData=false;state.sataPower=false;
+  state.monitorCable=false;state.caseFans.forEach(f=>f.connected=false);
+  state.installHold='motherboard';state.assemblyEffort+=5;
+  state.psuAccessRouted=false;
+  addLog('warn','Placa y componentes desmontados para corregir el panel I/O: +5 pasos.');
+  render();
+}
+function caseFanAction(index,action){
+  if(index<0||index>2||!state.installed.case||state.caseClosed||state.power){
+    addLog('warn','Abre la caja y apaga el PC antes de modificar ventiladores.');return render();
+  }
+  const f=state.caseFans[index];
+  if(action==='install'){
+    if(!f.installed){f.installed=true;f.connected=false;state.assemblyEffort++;addLog('ok','Ventilador '+(index+1)+' instalado: conecta PWM.');}
+  }else if(action==='connect'){
+    if(!f.installed){addLog('warn','Instala primero el ventilador.');return render();}
+    if(state.installed.motherboard){f.connected=true;addLog('ok','Ventilador '+(index+1)+' conectado al header SYS_FAN.');}
+    else{addLog('warn','Monta primero la placa base con los headers SYS_FAN.');}
+  }else if(action==='disconnect'){
+    f.connected=false;addLog('warn','SYS_FAN '+(index+1)+' desconectado.');
+  }else if(action==='remove'){
+    f.installed=false;f.connected=false;state.assemblyEffort+=2;
+    addLog('warn','Ventilador '+(index+1)+' retirado.');
+  }
   render();
 }
 function toggleCase(){
@@ -135,6 +190,9 @@ function togglePeripheral(which){
   render();
 }
 function name(k){return k==='case'?'Caja':k==='motherboard'?p('motherboard').name:k==='cpu'?p('cpu').name:k==='ram'?p('ram').name:k==='storage'?p('storage').name:k==='gpu'?p('gpu').name:k==='psu'?p('psu').name:'Disipador'}function act(a){
+  if(a==='install_io_shield')return installIOShield();
+  if(a==='remove_motherboard')return removeMotherboard();
+
   const internal=new Set(['connect_atx24','connect_frontpanel','connect_eps',
     'connect_sata','connect_sata_power','connect_fan','gpu_power',
     'route_psu','remove_gpu','good_paste','seat_ram','replace_disk']);
@@ -144,8 +202,8 @@ function name(k){return k==='case'?'Caja':k==='motherboard'?p('motherboard').nam
   if(internal.has(a)&&state.caseClosed){
     addLog('warn','Abre el panel del chasis antes de manipular piezas.');return render();
   }
-  if(a==='route_psu'&&!(state.installed.psu&&!state.installed.motherboard)){
-    addLog('warn','No hace falta apartar la PSU si la placa ya está montada.');return render();
+  if(a==='route_psu'&&(!state.installed.psu||state.psuAccessRouted)){
+    addLog('warn','Instala la fuente y deja los mazos sueltos antes de ordenarlos.');return render();
   }
   if(a==='remove_gpu'&&!state.installed.gpu){
     addLog('warn','No hay GPU que retirar.');return render();
@@ -158,11 +216,32 @@ if(a==='seat_ram')state.ramSeated=true;if(a==='connect_atx24')state.atx24=true;i
 if(a==='connect_monitor')state.monitorCable=true;
 if(a==='connect_keyboard')state.keyboardConnected=true;
 if(a==='connect_mouse')state.mouseConnected=true;
-if(a==='route_psu'){state.psuAccessRouted=true;state.installHold='';state.assemblyEffort+=3;addLog('warn','Mazos PSU apartados: 3 pasos extra de trabajo.');}
-if(a==='remove_gpu'){if(state.installed.gpu){state.installed.gpu=false;state.gpuPower=false;state.monitorCable=false;state.assemblyEffort+=2;addLog('warn','GPU retirada para acceder a la ranura M.2: +2 pasos.');}state.installHold='';}if(a==='connect_sata')state.sataData=true;if(a==='connect_sata_power')state.sataPower=true;if(a==='good_paste')state.paste=1;if(a==='connect_fan')state.cpuFan=true;if(a==='gpu_power')state.gpuPower=true;if(a==='replace_disk'){state.installed.storage=true;state.sataData=true;state.sataPower=true}if(a==='fix_boot'){state.biosCfg.boot='ssd';state.biosCfg.bootOrder=['ssd','usb','pxe'];}if(a==='bios_defaults'){state.biosCfg=safeBios();syncBiosUI()}state.fixed[a]=true;state.activeFaults=state.activeFaults.filter(id=>faults[id].fix!==a);addLog('ok',fixes[a]+' aplicado.');beep('ok');render()}function derived(){let f=[];['case','motherboard','cpu','ram','psu'].forEach(k=>{if(!state.installed[k])f.push('missing_'+k)});if(!compatible())f.push('incompatible');if(state.installed.ram&&!state.ramSeated)f.push('ram');if(state.installed.motherboard&&state.installed.psu&&!state.eps)f.push('eps');if(state.installed.motherboard&&state.installed.psu&&!state.atx24)f.push('atx24');if(state.installed.case&&state.installed.motherboard&&!state.frontPanel)f.push('frontpanel');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataData)f.push('sata');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataPower)f.push('satap');if(state.installed.cooler&&!state.cpuFan)f.push('fan');if(state.installed.cpu&&state.installed.cooler&&state.paste<.7)f.push('paste');if(state.installed.gpu&&p('gpu').power.length&&!state.gpuPower)f.push('gpu');if(state.biosCfg.boot!=='ssd')f.push('boot');
+if(a==='route_psu'){state.psuAccessRouted=true;state.installHold='';state.assemblyEffort+=state.installed.motherboard?1:3;addLog('ok','Mazos sujetos por el interior del chasis y apartados de la placa.');}
+if(a==='remove_gpu'){if(state.installed.gpu){state.installed.gpu=false;state.gpuPower=false;state.monitorCable=false;state.assemblyEffort+=2;addLog('warn','GPU retirada para acceder a la ranura M.2: +2 pasos.');}state.installHold='';}if(a==='connect_sata')state.sataData=true;if(a==='connect_sata_power')state.sataPower=true;if(a==='good_paste')state.paste=1;if(a==='connect_fan')state.cpuFan=true;if(a==='gpu_power'){
+  if(!state.installed.gpu||state.selected.gpu==='none'||!state.installed.psu){
+    addLog('warn','Instala una GPU y una fuente antes de conectar su alimentación.');return render();
+  }
+  const req=p('gpu').power;
+  if(!req.every(id=>(p('psu').connectors[id]||0)>0)){
+    addLog('error','La PSU '+p('psu').name+' no tiene el conector '+req.join(', ')+'. Cambia la fuente.');return render();
+  }
+  state.gpuPower=true;
+  addLog('ok','Alimentación GPU conectada: '+req.join(', ')+'.');
+}if(a==='replace_disk'){state.installed.storage=true;state.sataData=true;state.sataPower=true}if(a==='fix_boot'){state.biosCfg.boot='ssd';state.biosCfg.bootOrder=['ssd','usb','pxe'];}if(a==='bios_defaults'){state.biosCfg=safeBios();syncBiosUI()}state.fixed[a]=true;state.activeFaults=state.activeFaults.filter(id=>faults[id].fix!==a);addLog('ok',fixes[a]+' aplicado.');beep('ok');render()}function derived(){let f=[];['case','motherboard','cpu','ram','psu'].forEach(k=>{if(!state.installed[k])f.push('missing_'+k)});if(!compatible())f.push('incompatible');if(state.installed.ram&&!state.ramSeated)f.push('ram');if(state.installed.motherboard&&state.installed.psu&&!state.eps)f.push('eps');if(state.installed.motherboard&&state.installed.psu&&!state.atx24)f.push('atx24');if(state.installed.case&&state.installed.motherboard&&!state.frontPanel)f.push('frontpanel');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataData)f.push('sata');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataPower)f.push('satap');if(state.installed.cooler&&!state.cpuFan)f.push('fan');if(state.installed.cpu&&state.installed.cooler&&state.paste<.7)f.push('paste');if(state.installed.gpu&&p('gpu').power.length&&!state.gpuPower)f.push('gpu');if(state.biosCfg.boot!=='ssd')f.push('boot');
 if(state.installed.motherboard&&state.power&&!state.monitorCable)f.push('video');
 if(state.power&&!state.keyboardConnected)f.push('keyboard');
-if(state.power&&!state.mouseConnected)f.push('mouse');if(state.installed.storage&&p('storage').interface==='SATA'&&state.biosCfg.sata!=='AHCI')f.push('bios_sata');if(state.installed.ram&&state.biosCfg.xmp==='Aggressive')f.push('bios_xmp');if(state.installed.cooler&&state.biosCfg.fan==='Silent'&&state.stress)f.push('bios_fan');if(state.installed.gpu&&p('gpu').gen&&state.biosCfg.pcie==='Gen5')f.push('bios_pcie');return [...new Set([...f,...state.activeFaults])]}function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x=>x.startsWith('missing_')),blocking=['ram','eps','atx24','frontpanel','gpu','bios_xmp','bios_pcie'],boot=['sata','satap','boot','bios_sata'],temp=f.includes('paste')?106:(f.includes('fan')||f.includes('bios_fan')?98:(state.stress?68:42));return{faults:f,known,missing,post:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)),boot:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)||boot.includes(x)),temp,load:Math.round(watts()/p('psu').max*100)}}function power(){let e=evalState();if(state.power){state.power=false;state.stress=false;state.bios=false;state.bootStage=0;state.bootToken=++bootEpoch;addLog('ok','PC apagado.');powerDown();return render()}if(state.installed.case&&state.installed.motherboard&&!state.frontPanel){addLog('warn','No enciende: conecta POWER SW a F_PANEL.');beep('cpu');return render()}if(state.installed.motherboard&&state.installed.psu&&!state.atx24){addLog('warn','La placa no recibe corriente: conecta ATX 24 pines.');beep('cpu');return render()}state.power=true;schedulePostStages();powerOn();if(e.faults.includes('incompatible')){addLog('error','Configuración incompatible.');beep('cpu')}else if(e.missing){addLog('error','Montaje incompleto.');beep('cpu')}else if(e.known){addLog('warn','Síntoma: '+faults[e.known].msg);beep(faults[e.known].beep)}else{addLog('ok','POST y arranque correctos.');beep('ok')}render()}function tool(t){let e=evalState();if(t==='stress'&&state.power&&e.boot){state.stress=true;addLog('warn','Test de estrés iniciado. La curva Silent puede provocar temperatura crítica.');stressSound();return render()}if(t==='bios'){bios();return}if(t==='beep')beep(e.known?faults[e.known].beep:'ok');if(!state.power&&t!=='visual'){addLog('warn','Enciende el PC para usar la herramienta.');return render()}if(t==='multimeter')addLog(e.known?'warn':'ok',e.known?'Tensiones revisadas. Pista: '+faults[e.known].msg:'Tensiones correctas.');else if(t==='smart')addLog(e.known==='disk'?'warn':'ok',e.known==='disk'?'SMART: sectores reasignados.':'SMART: disco correcto o no relacionado.');else addLog(e.known?'warn':'ok',e.known?faults[e.known].name+': '+faults[e.known].msg:'Sin averías activas.');render()}function bios(){
+if(state.power&&!state.mouseConnected)f.push('mouse');if(state.installed.storage&&p('storage').interface==='SATA'&&state.biosCfg.sata!=='AHCI')f.push('bios_sata');if(state.installed.ram&&state.biosCfg.xmp==='Aggressive')f.push('bios_xmp');if(state.installed.cooler&&state.biosCfg.fan==='Silent'&&state.stress)f.push('bios_fan');if(state.installed.gpu&&p('gpu').gen&&state.biosCfg.pcie==='Gen5')f.push('bios_pcie');return [...new Set([...f,...state.activeFaults])]}function calculateThermals(f){
+  const count=state.caseFans.filter(fan=>fan.installed&&fan.connected).length;
+  const stressed=!!state.stress;
+  const base=stressed?70:43;
+  const enclosure=state.caseClosed?(stressed?10:5):0;
+  const airflow=count*(stressed?4:2);
+  const inadequate=state.caseFans.some(f=>f.installed&&!f.connected)?(stressed?2:1):0;
+  const normal=Math.max(28,base+enclosure-airflow+inadequate);
+  const fault=f.includes('paste')?106:(f.includes('fan')||f.includes('bios_fan')?100:normal);
+  return Math.round(fault);
+}
+function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x=>x.startsWith('missing_')),blocking=['ram','eps','atx24','frontpanel','gpu','bios_xmp','bios_pcie'],boot=['sata','satap','boot','bios_sata'],temp=calculateThermals(f);return{faults:f,known,missing,post:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)),boot:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)||boot.includes(x)),temp,load:Math.round(watts()/p('psu').max*100)}}function power(){let e=evalState();if(state.power){state.power=false;state.stress=false;state.bios=false;state.bootStage=0;state.bootToken=++bootEpoch;addLog('ok','PC apagado.');powerDown();return render()}if(state.installed.case&&state.installed.motherboard&&!state.frontPanel){addLog('warn','No enciende: conecta POWER SW a F_PANEL.');beep('cpu');return render()}if(state.installed.motherboard&&state.installed.psu&&!state.atx24){addLog('warn','La placa no recibe corriente: conecta ATX 24 pines.');beep('cpu');return render()}state.power=true;schedulePostStages();powerOn();if(e.faults.includes('incompatible')){addLog('error','Configuración incompatible.');beep('cpu')}else if(e.missing){addLog('error','Montaje incompleto.');beep('cpu')}else if(e.known){addLog('warn','Síntoma: '+faults[e.known].msg);beep(faults[e.known].beep)}else{addLog('ok','POST y arranque correctos.');beep('ok')}render()}function tool(t){let e=evalState();if(t==='stress'&&state.power&&e.boot){state.stress=true;addLog('warn','Test de estrés iniciado. La curva Silent puede provocar temperatura crítica.');stressSound();return render()}if(t==='bios'){bios();return}if(t==='beep')beep(e.known?faults[e.known].beep:'ok');if(!state.power&&t!=='visual'){addLog('warn','Enciende el PC para usar la herramienta.');return render()}if(t==='multimeter')addLog(e.known?'warn':'ok',e.known?'Tensiones revisadas. Pista: '+faults[e.known].msg:'Tensiones correctas.');else if(t==='smart')addLog(e.known==='disk'?'warn':'ok',e.known==='disk'?'SMART: sectores reasignados.':'SMART: disco correcto o no relacionado.');else addLog(e.known?'warn':'ok',e.known?faults[e.known].name+': '+faults[e.known].msg:'Sin averías activas.');render()}function bios(){
   if(!state.power){addLog('warn','Enciende el PC para entrar en BIOS.');return render()}
   const e=evalState();
   if(!e.post){addLog('error','No se puede entrar a BIOS con POST fallido.');return render()}
@@ -177,7 +256,8 @@ function autoBuild(){state.installed={case:true,motherboard:true,cpu:true,cooler
 state.monitorCable=true;state.keyboardConnected=true;state.mouseConnected=true;
 state.installHistory=['case','motherboard','cpu','ram','cooler','storage','gpu','psu'];
 state.assemblyEffort=state.installHistory.length;
-state.psuAccessRouted=false;state.installHold='';state.caseClosed=false;
+state.psuAccessRouted=true;state.installHold='';state.caseClosed=false;state.ioShield=true;
+state.caseFans=[{installed:true,connected:true},{installed:true,connected:true},{installed:true,connected:true}];
 state.paste=1;state.biosCfg=safeBios();state.activeFaults=[];state.fixed={};state.power=false;state.bios=false;state.stress=false;state.bootStage=0;state.bootToken=++bootEpoch;syncBiosUI();addLog('ok','Montaje recomendado aplicado con BIOS segura.');render()}function mode(m){$('assemblyBtn').classList.toggle('active',m==='assembly');$('diagnosticBtn').classList.toggle('active',m==='diagnostic');if(m==='diagnostic'){autoBuild();let ids=Object.keys(faults);addFault(ids[Math.floor(Math.random()*ids.length)])}else addLog('ok','Modo montaje activado.');render()}function syncBiosUI(){
   if(!$('biosBoot'))return;
   $('biosBoot').value=state.biosCfg.boot;
