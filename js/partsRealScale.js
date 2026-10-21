@@ -392,7 +392,23 @@ export function buildRealScale(p) {
       needsSata?(hddDrive.visible?2.72:1.53):cfg.z+.08);
     anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
-    return {cfg,anchors,sataDrive,hddDrive,m2Drive,tray,needsSata};
+    // Objetivos físicos en el espacio del chasis para el encaje asistido.
+    const snapTargets={
+      case:new THREE.Vector3(.65,.20,.15),
+      motherboard:new THREE.Vector3(cfg.x,.38,cfg.z),
+      cpu:new THREE.Vector3(cfg.cpuX,.64,cfg.cpuZ),
+      cooler:new THREE.Vector3(cfg.cpuX,2.08,cfg.cpuZ),
+      ram:new THREE.Vector3(cfg.dimmXs[cfg.dimms-1],.97,cfg.cpuZ+.05),
+      gpu:new THREE.Vector3(cfg.pcieX,1.45,cfg.pcieZ),
+      psu:new THREE.Vector3(3.38,1.18,-1.90),
+      storage:new THREE.Vector3(
+        s?.selected?.storage==='nvmeSSD'?cfg.x-.80:3.40,
+        s?.selected?.storage==='nvmeSSD'?.54:.46,
+        s?.selected?.storage==='nvmeSSD'?cfg.z+.08:
+          (s?.selected?.storage==='hdd'?2.72:1.53)
+      )
+    };
+    return {cfg,anchors,snapTargets,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
     configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts};
