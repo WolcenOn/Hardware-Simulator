@@ -220,3 +220,56 @@ no son modelos CAD exactos. No se han añadido dependencias ni assets de pago.
 - [x] Los cables se ocultan al desconectar su estado.
 - [ ] Verificación visual WebGL en navegador físico y ajuste fino de curvas,
       perspectiva, tamaño real percibido y solapamientos.
+
+
+## Iteración 7.1-alpha: montaje con orden, chasis e interacción con BIOS (21-10-2026)
+
+### Chasis procedural
+- Caja ATX horizontal de sobremesa con paredes, guías, bahía PSU, anclajes,
+  ranuras y panel superior transparente abatible.
+- La tapa puede abrirse/cerrarse y bloquea el montaje mientras esté cerrada.
+- No es todavía una torre vertical ni un modelo CAD con colisiones exactas.
+
+### Dependencias de montaje
+- La caja debe instalarse primero.
+- Fuente antes de placa: los mazos impiden acceso; es obligatorio apartarlos
+  antes de atornillar la placa y se acumula esfuerzo extra.
+- Para montar una unidad M.2 cuando ya existe GPU, hay que retirarla.
+- Disipador exige CPU; el resto de piezas requiere motherboard instalada.
+- No se permiten intervenciones internas encendido o con tapa cerrada;
+  USB externos se conectan normalmente con panel cerrado.
+- El contador de esfuerzo y el historial registran las acciones repetidas.
+  No se confunde dificultad mecánica con una avería eléctrica inventada.
+
+### Periféricos y señal
+- Teclado y ratón tienen conectores USB y cables 3D independientes.
+- La BIOS requiere teclado USB. El ratón no afecta al POST, pero sí a
+  poder pulsar filas de prioridad de arranque dentro del monitor 3D.
+- Cable HDMI/DP independiente desde GPU o vídeo integrado. La pantalla 3D
+  permanece negra sin encendido, cable o POST con señal operativa.
+- Las averías de periféricos pueden introducirse como fallos de diagnóstico.
+
+### POST/UEFI y arranque
+- Etapas temporizadas de inicialización CPU/VRM, RAM, VGA, dispositivos,
+  POST y búsqueda de medio.
+- Orden de tres entradas: SSD/NVMe, USB y PXE. En esta alpha, USB y PXE no
+  disponen de medios de arranque. Tener una de ellas en Boot #1 provoca
+  fallo de boot (no de POST), susceptible de corregirse en UEFI.
+- La textura 3D del monitor incluye tres filas clicables para ascender
+  una posición el elemento seleccionado; teclas 1/2/3 también funcionan
+  si el teclado USB del simulador está conectado. F2/Supr abre BIOS.
+- El panel BIOS HTML conserva los ajustes de SATA, perfil RAM,
+  CPU_FAN y modo PCIe.
+
+### Verificaciones
+- [x] Fuente antes de motherboard requiere reubicación de mazos.
+- [x] Caja cerrada impide instalar y encendido impide abrir conexiones internas.
+- [x] GPU bloquea M.2 hasta retirarla.
+- [x] Conexiones USB independientes del cable de vídeo.
+- [x] POST operativo pero monitor sin imagen al desconectar señal.
+- [x] Cambiar prioridad a PXE produce Boot Failed.
+- [x] Nueve combinaciones de placa y almacenamiento con cableado dinámico.
+- [x] Tapa 3D abatible y menú UEFI clicable.
+- [ ] Inspección visual WebGL, rendimiento móvil y colisiones 3D exactas.
+- [ ] Torre vertical y encaje libre mediante drag-and-drop.
+- [ ] USB booteable y servicio PXE simulado para probar prioridad completa.
