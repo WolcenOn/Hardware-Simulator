@@ -6,7 +6,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js?v=7-3-upright-4000d';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=7-3-upright-4000d';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-layout';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
