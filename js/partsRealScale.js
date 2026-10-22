@@ -25,6 +25,13 @@ export const BOARD_LAYOUTS = {
     pcieX:-1.22,pcieZ:.60,dimmXs:[.14,.43,.72,1.01],sataX:1.02,sataZ:2.10,colors:'black'}
 };
 
+// Variantes 8.1 reutilizan posiciones de tornillos, DIMM y PCIe de
+// una placa del mismo formato. Esta geometría es representativa, no CAD exacto.
+for(const [key,base] of Object.entries({
+  b650m:'b650',b550:'b650',h610:'a520',b760:'z790'
+})){
+  BOARD_LAYOUTS[key]={...BOARD_LAYOUTS[base],name:key.toUpperCase()};
+}
 export function buildRealScale(p) {
   const {THREE, scene, group, rounded, box, cylinder, trace, label, fan, materials} = p;
   const board=group('board'),cpu=group('cpu'),ram=group('ram');
@@ -377,17 +384,17 @@ export function buildRealScale(p) {
     cpu.position.set(cfg.cpuX,.40,cfg.cpuZ);
     cooler.position.set(cfg.cpuX,.43,cfg.cpuZ);
     const chosen=s?.selected?.ram;
-    const twoSticks=chosen==='ddr5_32';
+    const twoSticks=['ddr5_32','ddr4_32','ddr5_64'].includes(chosen);
     modules[0].position.set(cfg.dimmXs[Math.max(0,cfg.dimms===2?0:1)],.50,cfg.cpuZ+.05);
     modules[1].position.set(cfg.dimmXs[cfg.dimms-1],.50,cfg.cpuZ+.05);
     modules[1].visible=twoSticks;
-    const card=s?.selected?.gpu==='rtx4070'?'rtx4070':'rx7600';
+    const card=s?.selected?.gpu==='rtx4070'?'rtx4070':'rx7600'; // fallback mesh para variantes GPU 8.1
     for(const [key,obj] of Object.entries(videoCards))obj.visible=key===card;
     gpu.position.set(cfg.pcieX,.46,cfg.pcieZ+.01);
     m2Drive.position.set(cfg.x-.80,.49,cfg.z+.08);
-    sataDrive.visible=s?.selected?.storage==='sataSSD';
-    hddDrive.visible=s?.selected?.storage==='hdd';
-    m2Drive.visible=s?.selected?.storage==='nvmeSSD';
+    sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
+    hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
+    m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=false; // las bandejas correctas las crea towerATX.js
     ioShield.visible=!!s?.ioShield;
@@ -413,12 +420,12 @@ export function buildRealScale(p) {
       gpu:new THREE.Vector3(cfg.pcieX,1.45,cfg.pcieZ),
       psu:new THREE.Vector3(-2.50,1.55,4.58),
       storage:new THREE.Vector3(
-        s?.selected?.storage==='nvmeSSD'?cfg.x-.80:
-          (s?.selected?.storage==='hdd'?3.03:-.30),
-        s?.selected?.storage==='nvmeSSD'?.54:
-          (s?.selected?.storage==='hdd'?.66:-.45),
-        s?.selected?.storage==='nvmeSSD'?cfg.z+.08:
-          (s?.selected?.storage==='hdd'?4.70:.65)
+        ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.x-.80:
+          (['hdd','hdd4'].includes(s?.selected?.storage)?3.03:-.30),
+        ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?.54:
+          (['hdd','hdd4'].includes(s?.selected?.storage)?.66:-.45),
+        ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.z+.08:
+          (['hdd','hdd4'].includes(s?.selected?.storage)?4.70:.65)
       )
     };
     return {cfg,anchors,snapTargets,sataDrive,hddDrive,m2Drive,tray,needsSata};
