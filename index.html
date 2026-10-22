@@ -582,7 +582,8 @@ window.addEventListener('unhandledrejection',event=>{
 });
 init();bind();render();
 // Modo principal: aventura gráfica de reparación con tienda y verbos.
-adventureGame=window.createAdventureGame({
+if(typeof window.createAdventureGame==='function'){
+  adventureGame=window.createAdventureGame({
   document,catalog,
   state:()=>state,part:p,evaluate:evalState,video:outputAvailable,
   log:addLog,render,
@@ -596,9 +597,12 @@ adventureGame=window.createAdventureGame({
     try{act(name)}finally{adventureActionContext=false}
   },
   power,bios,caseToggle:toggleCase,
-  fan:caseFanAction,
+  fan:caseFanAction,installIOShield,
   rearView:()=>window.PC3D?.viewRearCables?.()
 });
 adventureGame.start('office');
+}else{
+  showResourceError('El módulo de la tienda no ha cargado. Puedes continuar en Modo técnico y recargar la página.');
+}
 </script>
 <script type="module" src="./js/procedural3d.js?v=7-4-2-smooth-wheel"></script></body></html>
