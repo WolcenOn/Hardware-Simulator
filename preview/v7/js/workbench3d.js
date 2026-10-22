@@ -120,12 +120,12 @@ export function createWorkbench(THREE,scene,materials) {
   }
   const keyUsb=usbCable('keyboard',[
     [kbX,-.10,kbZ-1.28],[-1.6,-.22,3.90],
-    [-4.50,-.17,3.90],[-4.58,.20,-2.40],[-3.98,.58,-2.54]
+    [-4.50,-.17,3.90],[-4.85,.20,-3.70],[-3.30,3.60,.25],[-3.08,7.15,1.61]
   ],0x455768);
   const mouseUsb=usbCable('mouse',[
     [mouseX,-.05,mouseZ-1.06],[5.42,-.21,3.66],
     [5.70,-.18,3.42],[5.70,.20,-3.58],
-    [-3.97,.48,-3.47]
+    [-3.70,3.35,-1.00],[-3.08,6.30,1.61]
   ],0x42505d);
   wire.visible=false; // la nueva ruta USB sustituye al tramo decorativo anterior
   function updateConnections(s){
