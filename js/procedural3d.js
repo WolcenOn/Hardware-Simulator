@@ -7,6 +7,7 @@ import { buildRealScale } from './partsRealScale.js?v=7-2-casefans-bays';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=7-2-casefans-bays';
 import { createWorkbench } from './workbench3d.js?v=7-2-casefans-bays';
+import { createATXTower } from './towerATX.js';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -19,10 +20,10 @@ renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
 scene.fog=new THREE.Fog(0x101923,20,44);
 const camera=new THREE.PerspectiveCamera(46,1,.1,90);
-camera.position.set(12.0,14.3,19.5);
+camera.position.set(14.0,14.0,22.5);
 const controls=new OrbitControls(camera,view);
 controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=31;
-controls.maxPolarAngle=Math.PI/2.07;controls.target.set(.05,2.15,-.65);
+controls.maxPolarAngle=Math.PI/2.02;controls.target.set(.75,5.1,-.45);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
@@ -32,7 +33,12 @@ const rim=new THREE.DirectionalLight(0x63e9bf,1.35);rim.position.set(-5,4,-4);sc
 
 const metal=(c,rough=.4,met=.8)=>new THREE.MeshStandardMaterial({color:c,metalness:met,roughness:rough});
 const materials={pcb:metal(0x123c37,.78,.2),pcbdark:metal(0x142e30,.78,.2),case:metal(0x222c39,.5,.75),black:metal(0x18212a,.55,.3),black2:metal(0x0e151d,.68,.15),silver:metal(0xb7c5d2,.28,.85),aluminium:metal(0x7c929d,.34,.83),gold:metal(0xe1b55d,.3,.82),green:metal(0x58e7ac,.3,.38),blue:metal(0x66a3ff,.3,.45),warn:metal(0xffbf64,.35,.3)};
-const root=new THREE.Group();scene.add(root);
+// El hardware ya no está tumbado: eje Z local del PCB pasa a Y vertical.
+// El nuevo chasis mantiene el mundo del taller independiente de la rotación.
+const root=new THREE.Group();
+root.rotation.x=Math.PI/2;
+root.position.set(1.0,6.0,1.0);
+scene.add(root);
 const partGroups={}; const partMeta=[
 {id:'board',title:'Placa base B650',sub:'Socket · chipset · conectores',detail:'PCB con pistas y componentes, socket de CPU, ranuras DDR5, PCIe y conectores. Todo generado con geometría procedural.'},
 {id:'ram',title:'RAM DDR5',sub:'2 módulos · disipador',detail:'Dos módulos con contactos dorados, disipadores, microchips y ranuras de inserción.'},
@@ -53,12 +59,13 @@ function fan(parent,x,y,z,r=.27,options={}){
   return f.housing;
 }
 
-const assembly=buildRealScale({THREE,scene,group,rounded,box,cylinder,trace,label,fan,materials});
-const cables=createCableHarness(THREE,scene);
+const assembly=buildRealScale({THREE,scene:root,group,rounded,box,cylinder,trace,label,fan,materials});
+const tower=createATXTower(THREE,root,materials);
+const cables=createCableHarness(THREE,root);
 const workbench=createWorkbench(THREE,scene,materials);
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
-const markerGroup=new THREE.Group();scene.add(markerGroup);
+const markerGroup=new THREE.Group();root.add(markerGroup);
 const markerMaterial=new THREE.MeshBasicMaterial({
   color:0xffbb67,transparent:true,opacity:.95,depthTest:false
 });
@@ -92,7 +99,8 @@ function acceptDrop(e){
   const goal=activeSnapTargets[id];
   if(!goal){cancelDrag();return}
   const rect=view.getBoundingClientRect();
-  const projected=goal.clone().project(camera);
+  root.updateMatrixWorld(true);
+  const projected=root.localToWorld(goal.clone()).project(camera);
   const px=(projected.x+1)*rect.width/2;
   const py=(1-projected.y)*rect.height/2;
   const distance=Math.hypot(e.clientX-rect.left-px,e.clientY-rect.top-py);
@@ -124,6 +132,8 @@ function sync(state,details={}){
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
     !!details.videoSignal);
   const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
+  tower.sync(!!state.installed?.case,!!state.caseClosed);
+  assembly.fanMountGroup.visible=!!state.installed?.case;
   activeSnapTargets=snapTargets;
   if(draggedPart&&snapTargets[draggedPart]){
     snapRing.position.copy(snapTargets[draggedPart]);
@@ -145,6 +155,8 @@ function sync(state,details={}){
     storage:!!installed.storage
   };
   for(const [id,part] of Object.entries(partGroups))part.visible=!!shown[id];
+  // El bastidor ATX horizontal es legado y queda sustituido por la torre.
+  partGroups.case.visible=false;
   markers.eps.visible=shown.board&&shown.psu&&!state.eps;
   markers.atx.visible=shown.board&&shown.psu&&!state.atx24;
   markers.frontPanel.visible=shown.board&&shown.case&&!state.frontPanel;
