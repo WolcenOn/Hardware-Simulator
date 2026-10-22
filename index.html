@@ -315,10 +315,11 @@ if(state.power&&!state.mouseConnected)f.push('mouse');if(state.installed.storage
   const airflow=count*(stressed?4:2);
   const inadequate=state.caseFans.some(f=>f.installed&&!f.connected)?(stressed?2:1):0;
   const normal=Math.max(28,base+enclosure-airflow+inadequate);
-  const fault=f.includes('paste')?106:(f.includes('fan')||f.includes('bios_fan')?100:normal);
+  const fault=state.adventureMode&&state.installed.cpu&&!state.installed.cooler?112:
+    f.includes('paste')?106:(f.includes('fan')||f.includes('bios_fan')?100:normal);
   return Math.round(fault);
 }
-function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x=>x.startsWith('missing_')),blocking=['ram','eps','atx24','frontpanel','gpu','bios_xmp','bios_pcie'],boot=['sata','satap','boot','bios_sata'],temp=calculateThermals(f);return{faults:f,known,missing,post:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)),boot:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)||boot.includes(x))&&(!state.adventureMode||!!state.osInstalled),temp,load:Math.round(watts()/p('psu').max*100)}}function power(){let e=evalState();if(state.power){state.power=false;state.stress=false;state.bios=false;state.bootStage=0;state.bootToken=++bootEpoch;addLog('ok','PC apagado.');powerDown();return render()}if(state.installed.case&&state.installed.motherboard&&!state.frontPanel){addLog('warn','No enciende: conecta POWER SW a F_PANEL.');beep('cpu');return render()}if(state.installed.motherboard&&state.installed.psu&&!state.atx24){addLog('warn','La placa no recibe corriente: conecta ATX 24 pines.');beep('cpu');return render()}state.power=true;schedulePostStages();powerOn();if(e.faults.includes('incompatible')){addLog('error','Configuración incompatible.');beep('cpu')}else if(e.missing){addLog('error','Montaje incompleto.');beep('cpu')}else if(e.known){addLog('warn','Síntoma: '+faults[e.known].msg);beep(faults[e.known].beep)}else{addLog('ok','POST y arranque correctos.');beep('ok')}render()}function tool(t){let e=evalState();if(t==='stress'&&state.power&&e.boot){state.stress=true;addLog('warn','Test de estrés iniciado. La curva Silent puede provocar temperatura crítica.');stressSound();return render()}if(t==='bios'){bios();return}if(t==='beep')beep(e.known?faults[e.known].beep:'ok');if(!state.power&&t!=='visual'){addLog('warn','Enciende el PC para usar la herramienta.');return render()}if(t==='multimeter')addLog(e.known?'warn':'ok',e.known?'Tensiones revisadas. Pista: '+faults[e.known].msg:'Tensiones correctas.');else if(t==='smart')addLog(e.known==='disk'?'warn':'ok',e.known==='disk'?'SMART: sectores reasignados.':'SMART: disco correcto o no relacionado.');else addLog(e.known?'warn':'ok',e.known?faults[e.known].name+': '+faults[e.known].msg:'Sin averías activas.');render()}function bios(){
+function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x=>x.startsWith('missing_')),blocking=['ram','eps','atx24','frontpanel','gpu','bios_xmp','bios_pcie'],boot=['sata','satap','boot','bios_sata'],temp=calculateThermals(f);return{faults:f,known,missing,post:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)),boot:!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x)||boot.includes(x))&&(!state.adventureMode||!!state.osInstalled)&&temp<102,temp,load:Math.round(watts()/p('psu').max*100)}}function power(){let e=evalState();if(state.power){state.power=false;state.stress=false;state.bios=false;state.bootStage=0;state.bootToken=++bootEpoch;addLog('ok','PC apagado.');powerDown();return render()}if(state.installed.case&&state.installed.motherboard&&!state.frontPanel){addLog('warn','No enciende: conecta POWER SW a F_PANEL.');beep('cpu');return render()}if(state.installed.motherboard&&state.installed.psu&&!state.atx24){addLog('warn','La placa no recibe corriente: conecta ATX 24 pines.');beep('cpu');return render()}state.power=true;schedulePostStages();powerOn();if(e.faults.includes('incompatible')){addLog('error','Configuración incompatible.');beep('cpu')}else if(e.missing){addLog('error','Montaje incompleto.');beep('cpu')}else if(e.known){addLog('warn','Síntoma: '+faults[e.known].msg);beep(faults[e.known].beep)}else{addLog('ok','POST y arranque correctos.');beep('ok')}render()}function tool(t){let e=evalState();if(t==='stress'&&state.power&&e.boot){state.stress=true;addLog('warn','Test de estrés iniciado. La curva Silent puede provocar temperatura crítica.');stressSound();return render()}if(t==='bios'){bios();return}if(t==='beep')beep(e.known?faults[e.known].beep:'ok');if(!state.power&&t!=='visual'){addLog('warn','Enciende el PC para usar la herramienta.');return render()}if(t==='multimeter')addLog(e.known?'warn':'ok',e.known?'Tensiones revisadas. Pista: '+faults[e.known].msg:'Tensiones correctas.');else if(t==='smart')addLog(e.known==='disk'?'warn':'ok',e.known==='disk'?'SMART: sectores reasignados.':'SMART: disco correcto o no relacionado.');else addLog(e.known?'warn':'ok',e.known?faults[e.known].name+': '+faults[e.known].msg:'Sin averías activas.');render()}function bios(){
   if(!state.power){addLog('warn','Enciende el PC para entrar en BIOS.');return render()}
   const e=evalState();
   if(!e.post){addLog('error','No se puede entrar a BIOS con POST fallido.');return render()}
@@ -402,12 +403,16 @@ function selector(cat,items){return `<div class="field"><label>${categories[cat]
     rows.push('POST: OK','BOOT #1: '+BOOT_LABELS[biosCfg.boot]);
     if(state.bootStage<4)return rows.concat(['Buscando medio de arranque...']).join('\n');
     if(!e.boot){
-      if(state.adventureMode&&!state.osInstalled&&biosCfg.boot==='usb')
-        rows.push('BOOT USB: instalador detectado.','Inicia instalación desde el inventario.');
+      if(e.temp>=102)
+        rows.push('CPU THERMAL PROTECTION.','Temperatura critica: revisar disipador y pasta.');
+      else if(e.faults.includes('sata')||e.faults.includes('satap'))
+        rows.push('NO SATA DEVICE DETECTED.','Revisa cable de datos y alimentacion.');
+      else if(state.adventureMode&&!state.installed.storage)
+        rows.push('NO STORAGE DEVICE DETECTED.','Instala una unidad de almacenamiento.');
+      else if(state.adventureMode&&!state.osInstalled&&biosCfg.boot==='usb')
+        rows.push('BOOT USB: instalador detectado.','Inicia instalacion desde el inventario.');
       else if(state.adventureMode&&!state.osInstalled)
         rows.push('NO OPERATING SYSTEM FOUND.','Disco sin sistema operativo.');
-      else if(e.faults.includes('sata')||e.faults.includes('satap'))
-        rows.push('NO SATA DEVICE DETECTED.','Revisa cableado SATA.');
       else rows.push('BOOT FAILED: No bootable device.','Revisa prioridad en BIOS.');
     }
     else rows.push('BOOT: OK',state.stress?'STRESS TEST: activo':'Sistema cargado.');
