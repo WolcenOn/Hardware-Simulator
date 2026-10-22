@@ -6,7 +6,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js?v=7-3-upright-4000d';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=7-3-upright-4000d';
-import { createWorkbench } from './workbench3d.js?v=7-3-upright-4000d';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-layout';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
@@ -18,17 +18,17 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
-scene.fog=new THREE.Fog(0x101923,20,44);
-const camera=new THREE.PerspectiveCamera(46,1,.1,90);
-camera.position.set(14.0,14.0,22.5);
+scene.fog=new THREE.Fog(0x101923,30,79);
+const camera=new THREE.PerspectiveCamera(48,1,.1,110);
+camera.position.set(-.20,18.2,34.0);
 const controls=new OrbitControls(camera,view);
-controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=31;
-controls.maxPolarAngle=Math.PI/2.02;controls.target.set(.75,5.1,-.45);
+controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=56;
+controls.maxPolarAngle=Math.PI/2.02;controls.target.set(-4.55,4.5,.65);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
 const mainLight=new THREE.DirectionalLight(0xf3f8ff,3.2);mainLight.position.set(3.5,8,5.2);
-mainLight.castShadow=true;mainLight.shadow.mapSize.set(1024,1024);mainLight.shadow.camera.left=-8;mainLight.shadow.camera.right=8;mainLight.shadow.camera.top=8;mainLight.shadow.camera.bottom=-8;mainLight.shadow.normalBias=.02;scene.add(mainLight);
+mainLight.castShadow=true;mainLight.shadow.mapSize.set(1024,1024);mainLight.shadow.camera.left=-21;mainLight.shadow.camera.right=21;mainLight.shadow.camera.top=21;mainLight.shadow.camera.bottom=-21;mainLight.shadow.normalBias=.02;scene.add(mainLight);
 const rim=new THREE.DirectionalLight(0x63e9bf,1.35);rim.position.set(-5,4,-4);scene.add(rim);
 
 const metal=(c,rough=.4,met=.8)=>new THREE.MeshStandardMaterial({color:c,metalness:met,roughness:rough});
@@ -67,14 +67,16 @@ const workbench=createWorkbench(THREE,scene,materials);
 root.updateMatrixWorld(true);
 const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughness:.87});
 const gpuRear=root.localToWorld(new THREE.Vector3(-4.08,.58,.9));
+const {monitor:monitorLocation}=WORKBENCH_LAYOUT;
 const externalVideo=new THREE.Mesh(new THREE.TubeGeometry(
   new THREE.CatmullRomCurve3([
     gpuRear.clone(),
-    gpuRear.clone().add(new THREE.Vector3(-.65,-1.45,-.45)),
-    new THREE.Vector3(-3.40,.29,-3.90),
-    new THREE.Vector3(1.50,.38,-6.29),
-    new THREE.Vector3(-.55,3.55,-5.89)
-  ]),48,.029,7,false),videoOutsideMaterial);
+    gpuRear.clone().add(new THREE.Vector3(-.65,-1.32,-.45)),
+    new THREE.Vector3(-4.75,.28,-1.9),
+    new THREE.Vector3(-5.65,.24,-5.38),
+    new THREE.Vector3(monitorLocation.x+.4,.28,-5.55),
+    new THREE.Vector3(monitorLocation.x+4.62,3.52,monitorLocation.z-.17)
+  ]),55,.029,7,false),videoOutsideMaterial);
 externalVideo.visible=false;scene.add(externalVideo);
 
 
@@ -238,8 +240,10 @@ function resize(){
   camera.updateProjectionMatrix();
 }
 function resetView(){
-  camera.position.set(14.0,14.0,22.5);
-  controls.target.set(.75,5.1,-.45);controls.update();
+  // Encuadre del banco completo: monitor y teclado a la izquierda,
+  // torre ATX a la derecha, sin oclusión entre equipos.
+  camera.position.set(-.20,18.2,34.0);
+  controls.target.set(-4.55,4.5,.65);controls.update();
 }
 function viewHardware(){
   camera.position.set(11.0,10.3,15.8);
@@ -286,8 +290,8 @@ window.PC3D={
   viewWorkbench:resetView,
   viewRearCables,
   viewScreen:()=>{
-    camera.position.set(-.55,6.95,8.0);
-    controls.target.set(-.55,5.17,-5.78);
+    camera.position.set(monitorLocation.x,6.20,monitorLocation.z+10.9);
+    controls.target.set(monitorLocation.x,monitorLocation.screenY,monitorLocation.z);
     controls.update();
   },
   viewTop:()=>{
@@ -295,7 +299,7 @@ window.PC3D={
   },
   zoom:amount=>{
     const axis=camera.position.clone().sub(controls.target);
-    const next=Math.max(4.5,Math.min(31,axis.length()+amount));
+    const next=Math.max(4.5,Math.min(56,axis.length()+amount));
     camera.position.copy(controls.target).add(axis.normalize().multiplyScalar(next));
     controls.update();
   },
