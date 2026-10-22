@@ -1,5 +1,12 @@
 // Banco de trabajo y periféricos hechos con Three.js (sin assets externos).
 // La pantalla refleja literalmente la misma cadena de texto del monitor HTML.
+// Medidas: 1 unidad Three.js = 50 mm. Mesa 1350 x 850 mm aprox.
+export const WORKBENCH_LAYOUT = Object.freeze({
+  desk:{centerX:-4.30,centerZ:.35,width:27.0,depth:17.0},
+  monitor:{x:-10.85,z:-3.12,screenY:5.17,frameWidth:11.02},
+  keyboard:{x:-10.45,z:5.42},
+  mouse:{x:-4.62,z:5.37}
+});
 export function createWorkbench(THREE,scene,materials) {
   const root=new THREE.Group();root.name='Banco de trabajo';scene.add(root);
   const desk=new THREE.MeshStandardMaterial({color:0x303c47,metalness:.24,roughness:.68});
@@ -14,16 +21,27 @@ export function createWorkbench(THREE,scene,materials) {
     mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
     return mesh;
   }
-  // Mesa amplia: las piezas siguen estando en el banco original, y
-  // los periféricos ocupan sus zonas anterior y posterior.
-  rounded(root,[15.4,.26,15.1],[.35,-.49,.20],desk);
-  rounded(root,[15.2,.055,14.9],[.35,-.34,.20],rubber);
-  for(const x of [-6.95,7.65])for(const z of [-7.03,7.43]){
+  // Dos puestos diferenciados: pantalla y periféricos a la izquierda,
+  // torre ATX a la derecha. Mesa de 1350 x 850 mm, sin solapamiento visual.
+  const {desk:table}=WORKBENCH_LAYOUT;
+  rounded(root,[table.width,.26,table.depth],
+    [table.centerX,-.49,table.centerZ],desk);
+  rounded(root,[table.width-.2,.055,table.depth-.2],
+    [table.centerX,-.34,table.centerZ],rubber);
+  const xMin=table.centerX-table.width/2+.45;
+  const xMax=table.centerX+table.width/2-.45;
+  const zMin=table.centerZ-table.depth/2+.45;
+  const zMax=table.centerZ+table.depth/2-.45;
+  for(const x of [xMin,xMax])for(const z of [zMin,zMax]){
     rounded(root,[.22,2.0,.22],[x,-1.60,z],edge);
   }
+  // Alfombrillas antideslizantes diferencian las dos zonas del taller.
+  rounded(root,[12.2,.022,7.45],[-10.2,-.299,1.80],materials.black2);
+  rounded(root,[10.75,.022,11.4],[1.1,-.299,.55],materials.black2);
   // Monitor de 24" aprox.: 530 x 300 mm => 10.6 x 6 unidades.
   // Elevado sobre las piezas; el plano visible mira hacia el usuario (+Z).
-  const monitorX=-.55, monitorZ=-5.78;
+  const {monitor}=WORKBENCH_LAYOUT;
+  const monitorX=monitor.x, monitorZ=monitor.z;
   rounded(root,[11.35,.035,1.25],[monitorX,-.292,monitorZ+.1],materials.black2);
   const screen=new THREE.Group();screen.name='Monitor 3D';
   screen.position.set(monitorX,0,monitorZ);root.add(screen);
@@ -61,7 +79,7 @@ export function createWorkbench(THREE,scene,materials) {
   // Teclado completo, anchura física 440 mm y fondo 135 mm:
   // con la escala 50 mm/u son 8.8 x 2.7 unidades.
   const keyboard=new THREE.Group();keyboard.name='Teclado 3D';
-  const kbX=-1.10,kbZ=5.34;
+  const kbX=WORKBENCH_LAYOUT.keyboard.x,kbZ=WORKBENCH_LAYOUT.keyboard.z;
   keyboard.position.set(kbX,-.20,kbZ);root.add(keyboard);
   rounded(keyboard,[9.0,.15,2.68],[0,0,0],materials.black);
   rounded(keyboard,[8.87,.036,2.52],[0,.095,0],rubber);
@@ -90,7 +108,7 @@ export function createWorkbench(THREE,scene,materials) {
 
   // Ratón tipo oficina: 120 x 65 mm (2.4 x 1.3 u) con alfombrilla.
   const mouseGroup=new THREE.Group();mouseGroup.name='Ratón 3D';
-  const mouseX=4.65, mouseZ=5.31;
+  const mouseX=WORKBENCH_LAYOUT.mouse.x, mouseZ=WORKBENCH_LAYOUT.mouse.z;
   mouseGroup.position.set(mouseX,-.21,mouseZ);root.add(mouseGroup);
   rounded(root,[1.86,.027,3.0],[mouseX,-.288,mouseZ],materials.black2);
   const mouse=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),materials.black);
@@ -118,14 +136,17 @@ export function createWorkbench(THREE,scene,materials) {
     group.add(connector);
     return group;
   }
+  // Las tomas USB están en el panel trasero de la torre; sus cables
+  // pasan por el borde posterior del banco, evitando teclado y monitor.
   const keyUsb=usbCable('keyboard',[
-    [kbX,-.10,kbZ-1.28],[-1.6,-.22,3.90],
-    [-4.50,-.17,3.90],[-4.85,.20,-3.70],[-3.30,3.60,.25],[-3.08,7.15,1.61]
+    [kbX,-.10,kbZ-1.28],[kbX-.55,-.19,kbZ-1.90],
+    [-16.0,-.17,.35],[-14.75,-.12,-5.55],
+    [-6.50,-.10,-5.65],[-4.35,2.50,-2.70],[-3.08,7.15,1.61]
   ],0x455768);
   const mouseUsb=usbCable('mouse',[
-    [mouseX,-.05,mouseZ-1.06],[5.42,-.21,3.66],
-    [5.70,-.18,3.42],[5.70,.20,-3.58],
-    [-3.70,3.35,-1.00],[-3.08,6.30,1.61]
+    [mouseX,-.05,mouseZ-1.06],[mouseX+.38,-.16,3.85],
+    [-5.70,-.17,2.75],[-6.25,-.15,-4.95],
+    [-4.28,2.12,-2.10],[-3.08,6.30,1.61]
   ],0x42505d);
   wire.visible=false; // la nueva ruta USB sustituye al tramo decorativo anterior
   function updateConnections(s){
@@ -209,5 +230,5 @@ export function createWorkbench(THREE,scene,materials) {
   updateScreen('Sistema apagado.',false,false,false);
   updateConnections({});
   return {root,updateScreen,updateConnections,hitBootOption,display,
-    screen,keyboard,mouseGroup,texture:tex};
+    screen,keyboard,mouseGroup,texture:tex,layout:WORKBENCH_LAYOUT};
 }
