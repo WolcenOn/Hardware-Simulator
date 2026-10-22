@@ -147,17 +147,15 @@ export function createCableHarness(THREE,scene){
        [cfg.x-.93,.60,cfg.z-cfg.d/2+.52]]
     ].forEach((points,i)=>make('caseFan'+i,points,.018));
 
-    // HDMI/DP sale del panel de GPU e ingresa en el monitor de sobremesa.
+    // Cableado interno de vídeo sólo hasta la salida trasera del PC.
+    // El tramo externo al monitor se dibuja en coordenadas del taller.
     make('video',[
       [cfg.pcieX-len/2-.09,1.18,cfg.pcieZ+.10],
-      [-3.92,channelY,cfg.pcieZ+.35],
-      [-4.09,channelY,-3.45],[-4.28,.28,-5.68],
-      [4.20,.38,-6.22],[4.20,2.65,-5.89]
+      [-3.75,.83,cfg.pcieZ+.30],[-4.06,.58,cfg.pcieZ+.30]
     ],.028);
     make('videoIGPU',[
       [cfg.x-cfg.w/2+.13,.64,cfg.z-cfg.d/2+.48],
-      [-3.99,channelY,-2.86],[-4.28,.28,-5.68],
-      [4.20,.38,-6.22],[4.20,2.65,-5.89]
+      [-3.90,.69,cfg.z-cfg.d/2+.48],[-4.06,.58,cfg.z-cfg.d/2+.48]
     ],.028);
   }
   function update(state,cfg,needsSata){
