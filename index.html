@@ -18,7 +18,7 @@
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 7.3-alpha: torre ATX vertical, BIOS y diagnóstico</h1></div><div class="actions"><button id="assemblyBtn" class="active">Montaje</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 7.4-alpha: taller ampliado, torre ATX y BIOS</h1></div><div class="actions"><button id="assemblyBtn" class="active">Montaje</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <main class="layout">
 <section class="panel"><div class="title"><h2>Catálogo</h2><span>elige piezas</span></div><div id="selectors"></div><div class="title"><h2>Montaje</h2><span>estado</span></div><div id="installList"></div><div class="title"><h2>Proceso de montaje</h2><span>secuencia y dificultad</span></div>
 <div class="issue warn" id="assemblyEffort">Esfuerzo: 0 pasos</div>
@@ -436,4 +436,4 @@ window.addEventListener('pc3d-select',event=>{
   if(key){state.focus=key;render();}
 });window.addEventListener('error',e=>{try{console.error(e);addLog('error','Error capturado: '+e.message);render()}catch(_){}});init();bind();render();
 </script>
-<script type="module" src="./js/procedural3d.js?v=7-3-upright-4000d"></script></body></html>
+<script type="module" src="./js/procedural3d.js?v=7-4-desk-monitor"></script></body></html>
