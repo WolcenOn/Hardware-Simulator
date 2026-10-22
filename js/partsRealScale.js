@@ -32,6 +32,15 @@ for(const [key,base] of Object.entries({
 })){
   BOARD_LAYOUTS[key]={...BOARD_LAYOUTS[base],name:key.toUpperCase()};
 }
+// Anchuras y alturas mATX orientativas; los puertos/chipset son representativos.
+Object.assign(BOARD_LAYOUTS.b650m,{
+  w:mm(244),d:mm(244),z:-.60,slots:2,dimms:4,m2:2,
+  sataZ:1.10,atxZ:-1.23
+});
+Object.assign(BOARD_LAYOUTS.h610,{
+  w:mm(220),d:mm(244),z:-.60,slots:2,dimms:2,m2:1,
+  sataZ:1.12,atxZ:-1.27
+});
 export function buildRealScale(p) {
   const {THREE, scene, group, rounded, box, cylinder, trace, label, fan, materials} = p;
   const board=group('board'),cpu=group('cpu'),ram=group('ram');
