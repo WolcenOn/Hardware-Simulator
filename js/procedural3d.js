@@ -63,6 +63,20 @@ const assembly=buildRealScale({THREE,scene:root,group,rounded,box,cylinder,trace
 const tower=createATXTower(THREE,root,materials);
 const cables=createCableHarness(THREE,root);
 const workbench=createWorkbench(THREE,scene,materials);
+// HDMI/DP de la torre al monitor físico (el resto del cable está dentro del PC).
+root.updateMatrixWorld(true);
+const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughness:.87});
+const gpuRear=root.localToWorld(new THREE.Vector3(-4.08,.58,.9));
+const externalVideo=new THREE.Mesh(new THREE.TubeGeometry(
+  new THREE.CatmullRomCurve3([
+    gpuRear.clone(),
+    gpuRear.clone().add(new THREE.Vector3(-.65,-1.45,-.45)),
+    new THREE.Vector3(-3.40,.29,-3.90),
+    new THREE.Vector3(1.50,.38,-6.29),
+    new THREE.Vector3(-.55,3.55,-5.89)
+  ]),48,.029,7,false),videoOutsideMaterial);
+externalVideo.visible=false;scene.add(externalVideo);
+
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();root.add(markerGroup);
@@ -128,6 +142,8 @@ const spreads={
 function sync(state,details={}){
   if(!state)return;
   current=state;
+  externalVideo.visible=!!state.installed?.motherboard&&
+    !!state.monitorCable&&!!state.installed?.case;
   workbench.updateConnections(state);
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
     !!details.videoSignal);
