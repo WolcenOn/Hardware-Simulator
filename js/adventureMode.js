@@ -117,6 +117,15 @@ function createAdventureGame(api){
   }
   function canReturn(k){
     const qty=k==='item:screws'?10:1;
+    const st=api.state();
+    const connected={
+      'item:hdmi':st.monitorCable,
+      'item:sataCable':st.sataData,
+      'item:keyboard':st.keyboardConnected,
+      'item:mouse':st.mouseConnected
+    };
+    // No se puede devolver un cable, teclado o ratón todavía en uso.
+    if(connected[k]&&stock(k)<=1)return false;
     return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
   }
   function returnItem(k){
