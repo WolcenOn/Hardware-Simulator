@@ -17,12 +17,12 @@ const CASES={
     goals:['32 GB RAM','GPU dedicada','SSD M.2 NVMe','Sistema operativo y buen flujo de aire']}
 };
 const OFFERS={
-  motherboard:[['b650',159],['a520',79],['z790',249]],
-  cpu:[['r7600',189],['r5600',99],['i513600k',279]],
-  ram:[['ddr4_16',42],['ddr5_16',62],['ddr5_32',114]],
-  storage:[['sataSSD',64],['nvmeSSD',79],['hdd',57]],
-  gpu:[['rx7600',249],['rtx4070',529]],
-  psu:[['psu450',49],['psu650',89],['psu850',139]],
+  motherboard:[['b650',159],['b650m',129],['a520',79],['b550',109],['z790',249],['h610',75],['b760',165]],
+  cpu:[['r7600',189],['r5600',99],['r5600g',129],['r5700x',145],['r8600g',219],['r8700g',295],['r7700',275],['i512400',165],['i512400f',139],['i514400',239],['i513600k',279]],
+  ram:[['ddr4_8',28],['ddr4_16',42],['ddr4_32',79],['ddr5_8',45],['ddr5_16',62],['ddr5_32',114],['ddr5_64',215]],
+  storage:[['sataSSD',64],['sataSSD2',109],['nvmeSSD',79],['nvme2',145],['hdd',57],['hdd4',99]],
+  gpu:[['rx6600',179],['rx7600',249],['rtx3060',235],['rtx4060',289],['rtx4070',529]],
+  psu:[['psu450',49],['psu550',69],['psu650',89],['psu750',115],['psu850',139],['psu1000',199]],
   case:[['tower',89]],
   cooler:[['air',39]],
   item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
@@ -94,11 +94,11 @@ function createAdventureGame(api){
     if(!CASES[which])return;
     api.reset();
     const state=api.state();
-    state.adventureMode=true;state.osInstalled=false;state.paste=0;
+    state.adventureMode=true;state.osInstalled=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
-      selected:'',verb:'fit',connection:'atx24',shopCategory:'motherboard',
+      selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'motherboard',
       screwed:{},messages:[],attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false
     };
@@ -114,6 +114,46 @@ function createAdventureGame(api){
     api.reset();
     api.render();
     paint();
+  }
+  function canReturn(k){
+    const qty=k==='item:screws'?10:1;
+    return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
+  }
+  function returnItem(k){
+    if(!game||!canReturn(k)){
+      message('Sólo puedes devolver piezas sin montar o consumibles sin gastar. Retira primero la pieza instalada.');
+      return false;
+    }
+    const idx=game.purchases.findLastIndex(p=>p.k===k);
+    if(idx<0)return false;
+    const paid=game.purchases[idx].price;
+    game.purchases.splice(idx,1);
+    game.stock[k]-=k==='item:screws'?10:1;
+    game.spent=Math.max(0,game.spent-paid);
+    if(game.selected===k&&stock(k)===0)
+      game.selected=Object.keys(game.stock).find(x=>stock(x)>0)||'';
+    message('Devolución de '+label(...k.split(':'))+': recuperas '+format(paid)+'.','ok');
+    return true;
+  }
+  function exchange(k,newId){
+    const [cat,oldId]=String(k).split(':');
+    const next=key(cat,newId),cost=price(cat,newId);
+    if(!game||cost==null||oldId===newId||!canReturn(k)){
+      message('Selecciona una pieza sin instalar y otro producto de su categoría.');return false;
+    }
+    const idx=game.purchases.findLastIndex(p=>p.k===k);
+    const oldCost=game.purchases[idx].price,delta=cost-oldCost;
+    if(game.spent+delta>game.budget){
+      message('El cambio necesita '+format(game.spent+delta-game.budget)+' más de saldo.');return false;
+    }
+    game.stock[k]-=k==='item:screws'?10:1;
+    game.purchases.splice(idx,1);
+    game.stock[next]=(game.stock[next]||0)+(next==='item:screws'?10:1);
+    game.purchases.push({k:next,price:cost});
+    game.spent+=delta;game.selected=next;
+    message('Cambio de '+label(cat,oldId)+' por '+label(cat,newId)+
+      '. Diferencia: '+(delta>=0?'+':'')+format(delta)+'.','ok');
+    return true;
   }
   function purchase(cat,id){
     const cost=price(cat,id);
@@ -258,6 +298,17 @@ function createAdventureGame(api){
       keyboard:()=>st.installed.motherboard,
       mouse:()=>st.installed.motherboard
     };
+    if(target==='monitor'){
+      if(game.videoOutput==='motherboard'){
+        if(!st.installed.cpu||!api.part('cpu').igpu||
+          !api.part('motherboard').videoOutputs?.length){
+          message('El HDMI de placa requiere CPU con gráficos integrados. Intel F y Ryzen sin iGPU necesitan tarjeta gráfica.');return;
+        }
+      }else if(!st.installed.gpu||!st.gpuPower){
+        message('GPU dedicada no instalada o sin alimentación. Elige salida de placa si tienes iGPU.');return;
+      }
+      st.videoPort=game.videoOutput;
+    }
     if(target.startsWith('sysfan')){
       const n=Number(target.slice(-1));
       if(!st.caseFans[n]?.installed||!st.installed.motherboard){message('Instala el ventilador y la placa antes de conectar PWM.');return;}
