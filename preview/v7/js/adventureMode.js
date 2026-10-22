@@ -54,7 +54,7 @@ const CONNECTIONS=[
   ['sysfan0','Caja · SYS_FAN 1'],['sysfan1','Caja · SYS_FAN 2'],
   ['sysfan2','Caja · SYS_FAN 3']
 ];
-const VERBS=[['fit','Encajar'],['screw','Atornillar'],['connect','Conectar'],
+const VERBS=[['fit','Encajar'],['screw','Atornillar'],['connect','Conectar'],['disconnect','Desconectar'],
   ['apply','Aplicar'],['route','Ordenar cables'],['remove','Retirar'],['boot','Encender / apagar'],
   ['bios','BIOS'],['os','Instalar SO'],['inspect','Inspeccionar']];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -191,6 +191,7 @@ function createAdventureGame(api){
     if(verb==='os'){installOS();return;}
     if(!k){message('Selecciona primero una pieza del inventario.');return;}
     if(verb==='connect'){connect(g.connection);return;}
+    if(verb==='disconnect'){disconnect(g.connection);return;}
     if(verb==='apply'){apply(k);return;}
     const [cat,id]=k.split(':');
     if(verb==='fit'){
@@ -339,6 +340,29 @@ function createAdventureGame(api){
     api.action(actions[target]);
     if(st[flags[target]])message('Conexión realizada: '+(CONNECTIONS.find(x=>x[0]===target)?.[1]||target)+'.','ok');
     else message('No se ha podido completar la conexión. Comprueba fuente y cableado.');
+  }
+  function disconnect(target){
+    const st=api.state();
+    const internal=!['monitor','keyboard','mouse'].includes(target);
+    if(internal&&(st.power||st.caseClosed)){
+      message('Apaga el equipo y abre la caja antes de soltar una conexión interna.');return false;
+    }
+    if(target.startsWith('sysfan')){
+      const i=Number(target.slice(-1));
+      if(!st.caseFans[i]?.connected){message('Ese ventilador ya está desconectado.');return false;}
+      api.fan(i,'disconnect');
+      message('SYS_FAN '+(i+1)+' desconectado.','ok');return true;
+    }
+    const props={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',
+      gpupower:'gpuPower',sataData:'sataData',sataPower:'sataPower',
+      cpufan:'cpuFan',monitor:'monitorCable',keyboard:'keyboardConnected',
+      mouse:'mouseConnected'};
+    const property=props[target];
+    if(!property||!st[property]){message('Esta conexión ya está suelta.');return false;}
+    st[property]=false;
+    message('Conexión retirada: '+(CONNECTIONS.find(c=>c[0]===target)?.[1]||target)+'.','ok');
+    api.render();
+    return true;
   }
   function installOS(){
     const st=api.state(),ev=api.evaluate();
@@ -534,7 +558,7 @@ function createAdventureGame(api){
       paint();
     }
   });
-  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,connect,apply,installOS,checkDelivery,
+  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,connect,disconnect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
