@@ -17,12 +17,12 @@ const CASES={
     goals:['32 GB RAM','GPU dedicada','SSD M.2 NVMe','Sistema operativo y buen flujo de aire']}
 };
 const OFFERS={
-  motherboard:[['b650',159],['a520',79],['z790',249]],
-  cpu:[['r7600',189],['r5600',99],['i513600k',279]],
-  ram:[['ddr4_16',42],['ddr5_16',62],['ddr5_32',114]],
-  storage:[['sataSSD',64],['nvmeSSD',79],['hdd',57]],
-  gpu:[['rx7600',249],['rtx4070',529]],
-  psu:[['psu450',49],['psu650',89],['psu850',139]],
+  motherboard:[['b650',159],['b650m',129],['a520',79],['b550',109],['z790',249],['h610',75],['b760',165]],
+  cpu:[['r7600',189],['r5600',99],['r5600g',129],['r5700x',145],['r8600g',219],['r8700g',295],['r7700',275],['i512400',165],['i512400f',139],['i514400',239],['i513600k',279]],
+  ram:[['ddr4_8',28],['ddr4_16',42],['ddr4_32',79],['ddr5_8',45],['ddr5_16',62],['ddr5_32',114],['ddr5_64',215]],
+  storage:[['sataSSD',64],['sataSSD2',109],['nvmeSSD',79],['nvme2',145],['hdd',57],['hdd4',99]],
+  gpu:[['rx6600',179],['rx7600',249],['rtx3060',235],['rtx4060',289],['rtx4070',529]],
+  psu:[['psu450',49],['psu550',69],['psu650',89],['psu750',115],['psu850',139],['psu1000',199]],
   case:[['tower',89]],
   cooler:[['air',39]],
   item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
@@ -94,11 +94,11 @@ function createAdventureGame(api){
     if(!CASES[which])return;
     api.reset();
     const state=api.state();
-    state.adventureMode=true;state.osInstalled=false;state.paste=0;
+    state.adventureMode=true;state.osInstalled=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
-      selected:'',verb:'fit',connection:'atx24',shopCategory:'motherboard',
+      selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'motherboard',
       screwed:{},messages:[],attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false
     };
@@ -114,6 +114,55 @@ function createAdventureGame(api){
     api.reset();
     api.render();
     paint();
+  }
+  function canReturn(k){
+    const qty=k==='item:screws'?10:1;
+    const st=api.state();
+    const connected={
+      'item:hdmi':st.monitorCable,
+      'item:sataCable':st.sataData,
+      'item:keyboard':st.keyboardConnected,
+      'item:mouse':st.mouseConnected
+    };
+    // No se puede devolver un cable, teclado o ratón todavía en uso.
+    if(connected[k]&&stock(k)<=1)return false;
+    return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
+  }
+  function returnItem(k){
+    if(!game||!canReturn(k)){
+      message('Sólo puedes devolver piezas sin montar o consumibles sin gastar. Retira primero la pieza instalada.');
+      return false;
+    }
+    const idx=game.purchases.findLastIndex(p=>p.k===k);
+    if(idx<0)return false;
+    const paid=game.purchases[idx].price;
+    game.purchases.splice(idx,1);
+    game.stock[k]-=k==='item:screws'?10:1;
+    game.spent=Math.max(0,game.spent-paid);
+    if(game.selected===k&&stock(k)===0)
+      game.selected=Object.keys(game.stock).find(x=>stock(x)>0)||'';
+    message('Devolución de '+label(...k.split(':'))+': recuperas '+format(paid)+'.','ok');
+    return true;
+  }
+  function exchange(k,newId){
+    const [cat,oldId]=String(k).split(':');
+    const next=key(cat,newId),cost=price(cat,newId);
+    if(!game||cost==null||oldId===newId||!canReturn(k)){
+      message('Selecciona una pieza sin instalar y otro producto de su categoría.');return false;
+    }
+    const idx=game.purchases.findLastIndex(p=>p.k===k);
+    const oldCost=game.purchases[idx].price,delta=cost-oldCost;
+    if(game.spent+delta>game.budget){
+      message('El cambio necesita '+format(game.spent+delta-game.budget)+' más de saldo.');return false;
+    }
+    game.stock[k]-=k==='item:screws'?10:1;
+    game.purchases.splice(idx,1);
+    game.stock[next]=(game.stock[next]||0)+(next==='item:screws'?10:1);
+    game.purchases.push({k:next,price:cost});
+    game.spent+=delta;game.selected=next;
+    message('Cambio de '+label(cat,oldId)+' por '+label(cat,newId)+
+      '. Diferencia: '+(delta>=0?'+':'')+format(delta)+'.','ok');
+    return true;
   }
   function purchase(cat,id){
     const cost=price(cat,id);
@@ -258,6 +307,17 @@ function createAdventureGame(api){
       keyboard:()=>st.installed.motherboard,
       mouse:()=>st.installed.motherboard
     };
+    if(target==='monitor'){
+      if(game.videoOutput==='motherboard'){
+        if(!st.installed.cpu||!api.part('cpu').igpu||
+          !api.part('motherboard').videoOutputs?.length){
+          message('El HDMI de placa requiere CPU con gráficos integrados. Intel F y Ryzen sin iGPU necesitan tarjeta gráfica.');return;
+        }
+      }else if(!st.installed.gpu||!st.gpuPower){
+        message('GPU dedicada no instalada o sin alimentación. Elige salida de placa si tienes iGPU.');return;
+      }
+      st.videoPort=game.videoOutput;
+    }
     if(target.startsWith('sysfan')){
       const n=Number(target.slice(-1));
       if(!st.caseFans[n]?.installed||!st.installed.motherboard){message('Instala el ventilador y la placa antes de conectar PWM.');return;}
@@ -348,12 +408,37 @@ function createAdventureGame(api){
         format(cost)+'</button></div>').join('')+'</div>';
   }
   function inventoryMarkup(){
-    const entries=Object.entries(game.stock).filter(([k,n])=>n>0);
-    return entries.length?entries.map(([k,n])=>
-      '<button type="button" draggable="'+(!k.startsWith('item:'))+'" data-drag-item="'+safe(k)+'" class="adv-inventory'+(game.selected===k?' chosen':'')+
-      '" data-select-item="'+safe(k)+'">'+safe(label(...k.split(':')))+
-      '<span>x'+n+'</span></button>').join(''):
-      '<p class="muted">El inventario está vacío. Compra primero en la tienda.</p>';
+    const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
+      .filter(k=>stock(k)>0||(game.used[k]||0)>0);
+    if(!entries.length)return '<p class="muted">La mochila está vacía. Compra primero en la tienda.</p>';
+    return entries.map(k=>{
+      const available=stock(k),used=game.used[k]||0;
+      const [cat,id]=k.split(':');
+      const installed=cat!=='item'&&!!api.state().installed[cat]&&
+        (cat==='case'||cat==='cooler'||api.state().selected[cat]===id);
+      return '<div class="adv-inventory-line">'+
+        '<button type="button" draggable="'+(available>0&&cat!=='item')+
+        '" data-drag-item="'+safe(k)+'" data-select-item="'+safe(k)+'"'+
+        ' class="adv-inventory'+(game.selected===k?' chosen':'')+'">'+
+        safe(label(cat,id))+'<span>'+available+' en mochila'+
+        (installed?' · montado':'')+
+        (used&&!installed?' · '+used+' usado(s)':'')+'</span></button>'+
+        '<button type="button" data-return-item="'+safe(k)+'"'+
+        (!canReturn(k)?' disabled':'')+' title="Recuperar el importe original de una pieza sin montar">Devolver</button>'+
+        '</div>';
+    }).join('');
+  }
+  function exchangeMarkup(){
+    const k=game.selected,[cat,id]=String(k).split(':');
+    const available=OFFERS[cat]?.filter(([other])=>other!==id)||[];
+    return '<div class="adv-exchange">'+
+      '<label class="adventure-label">Sustituir la pieza seleccionada por otra de su categoría</label>'+
+      '<select id="advExchangeTarget"'+(!canReturn(k)?' disabled':'')+'>'+
+      available.map(([newId,cost])=>'<option value="'+safe(newId)+'">'+
+        safe(label(cat,newId))+' · '+format(cost)+'</option>').join('')+'</select>'+
+      '<button type="button" data-exchange-go'+
+      (!canReturn(k)||!available.length?' disabled':'')+'>Cambiar producto</button>'+
+      '</div>';
   }
   function paint(){
     if(!game){if(panel)panel.innerHTML='';return;}
@@ -367,12 +452,21 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tienda de informática</h3>'+shopMarkup()+
-      '<h3>2. Mochila e inventario</h3><div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
+      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tu inventario (editable)</h3>'+
+      '<p class="muted">Devuelve piezas sin montar o cámbialas por otra referencia. Para devolver algo instalado, utiliza primero Retirar.</p>'+
+      '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
+      exchangeMarkup()+
+      '<h3>2. Tienda de informática</h3>'+shopMarkup()+
       '<h3>3. Acciones</h3><div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Destino del cable (verbo Conectar)</label>'+
+      '<label class="adventure-label">Salida de vídeo al monitor</label>'+
+      '<select id="advVideoOutput">'+
+      '<option value="motherboard"'+(game.videoOutput==='motherboard'?' selected':'')+
+      '>Placa base · HDMI/DP (requiere iGPU de CPU)</option>'+
+      '<option value="gpu"'+(game.videoOutput==='gpu'?' selected':'')+
+      '>Tarjeta gráfica dedicada · HDMI/DP</option></select>'+
       '<select id="advConnection">'+CONNECTIONS.map(([id,text])=>
         '<option value="'+id+'"'+(id===game.connection?' selected':'')+'>'+text+'</option>').join('')+'</select>'+
       '<div class="adv-actions"><button type="button" class="primary" data-go>Realizar acción</button>'+
@@ -414,7 +508,11 @@ function createAdventureGame(api){
   }
   panel.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button||!game)return;
-    if(button.dataset.buy){
+    if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
+    else if(button.hasAttribute('data-exchange-go')){
+      const target=query('#advExchangeTarget');
+      if(target)exchange(game.selected,target.value);
+    }else if(button.dataset.buy){
       const [cat,id]=button.dataset.buy.split(':');purchase(cat,id);
     }else if(button.dataset.selectItem)select(button.dataset.selectItem);
     else if(button.dataset.verb)selectVerb(button.dataset.verb);
@@ -429,8 +527,14 @@ function createAdventureGame(api){
     if(event.target.id==='advShopCategory'){game.shopCategory=event.target.value;paint();}
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
+    else if(event.target.id==='advVideoOutput'){
+      game.videoOutput=event.target.value;
+      const st=api.state();
+      if(st.monitorCable){st.monitorCable=false;api.render();}
+      paint();
+    }
   });
-  return {start,exit,paint,perform,dropPart,purchase,select,selectVerb,connect,apply,installOS,checkDelivery,
+  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,connect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
