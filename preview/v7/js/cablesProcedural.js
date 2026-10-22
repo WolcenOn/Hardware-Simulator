@@ -1,7 +1,7 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS } from './partsRealScale.js?v=7-3-upright-4000d';
+import { PSU_CABLE_PORTS } from './partsRealScale.js?v=8-1-inventory-igpu';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -89,7 +89,7 @@ export function createCableHarness(THREE,scene){
     clear();
     const len=gpuChoice==='rtx4070'?267.01/50:245/50;
     const height=gpuChoice==='rtx4070'?133.94/50:134/50;
-    const hdd=storageChoice==='hdd';
+    const hdd=['hdd','hdd4'].includes(storageChoice);
     const drive=hdd?[1.57,.85,4.70]:[-1.23,-.48,.65];
     // Cables fijados: recorren la cámara trasera Y<0 y atraviesan
     // los pasacables del borde derecho, antes de llegar al conector.
@@ -183,11 +183,13 @@ export function createCableHarness(THREE,scene){
       !!installed.case&&!!installed.motherboard&&
       !!state.caseFans?.[i]?.installed&&!!state.caseFans?.[i]?.connected;
     const onGPU=!!installed.gpu&&state.selected?.gpu!=='none';
+    const port=state.videoPort||'auto';
+    const gpuOutput=port==='gpu'||(port==='auto'&&onGPU);
+    const boardOutput=port==='motherboard'||(port==='auto'&&!onGPU);
     wires.video.visible=!exploded&&!!state.monitorCable&&
-      !!installed.motherboard&&onGPU;
+      !!installed.motherboard&&onGPU&&gpuOutput;
     wires.videoIGPU.visible=!exploded&&!!state.monitorCable&&
-      !!installed.motherboard&&!onGPU&&state.selected?.gpu==='none'&&
-      !!installed.cpu;
+      !!installed.motherboard&&!!installed.cpu&&boardOutput;
   }
   return {update,root,ports:PSU_CABLE_PORTS};
 }
