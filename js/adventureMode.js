@@ -266,7 +266,7 @@ function createAdventureGame(api){
   function installOS(){
     const st=api.state(),ev=api.evaluate();
     if(!owned('item:osusb')){message('Compra una memoria USB de instalación.');return;}
-    if(!st.power||!ev.post){message('El equipo debe completar el POST antes de instalar el SO.');return;}
+    if(!st.power||!ev.post||ev.temp>=102){message('El PC debe completar el POST sin protección térmica antes de instalar el SO.');return;}
     if(st.biosCfg.boot!=='usb'){message('Entra en UEFI y coloca USB primero en el orden de arranque.');return;}
     if(!st.installed.storage){message('No hay disco donde instalar el sistema.');return;}
     if(api.part('storage').interface==='SATA'&&(!st.sataData||!st.sataPower)){
@@ -333,7 +333,7 @@ function createAdventureGame(api){
   function inventoryMarkup(){
     const entries=Object.entries(game.stock).filter(([k,n])=>n>0);
     return entries.length?entries.map(([k,n])=>
-      '<button type="button" class="adv-inventory'+(game.selected===k?' chosen':'')+
+      '<button type="button" draggable="'+(!k.startsWith('item:'))+'" data-drag-item="'+safe(k)+'" class="adv-inventory'+(game.selected===k?' chosen':'')+
       '" data-select-item="'+safe(k)+'">'+safe(label(...k.split(':')))+
       '<span>x'+n+'</span></button>').join(''):
       '<p class="muted">El inventario está vacío. Compra primero en la tienda.</p>';
@@ -371,6 +371,30 @@ function createAdventureGame(api){
         '<p class="'+(m.level==='ok'?'oktxt':'warntxt')+'">'+safe(m.text)+'</p>').join('')+'</div>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
   }
+  // El inventario también se puede arrastrar hasta los anclajes verdes
+  // del 3D. Nunca instala piezas que no se hayan comprado.
+  panel.addEventListener('dragstart',event=>{
+    const item=event.target.closest('[data-drag-item]');
+    if(!game||!item||item.draggable===false)return;
+    const k=item.dataset.dragItem;
+    const [category]=k.split(':');
+    if(!has(k))return event.preventDefault();
+    const part=category;
+    game.selected=k;
+    event.dataTransfer.setData('text/plain',part);
+    event.dataTransfer.effectAllowed='copy';
+    root.PC3D?.dragPart?.(part);
+  });
+  panel.addEventListener('dragend',()=>root.PC3D?.cancelDrag?.());
+  function dropPart(part){
+    if(!game)return;
+    const preferred=game.selected.startsWith(part+':')?game.selected:null;
+    const available=preferred&&has(preferred)?preferred:
+      Object.keys(game.stock).find(k=>k.startsWith(part+':')&&has(k));
+    if(!available){message('Necesitas comprar esa pieza antes de arrastrarla a la torre.');return;}
+    game.selected=available;
+    perform('fit');
+  }
   panel.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button||!game)return;
     if(button.dataset.buy){
@@ -389,7 +413,7 @@ function createAdventureGame(api){
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
   });
-  return {start,exit,paint,perform,purchase,select,selectVerb,connect,apply,installOS,checkDelivery,
+  return {start,exit,paint,perform,dropPart,purchase,select,selectVerb,connect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
