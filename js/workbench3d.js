@@ -3,7 +3,7 @@
 // Medidas: 1 unidad Three.js = 50 mm. Mesa 1350 x 850 mm aprox.
 export const WORKBENCH_LAYOUT = Object.freeze({
   desk:{centerX:-4.30,centerZ:.35,width:27.0,depth:17.0},
-  monitor:{x:-10.30,z:-3.12,screenY:5.17,frameWidth:11.02},
+  monitor:{x:-10.85,z:-3.12,screenY:5.17,frameWidth:11.02},
   keyboard:{x:-10.45,z:5.42},
   mouse:{x:-4.62,z:5.37}
 });
