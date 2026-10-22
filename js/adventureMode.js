@@ -197,7 +197,24 @@ function createAdventureGame(api){
     if(verb==='remove'){
       if(!st.installed[cat]){message('No hay esa pieza instalada.');return;}
       if(st.power||st.caseClosed){message('Apaga el PC y abre la caja para retirar componentes.');return;}
-      if(!owned('item:screwdriver')){message('Necesitas el destornillador.');return;}
+      if(cat!=='case'&&cat!=='cooler'&&cat!=='ram'&&st.selected[cat]!==id){
+        message('Esa no es la pieza que está instalada. Selecciona la correcta.');return;
+      }
+      if(cat==='motherboard'&&['cpu','ram','cooler','gpu','storage'].some(p=>st.installed[p])){
+        message('Antes de sacar la placa retira CPU, RAM, GPU, disipador y unidades fijadas a ella.');return;
+      }
+      if(cat==='cpu'&&st.installed.cooler){
+        message('Debes desmontar primero el disipador para retirar el procesador.');return;
+      }
+      if(cat==='case'&&Object.entries(st.installed).some(([part,yes])=>part!=='case'&&yes)){
+        message('La caja no se puede retirar mientras queden componentes en su interior.');return;
+      }
+      if(cat==='storage'&&st.selected.storage==='nvmeSSD'&&st.installed.gpu){
+        message('Desmonta la GPU para acceder al tornillo M.2.');return;
+      }
+      if(cat!=='ram'&&!owned('item:screwdriver')){
+        message('Necesitas un destornillador para retirar la pieza.');return;
+      }
       st.installed[cat]=false;
       if(cat==='gpu'){st.gpuPower=false;st.monitorCable=false;}
       if(cat==='psu'){st.eps=false;st.atx24=false;st.gpuPower=false;}
