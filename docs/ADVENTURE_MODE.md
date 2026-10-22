@@ -174,3 +174,6 @@ salidas HDMI/DP de la placa solo los exponen.
 - [x] HDMI de motherboard sigue siendo posible con GPU dedicada instalada
       si la CPU ofrece iGPU; HDMI de GPU requiere alimentación de ésta.
 - [ ] Revisar UI interactiva en navegador WebGL real y animaciones de compra.
+
+- [x] Ahora el verbo **Desconectar** permite soltar cables internos con PC apagado y periféricos externos (HDMI/USB) sin salir al modo técnico.
+- [x] Cable HDMI conectado: devolución bloqueada; tras desconectar se devuelve y recupera el precio pagado.
