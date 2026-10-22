@@ -366,3 +366,31 @@ Pruebas:
 - [ ] Verificación manual de esta corrección en navegador real.
 
 Versión de caché de Pages: `7-4-1-button-hotfix`.
+
+
+## Revisión 7.4.2 — control de zoom suave (22 octubre 2026)
+
+- Se añade `js/smoothZoom.js`, que intercepta la rueda del ratón **sólo
+  sobre el canvas 3D**, dejando intacto el scroll del resto de la web.
+- La rueda normaliza desplazamientos de píxeles, líneas y páginas;
+  además limita picos de desplazamiento por evento.
+- Un paso de 100 px cambia la distancia de la cámara ~5,35 %, frente
+  a los saltos bruscos del zoom discreto anterior. La cámara alcanza la
+  distancia objetivo con interpolación exponencial entre fotogramas.
+- Los botones «Zoom +» y «Zoom −» utilizan la misma transición, con
+  incrementos cercanos al 6–7 % por pulsación.
+- Al cambiar de vista (Taller, Vista iso, Trasera/cables, Monitor, Lateral)
+  se sincroniza la distancia objetivo para evitar movimientos residuales.
+- Durante un gesto multitáctil de dos dedos se respeta el zoom nativo
+  de OrbitControls, sincronizando la posición al finalizar.
+- Se conservan los límites de navegación de 4.5 a 56 unidades 3D.
+
+### Pruebas de código
+- [x] Rueda de -100 px: 30.0 a 28.39 unidades como objetivo.
+- [x] Primer fotograma de aproximación: 29.73, sin salto brusco.
+- [x] Convergencia suave a distancia objetivo.
+- [x] Zoom por botón en ambos sentidos.
+- [x] Límite mínimo/máximo en secuencias repetidas.
+- [x] Sincronización al cambiar de cámara.
+- [x] Gestos multitáctiles sin luchar por la distancia.
+- [ ] Pruebas con ratones de distintas resoluciones, trackpad y navegador WebGL real.
