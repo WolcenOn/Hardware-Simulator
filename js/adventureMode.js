@@ -25,7 +25,7 @@ const OFFERS={
   psu:[['psu450',49],['psu650',89],['psu850',139]],
   case:[['tower',89]],
   cooler:[['air',39]],
-  item:[['screwdriver',12],['screws',8],['paste',9],['sataCable',7],
+  item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
     ['hdmi',10],['keyboard',22],['mouse',14],['osusb',18],['fan',15]]
 };
 const LABELS={
@@ -34,6 +34,7 @@ const LABELS={
   'item:screwdriver':'Destornillador de estrella',
   'item:screws':'Juego de tornillos (10)',
   'item:paste':'Pasta térmica (1 aplicación)',
+  'item:ioShield':'Chapa I/O trasera ATX',
   'item:sataCable':'Cable SATA de datos',
   'item:hdmi':'Cable HDMI/DisplayPort',
   'item:keyboard':'Teclado USB',
@@ -54,7 +55,7 @@ const CONNECTIONS=[
   ['sysfan2','Caja · SYS_FAN 3']
 ];
 const VERBS=[['fit','Encajar'],['screw','Atornillar'],['connect','Conectar'],
-  ['apply','Aplicar'],['remove','Retirar'],['boot','Encender / apagar'],
+  ['apply','Aplicar'],['route','Ordenar cables'],['remove','Retirar'],['boot','Encender / apagar'],
   ['bios','BIOS'],['os','Instalar SO'],['inspect','Inspeccionar']];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const format=amount=>amount.toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0});
@@ -135,6 +136,7 @@ function createAdventureGame(api){
     if(!game)return;
     const g=game,st=api.state(),verb=override||g.verb,k=g.selected;
     if(verb==='boot'){api.power();return;}
+    if(verb==='route'){api.action('route_psu');return;}
     if(verb==='bios'){api.bios();return;}
     if(verb==='inspect'){inspect();return;}
     if(verb==='os'){installOS();return;}
@@ -143,6 +145,15 @@ function createAdventureGame(api){
     if(verb==='apply'){apply(k);return;}
     const [cat,id]=k.split(':');
     if(verb==='fit'){
+      if(cat==='ram'&&st.installed.ram&&!st.ramSeated){
+        api.action('seat_ram');message('DIMM encajado en ambas pestañas.','ok');return;
+      }
+      if(k==='item:ioShield'){
+        if(!has(k)){message('Necesitas la chapa I/O.');return;}
+        api.installIOShield();
+        if(st.ioShield){expend(k);message('Chapa I/O colocada antes de la placa.','ok');}
+        return;
+      }
       if(!has(k)){message('Ya has usado esa pieza o no está en el inventario.');return;}
       if(cat==='item'){
         if(id==='fan'){
@@ -294,9 +305,9 @@ function createAdventureGame(api){
       ['Sistema operativo arrancado',ev.boot&&st.osInstalled&&st.biosCfg.boot==='ssd'],
       ['RAM al menos '+job.minRam+' GB',st.installed.ram&&size>=job.minRam],
       ['Almacenamiento '+job.minStorage,st.installed.storage&&
-        (job.minStorage==='nvme'?drive==='M2_NVME':drive!=='HDD')],
+        (job.minStorage==='nvme'?drive==='M2_NVME':st.selected.storage!=='hdd')],
       ['Gráfica adecuada',!job.gpu||!!st.installed.gpu&&!!st.gpuPower],
-      ['Temperatura aceptable',ev.temp<=job.maxTemp],
+      ['Temperatura aceptable y CPU_FAN',ev.temp<=job.maxTemp&&!!st.installed.cooler&&!!st.cpuFan],
       ['Piezas fijadas y seguras',['motherboard','psu','storage']
         .every(x=>!st.installed[x]||game.screwed[x])],
       ['Conexiones externas y pasta',st.monitorCable&&st.keyboardConnected&&st.mouseConnected&&st.paste>=.7]
@@ -339,7 +350,7 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<h3>1. Tienda de informática</h3>'+shopMarkup()+
+      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tienda de informática</h3>'+shopMarkup()+
       '<h3>2. Mochila e inventario</h3><div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       '<h3>3. Acciones</h3><div class="adv-verbs">'+VERBS.map(([id,text])=>
@@ -378,7 +389,8 @@ function createAdventureGame(api){
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
   });
-  return {start,exit,paint,perform,get active(){return !!game},get game(){return game}};
+  return {start,exit,paint,perform,purchase,select,selectVerb,connect,apply,installOS,checkDelivery,
+    get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
 })(window);
