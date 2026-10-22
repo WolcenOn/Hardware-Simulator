@@ -399,12 +399,37 @@ function createAdventureGame(api){
         format(cost)+'</button></div>').join('')+'</div>';
   }
   function inventoryMarkup(){
-    const entries=Object.entries(game.stock).filter(([k,n])=>n>0);
-    return entries.length?entries.map(([k,n])=>
-      '<button type="button" draggable="'+(!k.startsWith('item:'))+'" data-drag-item="'+safe(k)+'" class="adv-inventory'+(game.selected===k?' chosen':'')+
-      '" data-select-item="'+safe(k)+'">'+safe(label(...k.split(':')))+
-      '<span>x'+n+'</span></button>').join(''):
-      '<p class="muted">El inventario está vacío. Compra primero en la tienda.</p>';
+    const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
+      .filter(k=>stock(k)>0||(game.used[k]||0)>0);
+    if(!entries.length)return '<p class="muted">La mochila está vacía. Compra primero en la tienda.</p>';
+    return entries.map(k=>{
+      const available=stock(k),used=game.used[k]||0;
+      const [cat,id]=k.split(':');
+      const installed=cat!=='item'&&!!api.state().installed[cat]&&
+        (cat==='case'||cat==='cooler'||api.state().selected[cat]===id);
+      return '<div class="adv-inventory-line">'+
+        '<button type="button" draggable="'+(available>0&&cat!=='item')+
+        '" data-drag-item="'+safe(k)+'" data-select-item="'+safe(k)+'"'+
+        ' class="adv-inventory'+(game.selected===k?' chosen':'')+'">'+
+        safe(label(cat,id))+'<span>'+available+' en mochila'+
+        (installed?' · montado':'')+
+        (used&&!installed?' · '+used+' usado(s)':'')+'</span></button>'+
+        '<button type="button" data-return-item="'+safe(k)+'"'+
+        (!canReturn(k)?' disabled':'')+' title="Recuperar el importe original de una pieza sin montar">Devolver</button>'+
+        '</div>';
+    }).join('');
+  }
+  function exchangeMarkup(){
+    const k=game.selected,[cat,id]=String(k).split(':');
+    const available=OFFERS[cat]?.filter(([other])=>other!==id)||[];
+    return '<div class="adv-exchange">'+
+      '<label class="adventure-label">Sustituir la pieza seleccionada por otra de su categoría</label>'+
+      '<select id="advExchangeTarget"'+(!canReturn(k)?' disabled':'')+'>'+
+      available.map(([newId,cost])=>'<option value="'+safe(newId)+'">'+
+        safe(label(cat,newId))+' · '+format(cost)+'</option>').join('')+'</select>'+
+      '<button type="button" data-exchange-go'+
+      (!canReturn(k)||!available.length?' disabled':'')+'>Cambiar producto</button>'+
+      '</div>';
   }
   function paint(){
     if(!game){if(panel)panel.innerHTML='';return;}
@@ -418,12 +443,21 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tienda de informática</h3>'+shopMarkup()+
-      '<h3>2. Mochila e inventario</h3><div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
+      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tu inventario (editable)</h3>'+
+      '<p class="muted">Devuelve piezas sin montar o cámbialas por otra referencia. Para devolver algo instalado, utiliza primero Retirar.</p>'+
+      '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
+      exchangeMarkup()+
+      '<h3>2. Tienda de informática</h3>'+shopMarkup()+
       '<h3>3. Acciones</h3><div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Destino del cable (verbo Conectar)</label>'+
+      '<label class="adventure-label">Salida de vídeo al monitor</label>'+
+      '<select id="advVideoOutput">'+
+      '<option value="motherboard"'+(game.videoOutput==='motherboard'?' selected':'')+
+      '>Placa base · HDMI/DP (requiere iGPU de CPU)</option>'+
+      '<option value="gpu"'+(game.videoOutput==='gpu'?' selected':'')+
+      '>Tarjeta gráfica dedicada · HDMI/DP</option></select>'+
       '<select id="advConnection">'+CONNECTIONS.map(([id,text])=>
         '<option value="'+id+'"'+(id===game.connection?' selected':'')+'>'+text+'</option>').join('')+'</select>'+
       '<div class="adv-actions"><button type="button" class="primary" data-go>Realizar acción</button>'+
@@ -465,7 +499,11 @@ function createAdventureGame(api){
   }
   panel.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button||!game)return;
-    if(button.dataset.buy){
+    if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
+    else if(button.hasAttribute('data-exchange-go')){
+      const target=query('#advExchangeTarget');
+      if(target)exchange(game.selected,target.value);
+    }else if(button.dataset.buy){
       const [cat,id]=button.dataset.buy.split(':');purchase(cat,id);
     }else if(button.dataset.selectItem)select(button.dataset.selectItem);
     else if(button.dataset.verb)selectVerb(button.dataset.verb);
@@ -480,8 +518,14 @@ function createAdventureGame(api){
     if(event.target.id==='advShopCategory'){game.shopCategory=event.target.value;paint();}
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
+    else if(event.target.id==='advVideoOutput'){
+      game.videoOutput=event.target.value;
+      const st=api.state();
+      if(st.monitorCable){st.monitorCable=false;api.render();}
+      paint();
+    }
   });
-  return {start,exit,paint,perform,dropPart,purchase,select,selectVerb,connect,apply,installOS,checkDelivery,
+  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,connect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
