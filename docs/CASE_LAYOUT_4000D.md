@@ -103,3 +103,33 @@ en `js/procedural3d.js`.
 - [ ] Validación WebGL con captura real y ajuste visual fino.
 - [ ] Ensayar drag/drop visual tras cambio de orientación.
 - [ ] Afinar la posición trasera real de USB, GPU I/O y cable de monitor.
+
+
+## 7.4-alpha — Mesa ampliada y monitor visible (22-10-2026)
+
+Corrección tras feedback visual: la torre vertical de la 7.3 tapaba el
+monitor que estaba detrás.
+
+- Mesa de **1350 × 850 mm** (escala 1 unidad = 50 mm), dividida en
+  zona de monitor/periféricos izquierda y torre ATX derecha.
+- Monitor 24" a **X=-10.85, Z=-3.12** unidades (antes X=-0.55 en
+  el taller original). Conserva su tamaño físico y funcionalidad
+  de consola y pantalla UEFI.
+- Teclado a X=-10.45 y ratón a X=-4.62, ambos delante del monitor,
+  con alfombrillas de trabajo y sin invadir la zona de torre.
+- Cable HDMI/DP guiado por la parte posterior hasta la nueva pantalla,
+  y USB de teclado/ratón reconectados al panel trasero de la caja.
+- Cámara «Taller»: plano ampliado con los dos equipos separados.
+  «Monitor 3D» se aproxima directamente a la nueva posición.
+  Se aumenta la distancia máxima de la cámara y el alcance de la niebla.
+- Posiciones compartidas en `WORKBENCH_LAYOUT` para evitar que
+  cámara y cables se queden con coordenadas antiguas.
+
+### Verificación
+- [x] Todos los módulos JS actualizados compilan sintácticamente.
+- [x] Mesa 27 × 17 unidades = 1350 × 850 mm.
+- [x] Torre y pantalla ocupan áreas distintas del tablero.
+- [x] Proyección de pantalla y torre sin superposición en cámara Taller
+      (aspect ratio de prueba 1.47, campo vertical 48°).
+- [x] El monitor sigue dibujando la consola en su canvas.
+- [ ] Validación WebGL visual y ajuste móvil/relación de aspecto extrema.
