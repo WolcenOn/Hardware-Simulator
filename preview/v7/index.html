@@ -48,6 +48,14 @@ body.adventure-on #resetBtn{display:none!important}
 .adv-log p{margin:.32rem}
 .adv-report{background:#0b2430;border:1px solid #5b8494;border-radius:12px;padding:.6rem;font-size:.8rem;line-height:1.7}
 #adventurePanel h3{font-size:.9rem;margin:1rem 0 .45rem}
+.adv-inventory-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:.3rem}
+.adv-inventory-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.35rem;align-items:stretch;padding:.22rem;border-radius:9px;background:#0d1e30}
+.adv-inventory-line .adv-inventory{min-width:0}
+.adv-inventory-line>button:last-child{font-size:.72rem;white-space:nowrap;border-color:#506b7a}
+.adv-exchange{padding:.6rem;margin:.6rem 0 1rem;border:1px solid #4c7282;border-radius:12px;background:#102b38}
+.adv-exchange select{width:100%;margin:.35rem 0}
+.adv-exchange>button{width:100%;margin-top:.3rem}
+
 @media(max-width:1120px){.adv-list{max-height:250px}}
 </style>
 <script type="importmap">
@@ -55,7 +63,7 @@ body.adventure-on #resetBtn{display:none!important}
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.0-alpha: tienda, encargos y montaje libre</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.1-alpha: inventario editable y gráficos integrados</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <main class="layout">
 <section id="adventurePanel" class="panel"></section>
 <section id="legacyPanel" class="panel"><div class="title"><h2>Catálogo</h2><span>elige piezas</span></div><div id="selectors"></div><div class="title"><h2>Montaje</h2><span>estado</span></div><div id="installList"></div><div class="title"><h2>Proceso de montaje</h2><span>secuencia y dificultad</span></div>
@@ -76,11 +84,19 @@ body.adventure-on #resetBtn{display:none!important}
 <div class="issue" id="peripheralStatus">Teclado, ratón y monitor sin conectar.</div><div class="title"><h2>Ficha técnica</h2><span id="selectedPartName">—</span></div><div id="specPanel"></div></section>
 <section><div class="panel"><div class="title"><h2 id="modeLabel">Modo montaje guiado</h2><span>monitor + BIOS</span></div><div class="actions"><button id="autoBuild" class="okbtn">Montaje recomendado</button><button id="powerBtn" class="primary">Encender PC</button><button id="biosBtn" class="warnbtn">Entrar BIOS</button></div></div><div class="panel" style="margin-top:1rem"><div id="resourceAlert" class="resourceAlert" role="status" aria-live="polite" hidden></div><div id="viewportWrap" class="viewportWrap"><canvas id="viewport"></canvas><div id="fallback" class="fallback"></div><div class="hint">Arrastra para rotar · toca piezas para inspeccionar · pellizca para zoom</div><div class="sceneActions"><button id="viewDesk">Taller</button><button id="viewMonitor3d">Monitor 3D</button><button id="viewIso">Vista iso</button><button id="viewTop">Lateral</button><button id="viewRearCables">Trasera / cables</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom -</button><button id="explodeBtn">Expandir</button></div></div><div class="monitor"><div class="monitorTop"><strong id="monitorTitle">Monitor virtual</strong><span><i id="ledPower" class="light"></i><i id="ledPost" class="light"></i><i id="ledBoot" class="light"></i></span></div><div id="biosPanel" class="biosPanel"><div class="title"><h2>BIOS/UEFI simulada</h2><span>configurable</span></div><div class="biosGrid"><div class="field"><label>Boot #1</label><select id="biosBoot"><option value="ssd">SSD/NVMe del sistema</option><option value="pxe">PXE Network</option><option value="usb">USB vacío</option></select></div><div class="field"><label>Modo SATA</label><select id="biosSata"><option value="AHCI">AHCI</option><option value="RAID">RAID</option><option value="IDE">IDE legado</option></select></div><div class="field"><label>Perfil memoria</label><select id="biosXmp"><option value="Auto">Auto/JEDEC</option><option value="EXPO">EXPO/XMP estable</option><option value="Aggressive">OC agresivo</option></select></div><div class="field"><label>Curva ventilador CPU</label><select id="biosFan"><option value="Balanced">Balanced</option><option value="Silent">Silent</option><option value="Performance">Performance</option></select></div><div class="field"><label>PCIe GPU</label><select id="biosPcie"><option value="Auto">Auto</option><option value="Gen4">Forzar Gen4</option><option value="Gen5">Forzar Gen5 only</option></select></div><div class="field"><label>Secure Boot</label><select id="biosSecure"><option value="on">Activado</option><option value="off">Desactivado</option></select></div></div><div class="actions" style="margin-top:.7rem"><button id="saveBios" class="okbtn">Guardar BIOS</button><button id="biosDefaults" class="warnbtn">Valores seguros</button></div></div><div id="screen" class="screen"></div><div class="meters"><div class="meter"><span>CPU <b id="cpuLoadText">0%</b></span><div class="bar"><i id="cpuBar"></i></div></div><div class="meter"><span>GPU <b id="gpuLoadText">0%</b></span><div class="bar"><i id="gpuBar"></i></div></div><div class="meter"><span>PSU <b id="psuLoadText">0%</b></span><div class="bar"><i id="psuBar"></i></div></div><div class="meter"><span>Temp <b id="tempLoadText">35°C</b></span><div class="bar"><i id="tempBar"></i></div></div></div></div></div></section>
 <aside class="panel"><div class="title"><h2>Inspector IA</h2><span>diagnóstico</span></div><div class="status"><div><span>Alim.</span><strong id="powerStatus">Apagado</strong></div><div><span>POST</span><strong id="postStatus">Pendiente</strong></div><div><span>Boot</span><strong id="bootStatus">Pendiente</strong></div><div><span>Watts</span><strong id="wattsStatus">0 W</strong></div><div><span>CPU</span><strong id="tempStatus">35 °C</strong></div><div><span>Compat.</span><strong id="compatStatus">—</strong></div></div><h3>Conectores y reglas</h3><div id="compatPanel"></div><h3>Banco de errores</h3><select id="faultSelect"></select><div class="tools"><button id="injectFault" class="warnbtn">Inyectar</button><button id="randomFault" class="warnbtn">Aleatorio</button></div><div id="activeFaults"></div><h3>Correcciones</h3><div class="tools" id="fixButtons"></div><h3>Herramientas</h3><div class="tools"><button data-tool="visual">Inspección</button><button data-tool="beep">Pitidos</button><button data-tool="multimeter">Multímetro</button><button data-tool="smart">SMART</button><button data-tool="stress">Test estrés</button><button data-tool="bios">BIOS</button></div><h3>Bitácora</h3><ol id="eventLog"></ol></aside>
-</main><p class="foot">Versión 8.0-alpha: encargos con compra ficticia, inventario, acciones y diagnóstico. Torre ATX y BIOS en 3D.</p>
-<script src="./js/adventureMode.js?v=8-0-client-adventure"></script>
+</main><p class="foot">Versión 8.1-alpha: inventario editable, tienda ampliada, iGPU y diagnóstico. Torre ATX y BIOS en 3D.</p>
+<script src="./js/hardwareExpansion.js?v=8-1-inventory-igpu"></script>
+<script src="./js/adventureMode.js?v=8-1-inventory-igpu"></script>
 <script>
 const $=id=>document.getElementById(id);
 const catalog={motherboards:{b650:{name:'B650 ATX AM5',sizeMm:'305 × 244 mm',socket:'AM5',ram:'DDR5',chipset:'B650',slots:{dimm:4,pcieX16:1,m2:2,sata:4},desc:'Placa AMD AM5 con DDR5, M.2 y SATA.'},a520:{name:'A520 mATX AM4',sizeMm:'226 × 221 mm',socket:'AM4',ram:'DDR4',chipset:'A520',slots:{dimm:2,pcieX16:1,m2:1,sata:4},desc:'Placa AMD AM4 con DDR4.'},z790:{name:'Z790 ATX LGA1700',sizeMm:'305 × 244 mm',socket:'LGA1700',ram:'DDR5',chipset:'Z790',slots:{dimm:4,pcieX16:2,m2:4,sata:6},desc:'Placa Intel LGA1700 DDR5.'}},cpus:{r7600:{name:'Ryzen 5 7600',socket:'AM5',peak:88,igpu:true,desc:'CPU AM5.'},r5600:{name:'Ryzen 5 5600',socket:'AM4',peak:78,igpu:false,desc:'CPU AM4 sin iGPU.'},i513600k:{name:'Core i5-13600K',socket:'LGA1700',peak:181,igpu:true,desc:'CPU Intel potente.'}},ram:{ddr4_16:{name:'16 GB DDR4',type:'DDR4',watts:5,desc:'RAM DDR4.'},ddr5_16:{name:'16 GB DDR5',type:'DDR5',watts:8,desc:'RAM DDR5.'},ddr5_32:{name:'32 GB DDR5',type:'DDR5',watts:10,desc:'DDR5 alta capacidad.'}},storage:{sataSSD:{name:'SSD SATA 1 TB',sizeMm:'100 × 69,9 × 7 mm',interface:'SATA',watts:6,desc:'Requiere SATA datos y power.'},nvmeSSD:{name:'SSD NVMe M.2',sizeMm:'80 × 22 mm',interface:'M2_NVME',watts:8,desc:'Va directo a M.2.'},hdd:{name:'HDD SATA 2 TB',sizeMm:'147 × 101,6 × 26 mm',interface:'SATA',watts:9,desc:'Disco mecánico.'}},gpus:{none:{name:'Sin GPU',pcie:false,watts:0,power:[],gen:0,desc:'Usa iGPU si existe.'},rx7600:{name:'Radeon RX 7600',sizeMm:'245 × 134 × 49 mm',pcie:true,watts:165,power:['PCIE_8'],gen:4,desc:'GPU PCIe 4.0 con 8 pines.'},rtx4070:{name:'GeForce RTX 4070',sizeMm:'267 × 134 × 51 mm',pcie:true,watts:220,power:['12VHPWR'],gen:4,desc:'GPU PCIe 4.0 con 12VHPWR.'}},psus:{psu450:{name:'PSU 450W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:450,connectors:{PCIE_8:1,'12VHPWR':0},desc:'Fuente básica.'},psu650:{name:'PSU 650W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:650,connectors:{PCIE_8:2,'12VHPWR':0},desc:'Fuente media.'},psu850:{name:'PSU 850W ATX 3.0',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:850,connectors:{PCIE_8:3,'12VHPWR':1},desc:'Fuente moderna.'}}};
+// Completar el catálogo con piezas compatibles y modelos deliberadamente incompatibles.
+for(const [group,models] of Object.entries(window.PC_HARDWARE_EXPANSION||{}))
+  Object.assign(catalog[group],models);
+for(const board of Object.values(catalog.motherboards))
+  board.videoOutputs??=['HDMI'];
+for(const cpu of Object.values(catalog.cpus))
+  if(cpu.igpu&&!cpu.igpuName)cpu.igpuName=cpu.socket==='LGA1700'?'Intel UHD 770':'AMD Radeon Graphics';
 const categories={motherboard:'Placa base',cpu:'Procesador',ram:'RAM',storage:'Almacenamiento',gpu:'GPU',psu:'Fuente'};
 const faults={video:{name:'Cable de vídeo desconectado',fix:'connect_monitor',beep:'ok',msg:'Monitor sin señal de vídeo.'},keyboard:{name:'Teclado USB desconectado',fix:'connect_keyboard',beep:'ok',msg:'No es posible manejar la BIOS.'},mouse:{name:'Ratón USB desconectado',fix:'connect_mouse',beep:'ok',msg:'No se detecta el ratón USB.'},atx24:{name:'ATX 24 pines desconectado',fix:'connect_atx24',beep:'cpu',msg:'La placa no recibe alimentación principal.'},frontpanel:{name:'POWER SW / F_PANEL desconectado',fix:'connect_frontpanel',beep:'cpu',msg:'El botón de encendido no llega a la placa.'},ram:{name:'RAM mal encajada',fix:'seat_ram',beep:'memory',msg:'No hay vídeo. LED DRAM.'},eps:{name:'EPS CPU sin conectar',fix:'connect_eps',beep:'cpu',msg:'No hay POST. LED CPU.'},sata:{name:'SATA de datos suelto',fix:'connect_sata',beep:'ok',msg:'No bootable device.'},satap:{name:'Alimentación SATA olvidada',fix:'connect_sata_power',beep:'ok',msg:'El disco no enciende.'},paste:{name:'Pasta térmica mal aplicada',fix:'good_paste',beep:'ok',msg:'CPU supera 100 °C.'},fan:{name:'CPU_FAN desconectado',fix:'connect_fan',beep:'ok',msg:'CPU fan error.'},gpu:{name:'Alimentación GPU olvidada',fix:'gpu_power',beep:'gpu',msg:'No hay imagen. LED VGA.'},disk:{name:'Disco con sectores defectuosos',fix:'replace_disk',beep:'ok',msg:'Arranque lento y cuelgues.'},boot:{name:'Orden de arranque incorrecto',fix:'fix_boot',beep:'ok',msg:'Intenta arrancar desde red/USB.'},bios_sata:{name:'BIOS: modo SATA incorrecto',fix:'bios_defaults',beep:'ok',msg:'El SO no arranca por cambio AHCI/RAID/IDE.'},bios_xmp:{name:'BIOS: OC de RAM inestable',fix:'bios_defaults',beep:'memory',msg:'Pantallazos y errores de memoria por XMP/EXPO agresivo.'},bios_fan:{name:'BIOS: curva de ventilador Silent',fix:'bios_defaults',beep:'ok',msg:'Sobrecalentamiento bajo carga por curva silenciosa.'},bios_pcie:{name:'BIOS: PCIe forzado incompatible',fix:'bios_defaults',beep:'gpu',msg:'LED VGA: GPU no inicializa con modo PCIe forzado.'}};
 const fixes={connect_monitor:'Conectar cable de monitor',connect_keyboard:'Conectar teclado USB',connect_mouse:'Conectar ratón USB',route_psu:'Apartar y asegurar mazos PSU',remove_gpu:'Extraer GPU temporalmente',connect_atx24:'Conectar ATX 24 pines',connect_frontpanel:'Conectar POWER SW (F_PANEL)',seat_ram:'Encajar RAM',connect_eps:'Conectar EPS',connect_sata:'Conectar SATA datos',connect_sata_power:'Conectar alimentación SATA',good_paste:'Aplicar pasta térmica',connect_fan:'Conectar CPU_FAN',gpu_power:'Conectar alimentación GPU',replace_disk:'Sustituir disco',fix_boot:'Corregir orden boot',bios_defaults:'BIOS valores seguros'};
@@ -90,8 +106,13 @@ const BOOT_LABELS={ssd:'SSD/NVMe',usb:'USB',pxe:'PXE (red)'};
 function outputAvailable(e=evalState()){
   const hasGPU=!!state.installed.gpu&&state.selected.gpu!=='none';
   const gpuOk=hasGPU&&(!p('gpu').power.length||state.gpuPower);
-  const integrated=state.selected.gpu==='none'&&!!state.installed.cpu&&!!p('cpu').igpu;
-  return !!(state.power&&state.monitorCable&&e.post&&(gpuOk||integrated));
+  const integrated=!!state.installed.motherboard&&!!state.installed.cpu&&
+    !!p('cpu').igpu&&!!p('motherboard').videoOutputs?.length;
+  const port=state.videoPort||'auto';
+  const signal=port==='motherboard'?integrated:
+    port==='gpu'?gpuOk:
+    hasGPU?gpuOk:integrated;
+  return !!(state.power&&state.monitorCable&&e.post&&signal);
 }
 function moveBoot(index,delta=-1){
   if(!state.power||!state.bios||(!state.keyboardConnected&&!state.mouseConnected)||!outputAvailable()){
@@ -141,11 +162,19 @@ function schedulePostStages(){
   });
 }
 
-function init(){state={selected:{motherboard:'b650',cpu:'r7600',ram:'ddr5_16',storage:'sataSSD',gpu:'rx7600',psu:'psu650'},installed:{},fixed:{},ramSeated:false,eps:false,atx24:false,frontPanel:false,sataData:false,sataPower:false,paste:1,cpuFan:false,gpuPower:false,monitorCable:false,keyboardConnected:false,mouseConnected:false,
+function init(){state={selected:{motherboard:'b650',cpu:'r7600',ram:'ddr5_16',storage:'sataSSD',gpu:'rx7600',psu:'psu650'},installed:{},fixed:{},ramSeated:false,eps:false,atx24:false,frontPanel:false,sataData:false,sataPower:false,paste:1,cpuFan:false,gpuPower:false,monitorCable:false,videoPort:'auto',keyboardConnected:false,mouseConnected:false,
 caseClosed:false,installHistory:[],assemblyEffort:0,psuAccessRouted:false,
 installHold:'',ioShield:false,
 caseFans:[{installed:false,connected:false},{installed:false,connected:false},{installed:false,connected:false}],
-bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});state.log=state.log.slice(0,36)}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?4:0)}function ruleList(){let mb=p('motherboard'),cpu=p('cpu'),ram=p('ram'),st=p('storage'),gpu=p('gpu'),psu=p('psu'),r=[];r.push({level:cpu.socket===mb.socket?'ok':'error',text:`Socket ${cpu.socket} ↔ ${mb.socket}`});r.push({level:ram.type===mb.ram?'ok':'error',text:`RAM ${ram.type} ↔ ${mb.ram}`});r.push({level:(st.interface==='SATA'&&mb.slots.sata)||(st.interface==='M2_NVME'&&mb.slots.m2)?'ok':'error',text:`Almacenamiento ${st.interface}`});if(gpu.power.length)gpu.power.forEach(c=>r.push({level:(psu.connectors[c]||0)>0?'ok':'error',text:`GPU requiere ${c}: PSU tiene ${psu.connectors[c]||0}`}));let m=Math.round(watts()*1.25);r.push({level:m<=psu.max?'ok':'warn',text:`Pico ${watts()} W; recomendado ≥ ${m} W; PSU ${psu.max} W`});if(!cpu.igpu&&state.selected.gpu==='none')r.push({level:'error',text:'CPU sin iGPU y sin GPU dedicada'});return r}function compatible(){return !ruleList().some(x=>x.level==='error')}function addFault(id){if(!state.activeFaults.includes(id))state.activeFaults.push(id);applyFault(id);state.fixed={};addLog('warn','Avería: '+faults[id].name+'. '+faults[id].msg);beep(faults[id].beep);render()}function applyFault(id){if(id==='ram')state.ramSeated=false;if(id==='eps')state.eps=false;if(id==='atx24')state.atx24=false;if(id==='frontpanel')state.frontPanel=false;if(id==='sata')state.sataData=false;if(id==='satap')state.sataPower=false;if(id==='paste')state.paste=.2;if(id==='fan')state.cpuFan=false;if(id==='gpu')state.gpuPower=false;if(id==='boot'){state.biosCfg.boot='pxe';state.biosCfg.bootOrder=['pxe','usb','ssd'];}
+bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});state.log=state.log.slice(0,36)}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?4:0)}function ruleList(){let mb=p('motherboard'),cpu=p('cpu'),ram=p('ram'),st=p('storage'),gpu=p('gpu'),psu=p('psu'),r=[];r.push({level:cpu.socket===mb.socket?'ok':'error',text:`Socket ${cpu.socket} ↔ ${mb.socket}`});r.push({level:ram.type===mb.ram?'ok':'error',text:`RAM ${ram.type} ↔ ${mb.ram}`});r.push({level:(st.interface==='SATA'&&mb.slots.sata)||(st.interface==='M2_NVME'&&mb.slots.m2)?'ok':'error',text:`Almacenamiento ${st.interface}`});if(gpu.power.length)gpu.power.forEach(c=>r.push({level:(psu.connectors[c]||0)>0?'ok':'error',text:`GPU requiere ${c}: PSU tiene ${psu.connectors[c]||0}`}));let m=Math.round(watts()*1.25);r.push({level:m<=psu.max?'ok':'warn',text:`Pico ${watts()} W; recomendado ≥ ${m} W; PSU ${psu.max} W`});if(!cpu.igpu&&state.selected.gpu==='none')
+  r.push({level:'error',text:'CPU sin iGPU: necesitarás una GPU dedicada'});
+if(cpu.igpu&&state.selected.gpu==='none'&&!mb.videoOutputs?.length)
+  r.push({level:'error',text:'La placa no dispone de HDMI/DisplayPort para la iGPU'});
+if(cpu.igpu&&mb.videoOutputs?.length)
+  r.push({level:'ok',text:'Vídeo integrado: '+cpu.igpuName+
+    ' → '+mb.videoOutputs.join('/')+' de la placa'});
+if(!cpu.igpu)
+  r.push({level:'warn',text:'Sin gráficos integrados: conecta monitor a la GPU dedicada'});return r}function compatible(){return !ruleList().some(x=>x.level==='error')}function addFault(id){if(!state.activeFaults.includes(id))state.activeFaults.push(id);applyFault(id);state.fixed={};addLog('warn','Avería: '+faults[id].name+'. '+faults[id].msg);beep(faults[id].beep);render()}function applyFault(id){if(id==='ram')state.ramSeated=false;if(id==='eps')state.eps=false;if(id==='atx24')state.atx24=false;if(id==='frontpanel')state.frontPanel=false;if(id==='sata')state.sataData=false;if(id==='satap')state.sataPower=false;if(id==='paste')state.paste=.2;if(id==='fan')state.cpuFan=false;if(id==='gpu')state.gpuPower=false;if(id==='boot'){state.biosCfg.boot='pxe';state.biosCfg.bootOrder=['pxe','usb','ssd'];}
 if(id==='video')state.monitorCable=false;
 if(id==='keyboard')state.keyboardConnected=false;
 if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storage=true}function install(k){
@@ -340,7 +369,7 @@ function autoBuild(){
     state.selected.psu='psu850';
     addLog('warn','Montaje recomendado: PSU ajustada a 850W ATX 3.0 para el conector de la GPU.');
   }
-  state.installed={case:true,motherboard:true,cpu:true,cooler:true,ram:true,storage:true,gpu:state.selected.gpu!=='none',psu:true};state.ramSeated=true;state.eps=true;state.atx24=true;state.frontPanel=true;state.sataData=p('storage').interface==='SATA';state.sataPower=p('storage').interface==='SATA';state.cpuFan=true;state.gpuPower=!!p('gpu').power.length;
+  state.installed={case:true,motherboard:true,cpu:true,cooler:true,ram:true,storage:true,gpu:state.selected.gpu!=='none',psu:true};state.ramSeated=true;state.eps=true;state.atx24=true;state.frontPanel=true;state.sataData=p('storage').interface==='SATA';state.sataPower=p('storage').interface==='SATA';state.cpuFan=true;state.gpuPower=!!p('gpu').power.length;state.videoPort=state.selected.gpu==='none'?'motherboard':'gpu';
 state.monitorCable=true;state.keyboardConnected=true;state.mouseConnected=true;
 state.installHistory=['case','motherboard','cpu','ram','cooler','storage','gpu','psu'];
 state.assemblyEffort=state.installHistory.length;
@@ -397,7 +426,9 @@ function selector(cat,items){return `<div class="field"><label>${categories[cat]
   rows.push('CPU: '+p('cpu').name,'Memoria: '+p('ram').name);
   if(state.bootStage<2)return rows.concat(['UEFI: Entrenamiento memoria...','VGA: buscando salida...']).join('\n');
   rows.push('RAM: '+(state.ramSeated?'PASS':'FAIL'));
-  rows.push('VIDEO: '+(state.selected.gpu==='none'?'iGPU':'PCIe GPU'));
+  rows.push('VIDEO: '+((state.videoPort==='motherboard'||state.selected.gpu==='none')?
+    (p('cpu').igpu?'iGPU '+p('cpu').igpuName:'iGPU NO DISPONIBLE'):
+    'PCIe GPU'));
   if(state.bootStage<3)return rows.concat(['POST: comprobacion de dispositivos...','SATA / NVMe: detectando unidad']).join('\n');
   if(e.faults.includes('incompatible'))rows.push('POST: HALTED','ERROR: hardware incompatible.');
   else if(e.missing)rows.push('POST: NO INICIADO','ERROR: faltan componentes.');
@@ -436,6 +467,7 @@ if(previous!==state.selected[category]){
   if(part)state.installed[part]=false;
   if(category==='gpu'||category==='psu'){
     state.gpuPower=false;state.monitorCable=false;
+    state.videoPort=category==='gpu'&&state.selected.gpu==='none'?'motherboard':'auto';
   }
   if(category==='psu'){state.atx24=false;state.eps=false;state.psuAccessRouted=false;}
   if(category==='motherboard'){
@@ -615,4 +647,4 @@ adventureGame.start('office');
   showResourceError('El módulo de la tienda no ha cargado. Puedes continuar en Modo técnico y recargar la página.');
 }
 </script>
-<script type="module" src="./js/procedural3d.js?v=8-0-client-adventure"></script></body></html>
+<script type="module" src="./js/procedural3d.js?v=8-1-inventory-igpu"></script></body></html>
