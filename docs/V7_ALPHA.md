@@ -332,3 +332,37 @@ no son modelos CAD exactos. No se han añadido dependencias ni assets de pago.
 - [x] Sintaxis JavaScript de motor y módulos.
 - [ ] Comprobar el drag/drop, solapamientos y rendimiento en WebGL real.
 - [ ] Perfeccionar animación de bandejas y colisiones exactas.
+
+
+## Revisión 7.4.1 — acciones y carga de recursos (22 octubre de 2026)
+
+Se corrigen bloqueos intermitentes de controles reportados tras la 7.4:
+
+- El botón **Montaje recomendado** se enlaza por su ID de DOM real.
+  Antes se usaba `autoBuild.onclick=autoBuild`: `autoBuild` era el nombre
+  de la función, no el elemento del botón.
+- Todos los controles estáticos se enlazan explícitamente mediante
+  `document.getElementById` y `addEventListener`, evitando conflictos
+  entre nombres de funciones y referencias implícitas de elementos HTML.
+- Los temporizadores de progreso POST (420, 1080, 1770, 2580 ms) actualizan
+  únicamente consola e indicadores. No regeneran la lista de piezas ni los
+  botones, evitando clics perdidos cuando el DOM cambia entre mousedown y click.
+- Errores de carga o ejecución se muestran en una advertencia visible.
+  Los errores HTTP no reconstruyen todo el DOM de montaje.
+- Se añade un `favicon.svg` local para evitar la petición implícita
+  a favicon.ico, una de las posibles fuentes de HTTP 404.
+- Un aviso sobre el estado del chasis explica cuándo hay que apagar el PC
+  o abrir el panel para trabajar en el interior.
+
+Pruebas:
+- [x] `Montaje recomendado` enlazado y ejecuta montaje completo.
+- [x] Botón de encendido enciende el equipo después del montaje.
+- [x] Cuatro etapas de POST sin reconstrucción de `installList`/
+  `fixButtons`.
+- [x] Error de recurso simulado: panel visible y botones conservados.
+- [x] Sintaxis de script clásico válida.
+- [ ] Identificar URL concreta del 404 original en consola del usuario;
+  sin captura de esa URL no es posible atribuirlo con certeza al favicon.
+- [ ] Verificación manual de esta corrección en navegador real.
+
+Versión de caché de Pages: `7-4-1-button-hotfix`.
