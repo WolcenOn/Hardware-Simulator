@@ -8,6 +8,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=7-3-upright-4000d';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
+import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -22,7 +23,12 @@ scene.fog=new THREE.Fog(0x101923,30,79);
 const camera=new THREE.PerspectiveCamera(48,1,.1,110);
 camera.position.set(-.20,18.2,34.0);
 const controls=new OrbitControls(camera,view);
-controls.enableDamping=true;controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=56;
+controls.enableDamping=true;controls.dampingFactor=.10;
+controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=56;
+controls.zoomSpeed=.45; // zoom multitáctil de OrbitControls; rueda gestionada aparte
+const smoothZoom=createSmoothZoom({
+  camera,controls,element:view,minDistance:controls.minDistance,maxDistance:controls.maxDistance
+});
 controls.maxPolarAngle=Math.PI/2.02;controls.target.set(-4.55,4.5,.65);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
@@ -243,15 +249,15 @@ function resetView(){
   // Encuadre del banco completo: monitor y teclado a la izquierda,
   // torre ATX a la derecha, sin oclusión entre equipos.
   camera.position.set(-.20,18.2,34.0);
-  controls.target.set(-4.55,4.5,.65);controls.update();
+  controls.target.set(-4.55,4.5,.65);controls.update();smoothZoom.sync();
 }
 function viewHardware(){
   camera.position.set(11.0,10.3,15.8);
-  controls.target.set(1.10,5.75,1.15);controls.update();
+  controls.target.set(1.10,5.75,1.15);controls.update();smoothZoom.sync();
 }
 function viewRearCables(){
   camera.position.set(9.0,10.2,-14.0);
-  controls.target.set(1.0,5.0,.85);controls.update();
+  controls.target.set(1.0,5.0,.85);controls.update();smoothZoom.sync();
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);
 window.addEventListener('resize',resize);resize();
@@ -282,6 +288,7 @@ function animate(now){
     if(spin)f.rotor.rotation.y+=dt*(fast?16:5.4);
   }
   if(highlight){highlight.visible=!!partGroups[selected]?.visible;highlight.update();}
+  smoothZoom.update(dt);
   controls.update();renderer.render(scene,camera);
 }
 window.PC3D={
@@ -292,17 +299,13 @@ window.PC3D={
   viewScreen:()=>{
     camera.position.set(monitorLocation.x,6.20,monitorLocation.z+10.9);
     controls.target.set(monitorLocation.x,monitorLocation.screenY,monitorLocation.z);
-    controls.update();
+    controls.update();smoothZoom.sync();
   },
   viewTop:()=>{
-    camera.position.set(5.2,9.4,19.5);controls.target.set(1.2,5.30,.80);controls.update();
+    camera.position.set(5.2,9.4,19.5);controls.target.set(1.2,5.30,.80);controls.update();smoothZoom.sync();
   },
-  zoom:amount=>{
-    const axis=camera.position.clone().sub(controls.target);
-    const next=Math.max(4.5,Math.min(56,axis.length()+amount));
-    camera.position.copy(controls.target).add(axis.normalize().multiplyScalar(next));
-    controls.update();
-  },
+  // Zoom por botón con la misma interpolación que la rueda.
+  zoom:amount=>smoothZoom.step(amount),
   focus:select3D
 };
 requestAnimationFrame(animate);
