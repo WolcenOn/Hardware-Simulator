@@ -211,7 +211,16 @@ function createAdventureGame(api){
     if(!game)return;
     const g=game,st=api.state(),verb=override||g.verb,k=g.selected;
     if(verb==='boot'){api.power();return;}
-    if(verb==='route'){api.action('route_psu');return;}
+    if(verb==='route'){
+      const before=st.log?.[0];
+      api.action('route_psu');
+      const reason=st.log?.[0]!==before?st.log?.[0]?.m:null;
+      message(st.psuAccessRouted?
+        'Mazos PSU apartados y asegurados. Ya puedes encajar la placa base.':
+        'No se pudieron ordenar los cables: '+(reason||'comprueba que la fuente esté instalada y la caja abierta.'),
+        st.psuAccessRouted?'ok':'warn');
+      return;
+    }
     if(verb==='bios'){api.bios();return;}
     if(verb==='inspect'){inspect();return;}
     if(verb==='os'){installOS();return;}
@@ -554,6 +563,11 @@ function createAdventureGame(api){
       if(id==='fan')add('Encajar ventilador','Colócalo en una ranura del chasis','fit',has(k));
       else add('Material de taller','Se utiliza con Atornillar, Conectar o Instalar SO','inspect');
     }else if(cat!=='undefined'){
+      if(cat==='motherboard'&&!st.installed.motherboard&&
+         st.installed.psu&&!st.psuAccessRouted)
+        add('Apartar y asegurar mazos PSU',
+          'La fuente se colocó antes que la placa y sus cables impiden el encaje.',
+          'route',true);
       if(!st.installed[cat])
         add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
       else if(cat==='ram'&&!st.ramSeated)
@@ -573,8 +587,11 @@ function createAdventureGame(api){
       return '1 · Compra una CAJA en la tienda. Selecciónala en la mesa auxiliar y pulsa «Colocar caja en mesa de montaje».';
     if(!st.ioShield)
       return '2 · La caja ya está colocada. Compra y encaja la chapa I/O antes de poner la placa.';
-    if(!st.installed.motherboard)
+    if(!st.installed.motherboard){
+      if(st.installed.psu&&!st.psuAccessRouted)
+        return '3 · La fuente se instaló antes. Selecciona la placa y usa «Apartar y asegurar mazos PSU»; después encájala.';
       return '3 · Coloca la placa base dentro de la caja y fíjala con tornillos.';
+    }
     if(!st.installed.cpu||!st.installed.ram)
       return '4 · Instala CPU y RAM. Encaja las pestañas de memoria; compra pasta térmica.';
     if(!st.installed.cooler||!st.cpuFan)
