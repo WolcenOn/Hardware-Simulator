@@ -190,6 +190,24 @@ function createPartInspector(api){
       '<span>'+escape(r.value)+'</span>'+
       (r.description?'<small>'+escape(r.description)+'</small>':'')+'</div>').join('');
   }
+  function summaryHTML(){
+    const st=api.state(),mounted=['case','motherboard','cpu','ram','cooler',
+      'gpu','storage','psu',...([0,1,2].filter(i=>st.caseFans?.[i]?.installed)
+        .map(i=>'fan'+i))];
+    const rows=mounted.filter(part=>part.startsWith('fan')||!!st.installed?.[part])
+      .map(part=>{
+        const t=getInfo(part);
+        if(!t)return '';
+        const states=checks(t);
+        const pending=states.filter(x=>x.level==='warn').length;
+        return '<button type="button" class="part-mounted-row" data-mounted-inspect="'+
+          escape(t.key)+'"><b>'+escape(t.name)+'</b><span class="'+
+          (pending?'warn':'ok')+'">'+(pending?pending+' pendientes':'Revisado')+
+          '</span><small>'+states.slice(0,4).map(x=>
+            escape(x.label)+': '+escape(x.value)).join(' · ')+'</small></button>';
+      }).join('');
+    return rows||'<p class="muted">Todavía no hay piezas instaladas. Compra una caja y colócala en el banco.</p>';
+  }
   function showSheet(){
     const t=getInfo(target?.ref);if(!t)return;
     const props=details(t);
@@ -256,8 +274,7 @@ function createPartInspector(api){
       if(!connector)return;
       if(/^fan[0-2]$/.test(t.category)){
         const i=Number(t.category.slice(-1));
-        api.fan?.(i,ad.game?.caseFans?.[i]?.connected?'disconnect':
-          api.state().caseFans?.[i]?.connected?'disconnect':'connect');
+        api.fan?.(i,api.state().caseFans?.[i]?.connected?'disconnect':'connect');
       }else if(verb==='connect')ad.connect(connector);
       else ad.disconnect(connector);
     }else{
@@ -281,7 +298,7 @@ function createPartInspector(api){
   api.document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&target)close();
   });
-  return {open,close,refresh,showSheet,inspect:checks,getInfo,compatibility,
+  return {open,close,refresh,showSheet,summaryHTML,inspect:checks,getInfo,compatibility,
     get active(){return !!target;},get selected(){return target?.ref||null;}};
 }
 root.createPartInspector=createPartInspector;
