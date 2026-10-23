@@ -162,7 +162,7 @@ for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
 const cableSource=read('js/cablesProcedural.js');
 const workbenchSource=read('js/workbench3d.js');
 const proceduralSource=read('js/procedural3d.js');
-assert(cableSource.includes('const tips=plugs.map(plug=>getCableExit'));
+assert(cableSource.includes('const exits=plugs.map(plug=>getCableExit'));
 assert(workbenchSource.includes('const tail=getCableExit(THREE,plug)'));
 assert(proceduralSource.includes('const flex=getCableExit(THREE,plug)'));
 assert(cableSource.includes("getInternalHeaderAnchor(cfg,'frontPanel')"));
