@@ -162,11 +162,22 @@ function createPartInspector(api){
     else{
       if(['motherboard','psu','storage','gpu'].includes(t.category)&&!ad.game?.screwed?.[t.category])
         actions.push({verb:'screw',label:'Atornillar',enabled:true});
-      const connector=({motherboard:!st.atx24?'atx24':!st.eps?'eps':'frontpanel',
-        psu:!st.atx24?'atx24':!st.eps?'eps':'gpupower',
-        cooler:'cpufan',gpu:'gpupower',
-        storage:!st.sataData?'sataData':'sataPower'})[t.category];
-      if(connector)actions.push({verb:'connect',target:connector,label:'Conectar cable',enabled:true});
+      // Cada clavija es independiente: mostrar exactamente la acción
+      // necesaria y no pedir nunca SATA a un disco NVMe.
+      const plugs={
+        motherboard:[['atx24','atx24','ATX24'],['eps','eps','EPS CPU'],
+          ['frontPanel','frontpanel','POWER SW']],
+        psu:[['atx24','atx24','ATX24'],['eps','eps','EPS'],
+          ...(st.installed.gpu?[['gpuPower','gpupower','PCIe GPU']]:[])],
+        cooler:[['cpuFan','cpufan','CPU_FAN']],
+        gpu:t.model.power?.length?[['gpuPower','gpupower','PCIe GPU']]:[],
+        storage:t.model.interface==='SATA'?
+          [['sataData','sataData','SATA datos'],['sataPower','sataPower','SATA power']]:[]
+      };
+      for(const [flag,connector,name] of plugs[t.category]||[]){
+        actions.push({verb:st[flag]?'disconnect':'connect',target:connector,
+          label:(st[flag]?'Soltar ':'Conectar ')+name,enabled:true});
+      }
       if(t.category==='ram'&&!st.ramSeated)actions.push({verb:'fit',label:'Encajar DIMM',enabled:true});
       actions.push({verb:'remove',label:'Retirar',enabled:true});
     }
