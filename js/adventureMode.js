@@ -615,6 +615,10 @@ function createAdventureGame(api){
       section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
       section('shop','Tienda de informática',shop)+
       section('actions','Acciones y herramientas',actions,game.selected?'●':'')+
+      section('installed','Estado de piezas montadas',
+        '<p class="muted">Pulsa una pieza para ver tornillos, alimentación, datos y compatibilidad.</p>'+
+        (api.statusSummary?.()||'<p class="muted">Todavía no hay estado disponible.</p>'),
+        Object.values(api.state().installed).filter(Boolean).length)+
       section('delivery','Diagnóstico y entrega',delivery);
     panel.scrollTop=top;
   }
@@ -657,6 +661,7 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.dataset.mountedInspect){api.inspectPart?.(button.dataset.mountedInspect);return;}
     if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
     else if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
     else if(button.hasAttribute('data-exchange-go')){
