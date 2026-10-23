@@ -17,7 +17,7 @@ const CASES={
     goals:['32 GB RAM','GPU dedicada','SSD M.2 NVMe','Sistema operativo y buen flujo de aire']}
 };
 const OFFERS={
-  motherboard:[['b650',159],['b650m',129],['a520',79],['b550',109],['z790',249],['h610',75],['b760',165]],
+  motherboard:[['b650',159],['b650m',129],['x670e',295],['a520',79],['b550',109],['x570',185],['z790',249],['h610',75],['b760',165],['b760m',137]],
   cpu:[['r7600',189],['r5600',99],['r5600g',129],['r5700x',145],['r8600g',219],['r8700g',295],['r7700',275],['i512400',165],['i512400f',139],['i514400',239],['i513600k',279]],
   ram:[['ddr4_8',28],['ddr4_16',42],['ddr4_32',79],['ddr5_8',45],['ddr5_16',62],['ddr5_32',114],['ddr5_64',215]],
   storage:[['sataSSD',64],['sataSSD2',109],['nvmeSSD',79],['nvme2',145],['hdd',57],['hdd4',99]],
@@ -412,7 +412,17 @@ function createAdventureGame(api){
     message('Esa acción no es válida para el objeto seleccionado.');
   }
   function apply(k){
-    if(k!=='item:paste'){message('Para aplicar necesitas seleccionar pasta térmica.');return;}
+    if(k==='item:rgbStrip'){
+      if(!has(k)){message('Compra una tira LED ARGB antes de aplicarla.');return;}
+      if(st.power||st.caseClosed||!st.installed.case){
+        message('Apaga el PC, abre el chasis e instala una caja antes de añadir iluminación.');return;
+      }
+      if(st.rgbInstalled){message('La iluminación ARGB ya está montada.','ok');return;}
+      expend(k);st.rgbInstalled=true;st.rgbOn=true;
+      message('Tira LED ARGB instalada. Se iluminará con el equipo encendido.','ok');
+      api.render();return;
+    }
+    if(k!=='item:paste'){message('Selecciona pasta térmica o una tira LED ARGB para aplicar.');return;}
     const st=api.state();
     if(st.power||st.caseClosed){message('No apliques pasta con el PC encendido o cerrado.');return;}
     if(!st.installed.cpu||st.installed.cooler){
@@ -612,6 +622,9 @@ function createAdventureGame(api){
       else add('Colocar caja en mesa de montaje','Primera acción del encargo · encajar','fit',has(k));
     }else if(k==='item:ioShield'){
       add('Encajar chapa I/O','Antes de atornillar la placa base','fit',has(k)&&!!st.installed.case&&!st.installed.motherboard);
+    }else if(k==='item:rgbStrip'){
+      add('Instalar tira LED ARGB','Iluminación dentro del chasis, PC apagado','apply',
+        has(k)&&!!st.installed.case&&!st.power&&!st.caseClosed);
     }else if(k==='item:paste'){
       add('Aplicar pasta sobre CPU','Antes de montar el disipador','apply',
         has(k)&&!!st.installed.cpu&&!st.installed.cooler);
