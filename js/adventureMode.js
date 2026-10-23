@@ -108,6 +108,13 @@ function createAdventureGame(api){
     message('Nuevo encargo: '+CASES[which].client+'. Compra componentes y herramientas antes de montar.','ok');
     api.render();
   }
+  function demoBuild(){
+    if(!game)return;
+    // El ejemplo utiliza el modo técnico: no regala productos ni entrega
+    // encargos de clientes sin pagar las piezas.
+    exit();
+    api.demoBuild?.();
+  }
   function exit(){
     api.stage?.([], '');
     api.document.body.classList.remove('adventure-on');
@@ -210,7 +217,21 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const g=game,st=api.state(),verb=override||g.verb,k=g.selected;
-    if(verb==='boot'){api.power();return;}
+    if(verb==='boot'){
+      const before=st.log?.[0];
+      const powered=!!st.power;
+      api.power();
+      const explanation=st.log?.[0]!==before?st.log?.[0]?.m:null;
+      if(powered!==!!st.power){
+        message(st.power?'Equipo encendido. Revisa el POST en el monitor.':'Equipo apagado.','ok');
+      }else{
+        message('No se pudo encender/apagar: '+(explanation||
+          'revisa POWER SW, 24 pines ATX, placa base y fuente.'),
+          'warn');
+      }
+      g.openSections=['actions','delivery'];
+      return;
+    }
     if(verb==='route'){
       const before=st.log?.[0];
       api.action('route_psu');
@@ -221,7 +242,18 @@ function createAdventureGame(api){
         st.psuAccessRouted?'ok':'warn');
       return;
     }
-    if(verb==='bios'){api.bios();return;}
+    if(verb==='bios'){
+      const before=st.log?.[0],wasOpen=!!st.bios;
+      api.bios();
+      const explanation=st.log?.[0]!==before?st.log?.[0]?.m:null;
+      message(wasOpen!==!!st.bios?
+        (st.bios?'BIOS UEFI abierta. Puedes modificar el orden de arranque.':
+          'BIOS cerrada.'):('No se puede entrar en BIOS: '+
+        (explanation||'enciende el equipo, completa POST, conecta teclado y vídeo.')),
+        wasOpen!==!!st.bios?'ok':'warn');
+      g.openSections=['actions','delivery'];
+      return;
+    }
     if(verb==='inspect'){inspect();return;}
     if(verb==='os'){installOS();return;}
     if(!k){message('Selecciona primero una pieza del inventario.');return;}
@@ -635,6 +667,11 @@ function createAdventureGame(api){
     const shop='<p class="muted">Compra una caja para empezar. Todos los precios son ficticios.</p>'+shopMarkup();
     const actions=
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
+      '<div class="adv-quick-actions">'+
+      '<button type="button" data-quick="boot" class="primary">'+
+      (api.state().power?'Apagar ordenador':'Encender ordenador')+'</button>'+
+      '<button type="button" data-quick="bios">Entrar / salir BIOS</button>'+
+      '</div>'+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
@@ -659,6 +696,8 @@ function createAdventureGame(api){
         (ok?'✓ ':'✗ ')+safe(c)+'</div>').join('')+'</div>':'')+
       '<div class="adv-log" role="status" aria-live="polite">'+game.messages.map(m=>
         '<p class="'+(m.level==='ok'?'oktxt':'warntxt')+'">'+safe(m.text)+'</p>').join('')+'</div>'+
+      '<button type="button" data-demo-build class="adv-demo-build">'+
+      'Ver montaje recomendado (demostración, sin encargo)</button>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2><span>Modo aventura</span></div>'+
@@ -713,6 +752,8 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.dataset.quick){perform(button.dataset.quick);return;}
+    if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
     if(button.dataset.mountedInspect){api.inspectPart?.(button.dataset.mountedInspect);return;}
     if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
@@ -742,7 +783,7 @@ function createAdventureGame(api){
       paint();
     }
   });
-  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
+  return {start,exit,demoBuild,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
