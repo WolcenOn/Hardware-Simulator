@@ -7,7 +7,7 @@ import { buildRealScale } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-1-gameplay-e2e';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
-import { createATXTower } from './towerATX.js?v=8-4-1-gameplay-e2e';
+import { createATXTower } from './towerATX.js?v=8-4-2-focus-finishes';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
@@ -475,6 +475,7 @@ window.PC3D={
     position:camera.position.toArray(),
     target:controls.target.toArray()
   }),
+  getCaseFinish:()=>tower.getFinish(),
   // Zoom por botón con la misma interpolación que la rueda.
   zoom:amount=>smoothZoom.step(amount),
   focus:select3D
