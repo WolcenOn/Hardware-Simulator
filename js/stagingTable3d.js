@@ -13,7 +13,9 @@ export function createStagingTable(THREE,scene){
   const tabletop=mat(0x414e59),rail=mat(0x7f9ba8,.7,.39),
     pad=mat(0x121f29),pcb=mat(0x146052),chip=mat(0x1e2c36),
     gold=mat(0xc4a466,.5),steel=mat(0x9faeba,.62,.38),
-    plastic=mat(0x232f3a),labelInk=mat(0x182d41);
+    plastic=mat(0x232f3a),labelInk=mat(0x182d41),
+    whitePaint=mat(0xe7eef4,.5,.32),graphitePaint=mat(0x5f7080,.55,.39),
+    cyanGlow=new THREE.MeshStandardMaterial({color:0x20c1ff,emissive:0x11baff,emissiveIntensity:1.3});
   const mesh=(parent,w,h,d,x,y,z,m)=>{
     const object=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
     object.position.set(x,y,z);object.receiveShadow=true;
@@ -82,11 +84,12 @@ export function createStagingTable(THREE,scene){
     const m=(w,h,d,x,y,z,c)=>mesh(part,w,h,d,x,y,z,c);
     switch(category){
       case 'case':{
-        // Torre vacía, pequeña pero con chasis, cristal, bahías y ventiladores.
-        m(2.44,.14,2.60,0,.24,0,steel);
+        // La caja del inventario muestra el acabado comprado.
+        const paint=id==='towerWhite'?whitePaint:id==='towerGraphite'?graphitePaint:steel;
+        m(2.44,.14,2.60,0,.24,0,paint);
         m(2.44,.13,2.60,0,2.78,0,graphite);
         for(const x of [-1.13,1.13])for(const z of [-1.20,1.20])
-          m(.12,2.55,.12,x,1.47,z,steel);
+          m(.12,2.55,.12,x,1.47,z,paint);
         m(2.31,2.48,.10,0,1.51,-1.26,plastic);
         m(2.31,2.48,.075,0,1.51,1.26,graphite);
         m(.07,2.45,2.36,-1.22,1.51,0,glass);
@@ -121,9 +124,29 @@ export function createStagingTable(THREE,scene){
         }
         break;
       case 'cooler':
-        m(1.49,.78,1.49,0,.75,0,steel);
-        for(let z=-.58;z<=.6;z+=.19)m(1.55,.035,.09,0,1.19,z,graphite);
-        cylinder(part,.54,.54,.08,0,1.28,0,blue);break;
+        if(id==='aio240'||id==='aio360'){
+          const length=id==='aio360'?2.85:2.28;
+          m(length,.30,.83,0,.53,0,graphite);
+          const count=id==='aio360'?3:2;
+          for(let i=0;i<count;i++){
+            const x=(i-(count-1)/2)*.89;
+            cylinder(part,.36,.36,.07,x,.76,0,plastic,24);
+            cylinder(part,.13,.13,.09,x,.81,0,cyanGlow,18);
+          }
+          m(.66,.33,.66,-.42,.31,1.06,steel);
+          line(part,[[-.42,.4,1.04],[-.90,.65,.80],[-1.03,.78,.18]],.055,graphite);
+          line(part,[[-.32,.4,1.03],[.10,.63,.65],[.65,.78,.25]],.055,graphite);
+        }else if(id==='stock'){
+          m(1.07,.40,1.07,0,.45,0,steel);
+          cylinder(part,.48,.48,.09,0,.74,0,graphite,24);
+        }else{
+          for(const x of id==='twinTower'?[-.50,.50]:[0]){
+            m(.79,.91,1.24,x,.65,0,steel);
+            for(let z=-.49;z<=.5;z+=.20)m(.88,.03,.11,x,1.14,z,graphite);
+          }
+          cylinder(part,.50,.50,.08,0,1.23,.28,blue,24);
+        }
+        break;
       case 'storage':
         if(/nvme/i.test(id)){
           m(1.78,.09,.48,0,.33,0,pcb);
@@ -183,6 +206,9 @@ export function createStagingTable(THREE,scene){
           for(const z of [-.59,.59])m(1.72,.11,.12,0,.34,z,steel);
           for(const x of [-.79,.79])m(.12,.11,1.30,x,.34,0,steel);
           for(let k=0;k<4;k++)m(.19,.06,.24,-.40+k*.28,.35,0,plastic);
+        }else if(id==='rgbStrip'){
+          m(2.65,.16,.21,0,.35,0,graphite);
+          for(let i=0;i<12;i++)m(.14,.06,.14,-1.13+i*.205,.46,0,cyanGlow);
         }else if(id==='fan'){
           m(1.49,.23,1.49,0,.34,0,graphite);
           cylinder(part,.55,.55,.04,0,.49,0,steel,28);
