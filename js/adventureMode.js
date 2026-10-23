@@ -195,6 +195,8 @@ function createAdventureGame(api){
     game.purchases.push({k,price:cost});
     game.selected=k;
     game.openSections=['shop','inventory'];
+    // Tras comprar la primera caja se ve directamente sobre la mesa auxiliar.
+    if(cat==='case')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
   }
   function select(k){
@@ -255,6 +257,7 @@ function createAdventureGame(api){
         expend(k);
         if(part==='case'){
           st.casePlaced=true;
+          api.workView?.();
           message('Caja colocada en el banco de montaje. Ahora puedes abrirla y equiparla.','ok');
         }
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
