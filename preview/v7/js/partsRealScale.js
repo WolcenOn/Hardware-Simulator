@@ -29,6 +29,20 @@ export const PSU_CABLE_PORTS = Object.freeze({
   sataPower:[-.83,.84,4.87]
 });
 
+export const REAR_CASE_FAN_Y=2.23; // Evita la chapa rear I/O (50 mm/unidad).
+export const FRONT_IO_LAYOUT=Object.freeze({
+  power:[4.23,3.13,-3.52],
+  usbA:[[4.23,2.22,-3.50],[4.23,1.64,-3.50]],
+  usbC:[4.23,.98,-3.50],
+  powerLead:[4.36,3.13,-3.12],
+  usbALead:[4.36,1.94,-3.12],
+  usbCLead:[4.36,.98,-3.12]
+});
+export const getFrontUsbHeaders=cfg=>({
+  usb3:[cfg.x+cfg.w/2-.62,cfg.z+cfg.d/2-1.13],
+  usbC:[cfg.x+cfg.w/2-.77,cfg.z+cfg.d/2-1.70]
+});
+
 export const BOARD_LAYOUTS = {
   b650: {name:'B650 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:2,m2:2,
     cpuX:-1.55,cpuZ:-1.48,epsX:-3.31,epsZ:-2.73,atxX:1.11,atxZ:-1.25,
@@ -170,7 +184,7 @@ export function buildRealScale(p) {
   for(const [index,pos,rot] of [
     [0,[4.78,1.61,-2.00],-Math.PI/2],
     [1,[4.78,1.61,.47],-Math.PI/2],
-    [2,[-3.89,1.61,-1.25],Math.PI/2]
+    [2,[-3.89,REAR_CASE_FAN_Y,-1.25],Math.PI/2]
   ]){
     const holder=new THREE.Group();holder.position.set(...pos);
     holder.rotation.z=rot;fanMountGroup.add(holder);
@@ -232,6 +246,10 @@ export function buildRealScale(p) {
         box(.21,.14,.10,white,b,x,.49,z+sign*mm(66));
       }
     }
+    // Cabeceras internas para los dos USB-A y el USB-C del frontal.
+    const frontUsb=getFrontUsbHeaders(cfg);
+    rounded(.42,.24,.29,.024,black,b,frontUsb.usb3[0],.53,frontUsb.usb3[1]);
+    rounded(.27,.21,.20,.020,dark,b,frontUsb.usbC[0],.52,frontUsb.usbC[1]);
     // ATX 24 pines (derecha), EPS CPU (esquina superior izquierda).
     rounded(.28,.43,.90,.02,dark,b,cfg.atxX,.60,cfg.atxZ);
     rounded(.40,.32,.48,.02,dark,b,cfg.epsX,.55,cfg.epsZ);

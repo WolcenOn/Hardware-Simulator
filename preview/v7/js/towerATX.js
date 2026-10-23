@@ -2,7 +2,7 @@
 // Sistema local de montaje: X=trasera→frontal, Z=superior→inferior, Y=fondo→cristal.
 // Se transforma a vertical en procedural3d.js con rotation.x=Math.PI/2.
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
-import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-3-board-standoffs';
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT } from './partsRealScale.js?v=8-4-4-front-io';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);
@@ -73,7 +73,47 @@ export function createATXTower(THREE,parent,materials){
     add(tower,[.09,2.47,.11],[4.90,1.65,z-1.18],panel);
     add(tower,[.09,2.47,.11],[4.90,1.65,z+1.18],panel);
   }
-  add(tower,[.09,2.49,2.49],[rear+.14,1.65,-1.25],cageMaterial);
+  add(tower,[.09,2.49,2.49],[rear+.14,REAR_CASE_FAN_Y,-1.25],cageMaterial);
+  // Panel superior-frontal integrado: un pulsador momentáneo, LED y tres USB.
+  const frontIO=new THREE.Group();frontIO.name='Panel superior frontal POWER / USB';
+  tower.add(frontIO);
+  const portDark=new THREE.MeshStandardMaterial({color:0x111923,metalness:.30,roughness:.59});
+  const portMetal=new THREE.MeshStandardMaterial({color:0x98afc2,metalness:.82,roughness:.23});
+  const portBlue=new THREE.MeshStandardMaterial({color:0x358dd6,metalness:.22,roughness:.45});
+  add(frontIO,[1.32,3.38,.115],[4.25,2.10,-3.41],panel);
+  const powerControl=new THREE.Group();powerControl.name='Botón POWER del chasis';
+  powerControl.position.set(...FRONT_IO_LAYOUT.power);frontIO.add(powerControl);
+  const buttonRing=new THREE.Mesh(new THREE.TorusGeometry(.255,.039,9,36),portMetal);
+  buttonRing.position.z=.024;powerControl.add(buttonRing);
+  const powerButton=new THREE.Mesh(new THREE.CylinderGeometry(.205,.205,.13,32),portDark);
+  powerButton.rotation.x=Math.PI/2;powerButton.userData.partId='casePower';
+  powerButton.name='Pulsador físico de encendido';powerControl.add(powerButton);
+  const powerLedMaterial=new THREE.MeshStandardMaterial({color:0x6de8e6,
+    emissive:0x23f5c9,emissiveIntensity:.04,roughness:.25});
+  const powerLed=new THREE.Mesh(new THREE.SphereGeometry(.066,16,12),powerLedMaterial);
+  powerLed.position.set(3.83,3.13,-3.51);frontIO.add(powerLed);
+  function usbPort(position,kind){
+    const g=new THREE.Group();g.position.set(...position);
+    g.name=kind==='frontUsbC'?'Puerto frontal USB-C':'Puerto frontal USB-A';
+    g.userData.partId=kind;frontIO.add(g);
+    const isC=kind==='frontUsbC';
+    add(g,isC?[.40,.25,.10]:[.48,.33,.10],[0,0,0],portMetal);
+    add(g,isC?[.32,.15,.014]:[.38,.23,.014],[0,0,-.061],portDark);
+    add(g,isC?[.23,.07,.012]:[.27,.070,.012],[0,0,-.074],isC?portMetal:portBlue);
+    return g;
+  }
+  const frontUsbPorts=[
+    ...FRONT_IO_LAYOUT.usbA.map(pos=>({id:'frontUsb3',object:usbPort(pos,'frontUsb3')})),
+    {id:'frontUsbC',object:usbPort(FRONT_IO_LAYOUT.usbC,'frontUsbC')}
+  ];
+  let powerStroke=0;
+  function pressPowerButton(){powerStroke=.16;}
+  function updateFrontIO(dt){
+    powerStroke=Math.max(0,powerStroke-dt);
+    powerButton.position.z=powerStroke>0?.052:0;
+  }
+  function setPower(powered){powerLedMaterial.emissiveIntensity=powered?2.1:.04;}
+  setPower(false);
   // SSD SATA 2.5" detrás de la bandeja de placa, no en la jaula HDD.
   const rearSSD=new THREE.Group();rearSSD.name='Soportes SSD traseros';
   rearSSD.position.set(-.30,-.67,.65);tower.add(rearSSD);
@@ -141,6 +181,8 @@ export function createATXTower(THREE,parent,materials){
   sync(false,false);
   function setRgb(enabled){rgbGroup.visible=!!enabled;}
   setRgb(false);
-  return {root:tower,sync,setFinish,getFinish,setRgb,setMotherboardLayout,mountPosts,hinge,rearSSD,hddCage,psuSeat,
+  return {root:tower,sync,setFinish,getFinish,setRgb,setPower,pressPowerButton,updateFrontIO,
+    powerControl,powerButton,powerLed,frontUsbPorts,frontIO,setMotherboardLayout,mountPosts,
+    hinge,rearSSD,hddCage,psuSeat,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }
