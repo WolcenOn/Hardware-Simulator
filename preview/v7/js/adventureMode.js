@@ -462,9 +462,11 @@ function createAdventureGame(api){
       '</select><div class="adv-list">'+entries.map(([id,cost])=>
         '<div class="adv-card"><div><strong>'+safe(label(cat,id))+'</strong>'+
         '<small>'+safe(cat==='item'?'Herramienta/consumible':CATEGORIES[cat])+'</small></div>'+
+        '<div class="adv-shop-opts"><button type="button" data-shop-info="'+
+        safe(key(cat,id))+'">Ficha</button>'+
         '<button type="button" data-buy="'+safe(key(cat,id))+'"'+
         (cost>game.budget-game.spent?' disabled':'')+'>'+
-        format(cost)+'</button></div>').join('')+'</div>';
+        format(cost)+'</button></div></div>').join('')+'</div>';
   }
   function inventoryMarkup(){
     const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
@@ -615,6 +617,10 @@ function createAdventureGame(api){
       section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
       section('shop','Tienda de informática',shop)+
       section('actions','Acciones y herramientas',actions,game.selected?'●':'')+
+      section('installed','Estado de piezas montadas',
+        '<p class="muted">Pulsa una pieza para ver tornillos, alimentación, datos y compatibilidad.</p>'+
+        (api.statusSummary?.()||'<p class="muted">Todavía no hay estado disponible.</p>'),
+        Object.values(api.state().installed).filter(Boolean).length)+
       section('delivery','Diagnóstico y entrega',delivery);
     panel.scrollTop=top;
   }
@@ -657,6 +663,8 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
+    if(button.dataset.mountedInspect){api.inspectPart?.(button.dataset.mountedInspect);return;}
     if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
     else if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
     else if(button.hasAttribute('data-exchange-go')){
