@@ -10,9 +10,16 @@ const titles={case:'Caja ATX',cooler:'Disipador CPU',motherboard:'Placa base',
   mouse:'Ratón USB',fan0:'Ventilador frontal 1',fan1:'Ventilador frontal 2',
   fan2:'Ventilador trasero'};
 const special={
-  'case:tower':{name:'Caja ATX con bandejas',sizeMm:'453 × 230 × 466 mm (referencia)',desc:'Chasis de torre ATX con PSU inferior, jaula HDD, bandeja SSD y pasacables.'},
+  'case:tower':{name:'Caja ATX negra',sizeMm:'453 × 230 × 466 mm',desc:'Torre ATX negra con PSU inferior.'},
+  'case:towerWhite':{name:'Caja ATX blanca',sizeMm:'453 × 230 × 466 mm',desc:'Misma torre en acabado blanco.'},
+  'case:towerGraphite':{name:'Caja ATX grafito',sizeMm:'453 × 230 × 466 mm',desc:'Misma torre con pintura grafito.'},
+  'cooler:stock':{name:'Disipador compacto',sizeMm:'90 × 90 × 55 mm',desc:'Ventilador de serie; menos margen térmico.'},
+  'cooler:twinTower':{name:'Doble torre de aire 120 mm',sizeMm:'140 × 125 × 160 mm',desc:'Dos bloques de aletas de aluminio.'},
+  'cooler:aio240':{name:'AIO líquida 240 mm',sizeMm:'240 × 120 mm',desc:'Radiador doble, bomba y tubos; requiere CPU_FAN.'},
+  'cooler:aio360':{name:'AIO líquida 360 mm',sizeMm:'360 × 120 mm',desc:'Radiador triple y bomba; requiere CPU_FAN.'},
   'cooler:air':{name:'Disipador por aire',desc:'Requiere pasta térmica y conexión CPU_FAN.'},
   'item:paste':{name:'Pasta térmica',desc:'Aplicar sobre la CPU antes de fijar el disipador.'},
+  'item:rgbStrip':{name:'Tira LED ARGB',desc:'Instalar en chasis abierto, apagado; brilla al arrancar.'},
   'item:screws':{name:'Juego de tornillos',desc:'Se consumen al fijar componentes instalados.'},
   'item:screwdriver':{name:'Destornillador',desc:'Herramienta reutilizable de montaje.'},
   'item:ioShield':{name:'Chapa I/O',desc:'Debe colocarse antes de instalar la placa.'},
@@ -38,7 +45,9 @@ function createPartInspector(api){
       return {category:raw,id:raw,key:raw};
     const [category,...rest]=raw.split(':');
     if(groups[category]||['case','cooler','item'].includes(category)){
-      const id=rest.length?rest.join(':'):api.state()?.selected?.[category]||
+      const id=rest.length?rest.join(':'):
+        (category==='case'?api.state()?.selected?.caseVariant:
+         api.state()?.selected?.[category])||
         (category==='case'?'tower':category==='cooler'?'air':'');
       return {category,id,key:category+':'+id};
     }
@@ -94,6 +103,10 @@ function createPartInspector(api){
     const isInstalled=installed(t,st),screw=k=>
       !g?info('Atornillado','No registrado en modo técnico'):
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
+    if(t.key==='item:rgbStrip')return [
+      good('Tira LED instalada',!!st.rgbInstalled),
+      info('Iluminación',st.rgbInstalled&&st.power?'Encendida':'Apagada')
+    ];
     if(t.key==='item:ioShield')return [
       good('Chapa I/O trasera encajada',!!st.ioShield,
         'El marco rodea las salidas USB y HDMI/DP de la placa'),
@@ -124,7 +137,8 @@ function createPartInspector(api){
       case 'cpu':return [good('CPU instalada',true),good('Disipador',!!st.installed.cooler),
         good('Pasta térmica',st.paste>=.7),good('EPS placa',!!st.eps)];
       case 'ram':return [good('DIMM bloqueado en pestañas',!!st.ramSeated)];
-      case 'cooler':return [good('Pasta térmica aplicada',st.paste>=.7),
+      case 'cooler':return [info('Modelo',window.PC_COOLER_OPTIONS?.[st.selected.cooler]?.name||'Torre de aire'),
+        good('Pasta térmica aplicada',st.paste>=.7),
         good('CPU_FAN conectado',!!st.cpuFan),
         info('Temperatura CPU',String(api.evaluate?.()?.temp??'—')+' °C')];
       case 'gpu':return [screw('gpu'),
@@ -150,10 +164,10 @@ function createPartInspector(api){
     const actions=[{verb:'sheet',label:'Ficha técnica',enabled:true}];
     if(!active)return actions;
     if(t.category==='item'){
-      if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'){
-        const mountedIO=t.id==='ioShield'&&st.ioShield;
-        if(!mountedIO)actions.push({verb:t.id==='paste'?'apply':'fit',
-          label:t.id==='paste'?'Aplicar':t.id==='ioShield'?'Encajar en rear I/O':'Encajar',enabled:true});
+      if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'||t.id==='rgbStrip'){
+        const mountedIO=(t.id==='ioShield'&&st.ioShield)||(t.id==='rgbStrip'&&st.rgbInstalled);
+        if(!mountedIO)actions.push({verb:(t.id==='paste'||t.id==='rgbStrip')?'apply':'fit',
+          label:(t.id==='paste'||t.id==='rgbStrip')?'Aplicar':t.id==='ioShield'?'Encajar en rear I/O':'Encajar',enabled:true});
       }
       return actions;
     }
