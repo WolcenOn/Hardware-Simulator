@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=8-1-inventory-igpu';
+import { buildRealScale } from './partsRealScale.js?v=8-3-2-io-shield';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-1-inventory-igpu';
+import { createCableHarness } from './cablesProcedural.js?v=8-3-2-io-shield';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
@@ -249,6 +249,13 @@ view.addEventListener('pointerup',e=>{
   }
   // El chasis transparente no debe impedir seleccionar conectores y piezas
   // visibles en su interior. Los ventiladores tienen puntos propios.
+  // La chapa se puede seleccionar desde la cara trasera,
+  // incluso antes de haber instalado la placa base.
+  if(current?.ioShield&&assembly.ioShield.visible&&
+    raycaster.intersectObject(assembly.ioShield,true).length){
+    select3D('ioShield',e.clientX,e.clientY);
+    return;
+  }
   const fanHits=raycaster.intersectObjects(
     assembly.caseFanMounts.filter(x=>x.visible),true);
   if(fanHits.length){
