@@ -1,3 +1,4 @@
+import {createRearReceptacle3d} from './rearPorts3d.js?v=8-4-6-port-geometry';
 // Escenario 7.0: proporciones derivadas de tamaños físicos (1 unidad = 50 mm).
 // Referencias: ATX 305x244; ASUS A520M-K 226x221; GPU ASUS Dual RX7600 245x134x49,
 // ASUS Dual RTX4070 267.01x133.94x51.13; ventilador 120x120x25;
@@ -39,9 +40,19 @@ export function getRearUsbAnchor(cfg,index){
     MOTHERBOARD_MOUNT.offsetY+.51,
     cfg.z-cfg.d/2+.55+index*.50];
 }
-export function getRearVideoAnchor(cfg){
+export function getRearVideoAnchor(cfg,kind='hdmi'){
+  if(kind!=='hdmi'&&kind!=='displayPort')
+    throw new RangeError('Salida de vídeo desconocida');
   return [cfg.x-cfg.w/2-.20+.035,MOTHERBOARD_MOUNT.offsetY+.80,
-    cfg.z-cfg.d/2+.38];
+    cfg.z-cfg.d/2+(kind==='hdmi'?.38:2.72)];
+}
+// Cuatro bocas físicas sobre el bracket de la GPU: DP, DP, DP y HDMI.
+export const GPU_REAR_PORT_TYPES=Object.freeze(['displayPort','displayPort','displayPort','hdmi']);
+export function getGpuVideoAnchor(cfg,index=0){
+  if(!Number.isInteger(index)||index<0||index>=GPU_REAR_PORT_TYPES.length)
+    throw new RangeError('Salida de GPU fuera de rango');
+  return [-4.015,.46+MOTHERBOARD_MOUNT.offsetY+.64+index*.47,
+    cfg.pcieZ+.11];
 }
 
 export const REAR_CASE_FAN_Y=2.23; // Evita la chapa rear I/O (50 mm/unidad).
@@ -175,14 +186,8 @@ export function buildRealScale(p) {
   // Travesaños de chapa entre grupos de puertos, sin tapar sus contactos.
   for(const z of [-.70,.71])
     rounded(.10,.055,.11,.015,portsPanel,ioShield,0,.59,z);
-  // Conectores USB (centro y=0.51) con marco azul, a la altura real
-  // de los puertos ya dibujados sobre cada variante de placa.
-  for(let i=0;i<5;i++){
-    const z=-1.03+i*.50;
-    rounded(.13,.31,.35,.021,dark,ioShield,.10,.51,z);
-    rounded(.10,.16,.24,.014,i%2?materials.blue:alu,ioShield,
-      .19,.51,z);
-  }
+  // Los marcos metálicos visibles los crea la propia placa y atraviesan
+  // este bastidor. Evitamos tapar la boca con los antiguos bloques macizos.
   // Dos bahías separadas para HDD 3.5" y SSD 2.5", frontales en el chasis.
   const storageBays=new THREE.Group();chassis.add(storageBays);
   for(const z of [1.64,2.85]){
@@ -211,6 +216,8 @@ export function buildRealScale(p) {
   }
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
+  const rearUsbSockets={};
+  const rearVideoSockets={};
   function createBoard(id,cfg){
     const b=new THREE.Group();b.name='PCB_'+id;board.add(b);
     const left=cfg.x-cfg.w/2, right=cfg.x+cfg.w/2;
@@ -228,18 +235,24 @@ export function buildRealScale(p) {
       const end=Math.min(right-.16,x+.08+(i%4)*.06);
       trace(x,z,end,z,.364,i%7===0?gold:materials.green,b,.004);
     }
-    // Panel de puertos traseros, en lateral izquierdo.
-    for(let i=0;i<5;i++){
-      rounded(.22,.27,.33,.02,i%2?alu:silver,b,left+.13,.51,top+.55+i*.50);
+    // Puerto y clavija comparten exactamente el MISMO origen. Las
+    // tomas tienen un marco hueco, lengüeta, aislante y contactos visibles.
+    rearUsbSockets[id]=[];
+    for(let i=0;i<REAR_USB_COUNT;i++){
+      const socket=createRearReceptacle3d(THREE,'usbA');
+      const xyz=getRearUsbAnchor(cfg,i);
+      socket.position.set(xyz[0],xyz[1]-MOTHERBOARD_MOUNT.offsetY,xyz[2]);
+      socket.name='USB-A trasero '+(i+1);b.add(socket);
+      rearUsbSockets[id].push(socket);
     }
-    // Tomas gráficas integradas: HDMI y DisplayPort son conectores de la
-    // placa; únicamente producen señal si el procesador incorpora iGPU.
-    // HDMI y DisplayPort comparten la abertura trasera con los USB.
-    // Su segunda fila está un poco más alta para no solaparse con ellos.
-    rounded(.23,.10,.34,.02,black,b,left+.115,.80,top+.38);
-    rounded(.17,.042,.27,.013,gold,b,left+.066,.806,top+.38);
-    rounded(.24,.12,.35,.02,black,b,left+.115,.80,top+2.72);
-    rounded(.17,.05,.28,.012,silver,b,left+.066,.806,top+2.72);
+    rearVideoSockets[id]={};
+    for(const type of ['hdmi','displayPort']){
+      const socket=createRearReceptacle3d(THREE,type);
+      const xyz=getRearVideoAnchor(cfg,type);
+      socket.position.set(xyz[0],xyz[1]-MOTHERBOARD_MOUNT.offsetY,xyz[2]);
+      socket.name='Vídeo de placa '+type;b.add(socket);
+      rearVideoSockets[id][type]=socket;
+    }
     // Socket real, CPU retirada en pieza independiente.
     rounded(1.13,.085,1.13,.065,silver,b,cfg.cpuX,.43,cfg.cpuZ);
     rounded(.94,.04,.94,.04,dark,b,cfg.cpuX,.50,cfg.cpuZ);
@@ -392,6 +405,17 @@ export function buildRealScale(p) {
   const coolerVariants={air:coolerAir,stock:coolerStock,twinTower:coolerTwin,
     aio240:coolerAIO240,aio360:coolerAIO360};
 
+  // Bracket trasero PCIe: tres DisplayPort y un HDMI, con orificios
+  // geométricos independientes. Sigue al modelo de GPU al cambiar de placa.
+  const gpuBracketPorts=GPU_REAR_PORT_TYPES.map((type,index)=>{
+    const socket=createRearReceptacle3d(THREE,type);
+    socket.name='GPU '+(index<3?'DisplayPort '+(index+1):'HDMI');
+    gpu.add(socket);
+    return socket;
+  });
+  const gpuBracket=new THREE.Group();gpu.add(gpuBracket);
+  rounded(.075,2.05,.48,.028,alu,gpuBracket,0,0,0);
+
   // GPU perpendicular a placa base, con ventiladores visibles empotrados
   // en la cubierta y chapa PCIe diferenciada.
   const videoCards={};
@@ -518,6 +542,13 @@ export function buildRealScale(p) {
     const card=s?.selected?.gpu==='rtx4070'?'rtx4070':'rx7600'; // fallback mesh para variantes GPU 8.1
     for(const [key,obj] of Object.entries(videoCards))obj.visible=key===card;
     gpu.position.set(cfg.pcieX,.46+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.01);
+    gpuBracketPorts.forEach((socket,i)=>{
+      const a=getGpuVideoAnchor(cfg,i);
+      socket.position.set(a[0]-gpu.position.x,a[1]-gpu.position.y,a[2]-gpu.position.z);
+    });
+    const a=getGpuVideoAnchor(cfg,1);
+    gpuBracket.position.set(a[0]-gpu.position.x+.22,
+      a[1]-gpu.position.y+.24,a[2]-gpu.position.z);
     m2Drive.position.set(cfg.x-.80,.49+MOTHERBOARD_MOUNT.offsetY,cfg.z+.08);
     sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
     hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
@@ -563,5 +594,6 @@ export function buildRealScale(p) {
     return {cfg,anchors,snapTargets,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
-    configure,anchors,motherboardModels,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
+    configure,anchors,motherboardModels,rearUsbSockets,rearVideoSockets,
+    gpuBracketPorts,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
 }

@@ -1,3 +1,4 @@
+import {portBezelGeometry} from './portProfiles.js?v=8-4-6-port-geometry';
 // Conectores procedurales (1 unidad = 50 mm). Las dimensiones son aproximadas.
 // Origen = punta insertada; eje +Y = sentido del cable / cuerpo de la clavija.
 // Se orientan hacia el tramo de cable sin depender de ninguna cámara.
@@ -37,6 +38,40 @@ export function createConnector3d(THREE,kind){
     socketGrid(rows,cols,w*.77,d*.79,omit);
     strain(h,w*.40);
   };
+  // Borde REAL con contorno compartido con la toma hembra. El metal
+  // penetra en el puerto; el sobremolde queda fuera, hacia el cable.
+  function metalTip(kind){
+    const rim=new THREE.Mesh(portBezelGeometry(THREE,kind,.155),steel);
+    rim.rotation.x=Math.PI/2;
+    rim.position.y=-.025;
+    rim.name='Carcasa macho '+kind+' con abertura hueca';g.add(rim);
+    return rim;
+  }
+  function cableBoot(width=.25,base=.48){
+    for(let i=0;i<5;i++){
+      const y=base+i*.075;
+      add(width*(1-i*.105),.025,width*.76*(1-i*.105),0,y,0,
+        i%2?grip:jacket,'Nervio flexible del cable');
+    }
+    const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(.07,.10,.26,12),jacket);
+    sleeve.position.y=base+.53;g.add(sleeve);
+  }
+  function videoTip(kind){
+    metalTip(kind);
+    add(kind==='hdmi'?.36:.39,.39,.24,0,.255,0,jacket,
+      kind==='hdmi'?'Mango HDMI trapezoidal':'Mango DisplayPort biselado');
+    // Aislante y contactos visibles en dos filas dentro del blindaje.
+    add(.20,.075,.030,0,-.105,0,dark,'Lengüeta de vídeo');
+    for(let i=0;i<10;i++)
+      for(let row=0;row<2;row++)
+        add(.012,.020,.009,-.087+i*.019,-.136,row?.021:-.021,
+          gold,'Contacto de señal '+(i+row*10));
+    if(kind==='displayPort'){
+      add(.075,.030,.050,.15,.095,.07,grip,'Pestaña de liberación DisplayPort');
+      add(.060,.055,.048,-.16,.115,.04,grip,'Bloqueo DisplayPort');
+    }
+    cableBoot(.23,.46);
+  }
   switch(kind){
     case 'atx24':
       rectangular(.34,1.03,.43,2,12, -1);
@@ -80,31 +115,36 @@ export function createConnector3d(THREE,kind){
       strain(.29,w*.42);
       break;
     }
-    case 'usbA':
-      add(.245,.20,.103,0,.055,0,steel,'Carcasa metálica USB-A');
-      add(.178,.034,.060,0,-.057,0,dark,'Boca USB-A');
-      add(.146,.014,.047,0,-.068,-.003,blue,'Lengüeta USB-A');
-      for(let j=0;j<4;j++)
-        add(.019,.009,.025,-.051+j*.034,-.075,-.008,gold,'Contacto USB '+j);
-      add(.30,.27,.18,0,.275,0,jacket,'Sobremolde USB-A');
-      strain(.38,.20);
+    case 'usbA':{
+      metalTip('usbA');
+      add(.175,.11,.024,0,-.126,-.019,blue,'Lengüeta aislante USB-A');
+      for(let i=0;i<4;i++)
+        add(.022,.037,.009,-.056+i*.037,-.125,-.040,
+          gold,'Contacto USB-A '+(i+1));
+      // Ventanas para las dos uñas de retención de la cubierta.
+      for(const x of [-.056,.056])
+        add(.032,.041,.007,x,-.104,.049,dark,'Retención de carcasa USB-A');
+      add(.34,.34,.19,0,.25,0,jacket,'Sobremolde rectangular USB-A');
+      add(.33,.036,.19,0,.091,0,grip,'Cuello del sobremolde');
+      cableBoot(.22,.44);
       break;
-    case 'usbC':
-      add(.24,.18,.070,0,.025,0,steel,'Cápsula simétrica USB-C');
-      add(.170,.027,.043,0,-.061,0,dark,'Boca USB-C');
-      add(.110,.009,.012,0,-.076,0,gold,'Lengüeta USB-C');
-      add(.28,.29,.155,0,.245,0,jacket,'Sobremolde USB-C');
-      strain(.35,.18);
+    }
+    case 'usbC':{
+      // Cápsula USB-C reversible, sin confundirla con USB-A rectangular.
+      const shell=new THREE.Mesh(new THREE.CapsuleGeometry(.072,.093,5,10),steel);
+      shell.rotation.x=Math.PI/2;shell.position.y=-.12;
+      shell.scale.set(1,.62,1);shell.name='Carcasa ovalada USB-C';g.add(shell);
+      add(.18,.036,.034,0,-.150,0,dark,'Boca USB-C');
+      add(.13,.024,.016,0,-.157,0,gold,'Lengüeta USB-C');
+      add(.285,.33,.17,0,.21,0,jacket,'Mango USB-C');cableBoot(.19,.42);
       break;
+    }
     case 'video':
+    case 'displayPort':
+      videoTip('displayPort');break;
     case 'videoIGPU':
     case 'hdmi':
-      add(.37,.20,.23,0,.026,0,steel,'Blindaje HDMI / DisplayPort');
-      add(.30,.015,.155,0,-.083,0,dark,'Boca de vídeo');
-      add(.24,.015,.055,0,-.094,0,gold,'Contacto de vídeo');
-      add(.42,.33,.27,0,.28,0,jacket,'Mango HDMI / DP');
-      strain(.40,.23);
-      break;
+      videoTip('hdmi');break;
     default:
       rectangular(.22,.23,.30,2,2);
   }

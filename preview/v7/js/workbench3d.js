@@ -1,5 +1,6 @@
-import { getRearUsbAnchor } from './partsRealScale.js?v=8-4-5-real-connectors';
-import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
+import { getRearUsbAnchor } from './partsRealScale.js?v=8-4-6-port-geometry';
+import { createConnector3d } from './connectors3d.js?v=8-4-6-port-geometry';
+import {alignRearPlug} from './portProfiles.js?v=8-4-6-port-geometry';
 // Banco de trabajo y periféricos hechos con Three.js (sin assets externos).
 // La pantalla refleja literalmente la misma cadena de texto del monitor HTML.
 // Medidas: 1 unidad Three.js = 50 mm. Mesa 1350 x 850 mm aprox.
@@ -160,8 +161,8 @@ export function createWorkbench(THREE,scene,materials) {
       const socket=assemblyRoot.localToWorld(new THREE.Vector3(...socketLocal));
       const toArray=v=>[v.x,v.y,v.z];
       const path=[...cablePaths[id],
-        [socket.x-1.12,socket.y-1.50,socket.z-.85],
-        [socket.x-.63,socket.y-.40,socket.z-.29],
+        [socket.x-1.08,socket.y-.62,socket.z-.37],
+        [socket.x-.48,socket.y,socket.z],
         toArray(socket)];
       const g=new THREE.Group();g.name='USB-A '+id;usbGroup.add(g);
       const material=new THREE.MeshStandardMaterial({color:cableColors[id],roughness:.86});
@@ -174,7 +175,7 @@ export function createWorkbench(THREE,scene,materials) {
       plug.position.copy(socket);
       // Puerto trasero orientado hacia -X: la clavija se introduce hacia +X,
       // mientras que el cable sale perpendicularmente hacia el exterior.
-      plug.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(-1,0,0));
+      alignRearPlug(THREE,plug,assemblyRoot);
       g.add(plug);
       rearCables[id]={group:g,plug,portIndex:USB_PORT_INDEX[id],socketLocal};
     }
@@ -188,15 +189,23 @@ export function createWorkbench(THREE,scene,materials) {
       if(row)row.group.visible=!!s?.[id+'Connected']&&!!s?.installed?.motherboard;
     }
   }
-  function getRearUsbAlignment(assemblyRoot){
+  function getRearUsbAlignment(assemblyRoot,receptacles=[]){
     if(!assemblyRoot)return [];
     assemblyRoot.updateMatrixWorld(true);
     return ['keyboard','mouse'].map(id=>{
       const row=rearCables[id];if(!row)return null;
       const socket=assemblyRoot.localToWorld(new THREE.Vector3(...row.socketLocal));
+      const real=receptacles[row.portIndex];
+      const portWorld=real?.getWorldPosition(new THREE.Vector3())||socket;
       const plug=row.plug.getWorldPosition(new THREE.Vector3());
-      return {id,portIndex:row.portIndex,portWorld:socket.toArray(),
-        plugWorld:plug.toArray(),gapMm:socket.distanceTo(plug)*50,
+      const socketAxis=real?new THREE.Vector3(0,0,1).applyQuaternion(
+        real.getWorldQuaternion(new THREE.Quaternion())):new THREE.Vector3(0,0,1);
+      const maleAxis=new THREE.Vector3(1,0,0).applyQuaternion(
+        row.plug.getWorldQuaternion(new THREE.Quaternion()));
+      const angleDegrees=Math.acos(Math.min(1,Math.abs(socketAxis.dot(maleAxis))))*180/Math.PI;
+      return {id,portIndex:row.portIndex,portWorld:portWorld.toArray(),
+        plugWorld:plug.toArray(),gapMm:portWorld.distanceTo(plug)*50,
+        angleDegrees,
         visible:row.group.visible,connectorType:row.plug.userData.connectorType};
     }).filter(Boolean);
   }
