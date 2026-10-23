@@ -124,3 +124,39 @@ test('el panel lateral conserva las cajas y selectores dentro de su ancho', asyn
   });
   expect(outside).toEqual([]);
 });
+
+test('las cámaras enfocan por separado montaje, componentes, periféricos y vista general', async ({ page }) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  const check=async (button,id,targetX) => {
+    await page.locator(button).click();
+    await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset',id);
+    const frame=await page.evaluate(() => window.PC3D.getViewState());
+    expect(frame.view).toBe(id);
+    expect(frame.target[0]).toBeCloseTo(targetX,1);
+    await expect(page.locator(button)).toHaveAttribute('aria-pressed','true');
+  };
+  await check('#viewAssemblyDesk','assembly',-4.3);
+  await check('#viewStaging3d','staging',18.5);
+  await check('#viewPeripherals','peripherals',-9.05);
+  await check('#viewDesk','general',4.15);
+});
+
+test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await buy(page,'case','towerWhite');
+  await fit(page,'case:towerWhite');
+  const white=await page.evaluate(() => window.PC3D.getCaseFinish());
+  expect(white.variant).toBe('towerWhite');
+  expect(white.frame).toBe(0xc0cbd5);
+  await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','assembly');
+
+  await page.locator('#adventureBtn').click();
+  await buy(page,'case','towerGraphite');
+  await fit(page,'case:towerGraphite');
+  const graphite=await page.evaluate(() => window.PC3D.getCaseFinish());
+  expect(graphite.variant).toBe('towerGraphite');
+  expect(graphite.frame).toBe(0x566570);
+  expect(graphite.frame).not.toBe(white.frame);
+});
