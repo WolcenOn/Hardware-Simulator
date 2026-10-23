@@ -3,13 +3,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=8-3-2-io-shield';
+import { buildRealScale } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-3-2-io-shield';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-1-gameplay-e2e';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
-import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
+import { createATXTower } from './towerATX.js?v=8-4-1-gameplay-e2e';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
-import { createStagingTable } from './stagingTable3d.js?v=8-2-prep-bench';
+import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -160,6 +160,8 @@ function sync(state,details={}){
     !!details.videoSignal);
   const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
+  tower.setFinish?.(state.selected?.caseVariant||'tower');
+  tower.setRgb?.(!!state.rgbInstalled&&!!state.power&&!!state.rgbOn);
   assembly.fanMountGroup.visible=!!state.installed?.case;
   activeSnapTargets=snapTargets;
   if(draggedPart&&snapTargets[draggedPart]){
@@ -217,11 +219,71 @@ function select3D(id,clientX=null,clientY=null){
     detail:{part:id,clientX,clientY}
   }));
 }
+// Detección hover con raycasting liviano (18–22 Hz). No interfiere con
+// OrbitControls ni abre fichas hasta que se hace clic en un objeto.
+let lastHover=0;
+function hoverPart(e){
+  const bounds=view.getBoundingClientRect();
+  if(!bounds.width||!bounds.height)return null;
+  pointer.set(2*(e.clientX-bounds.left)/bounds.width-1,
+    1-2*(e.clientY-bounds.top)/bounds.height);
+  raycaster.setFromCamera(pointer,camera);
+  const prepared=raycaster.intersectObject(staging.root,true);
+  for(const hit of prepared){
+    const key=staging.identify(hit.object);
+    if(key)return {key,source:'table'};
+  }
+  if(current?.ioShield&&assembly.ioShield.visible&&
+    raycaster.intersectObject(assembly.ioShield,true).length)
+    return {key:'ioShield',source:'tower'};
+  for(let i=0;i<assembly.caseFanMounts.length;i++){
+    const mount=assembly.caseFanMounts[i];
+    if(mount.visible&&raycaster.intersectObject(mount,true).length)
+      return {key:'fan'+i,source:'tower'};
+  }
+  const installed=raycaster.intersectObjects(
+    Object.values(partGroups).filter(g=>g.visible),true);
+  for(const hit of installed){
+    let node=hit.object;
+    while(node&&!node.userData?.partId)node=node.parent;
+    if(node?.userData?.partId)return {key:node.userData.partId,source:'tower'};
+  }
+  for(const [node,key] of [
+    [workbench.keyboard,'keyboard'],[workbench.mouseGroup,'mouse'],
+    [workbench.screen,'monitor']]){
+    if(node&&raycaster.intersectObject(node,true).length)
+      return {key,source:'tower'};
+  }
+  if(current?.installed?.case&&raycaster.intersectObject(tower.root,true).length)
+    return {key:'case',source:'tower'};
+  return null;
+}
+view.addEventListener('pointermove',e=>{
+  if(e.pointerType==='touch'||(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>8)){
+    view.style.cursor='grab';
+    window.dispatchEvent(new CustomEvent('pc3d-hover',{detail:{key:null}}));
+    return;
+  }
+  const now=performance.now();
+  if(now-lastHover<45)return;
+  lastHover=now;
+  const result=hoverPart(e);
+  view.style.cursor=result?'pointer':'grab';
+  window.dispatchEvent(new CustomEvent('pc3d-hover',{
+    detail:{...(result||{key:null}),clientX:e.clientX,clientY:e.clientY}
+  }));
+});
+view.addEventListener('pointerleave',()=>{
+  press=null;view.style.cursor='grab';
+  window.dispatchEvent(new CustomEvent('pc3d-hover',{detail:{key:null}}));
+});
 view.addEventListener('pointerdown',e=>{
   press={x:e.clientX,y:e.clientY};
 });
 view.addEventListener('pointerup',e=>{
-  if(!press || Math.hypot(e.clientX-press.x,e.clientY-press.y)>7)return;
+  if(!press)return;
+  const origin=press;press=null;
+  if(Math.hypot(e.clientX-origin.x,e.clientY-origin.y)>7)return;
   const bounds=view.getBoundingClientRect();
   pointer.set(2*(e.clientX-bounds.left)/bounds.width-1,
      1-2*(e.clientY-bounds.top)/bounds.height);
