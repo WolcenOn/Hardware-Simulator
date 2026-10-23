@@ -285,13 +285,24 @@ test('la manguera termina al final del sobremolde, nunca en los contactos', asyn
   expect(routes.length).toBeGreaterThan(10);
   for(const route of routes){
     expect(route.gapsMm,route.id).toHaveLength(2);
+    expect(route.angleDegrees,route.id).toHaveLength(2);
+    expect(route.straightMm,route.id).toHaveLength(2);
     for(const mm of route.gapsMm)expect(mm,route.id).toBeLessThan(.05);
+    for(const angle of route.angleDegrees)
+      expect(angle,route.id+' inclinación').toBeLessThan(.1);
+    for(const mm of route.straightMm)
+      expect(mm,route.id+' tramo recto').toBeGreaterThan(12);
   }
   const internal=await page.evaluate(() => window.PC3D.getInternalPlugAlignment());
-  for(const target of internal.filter(x=>x.gapMm!==null))
+  for(const target of internal.filter(x=>x.gapMm!==null)){
     expect(target.gapMm,target.kind).toBeLessThan(.25);
+    expect(target.angleDegrees,target.kind+' header').toBeLessThan(.1);
+  }
   const psu=await page.evaluate(() => window.PC3D.getPsuPlugAlignment());
-  for(const target of psu)expect(target.gapMm,target.kind).toBeLessThan(.25);
+  for(const target of psu){
+    expect(target.gapMm,target.kind).toBeLessThan(.25);
+    expect(target.angleDegrees,target.kind+' PSU').toBeLessThan(.1);
+  }
 });
 
 test('USB teclado/ratón y HDMI/DP terminan detrás de la parte rígida',async ({page})=>{
@@ -307,6 +318,30 @@ test('USB teclado/ratón y HDMI/DP terminan detrás de la parte rígida',async (
   }
   const video=await page.evaluate(() => window.PC3D.getRearVideoAlignment());
   expect(video.flexGapMm).toBeLessThan(.05);
+});
+
+test('la orientación interna permanece perpendicular al cambiar de motherboard',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  for(const id of ['b650','a520','z790']){
+    await page.locator('select[data-cat="motherboard"]').selectOption(id);
+    await page.waitForTimeout(500);
+    const result=await page.evaluate(()=>({
+      ports:window.PC3D.getInternalPlugAlignment(),
+      psu:window.PC3D.getPsuPlugAlignment(),
+      cables:window.PC3D.getCableExitAlignment()
+    }));
+    for(const row of [...result.ports,...result.psu]){
+      if(row.gapMm===null)continue;
+      expect(row.gapMm,id+' '+row.kind).toBeLessThan(.25);
+      expect(row.angleDegrees,id+' '+row.kind).toBeLessThan(.1);
+    }
+    for(const cable of result.cables){
+      for(const angle of cable.angleDegrees)
+        expect(angle,id+' '+cable.id).toBeLessThan(.1);
+    }
+  }
 });
 
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {

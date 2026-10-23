@@ -167,4 +167,18 @@ assert(workbenchSource.includes('const tail=getCableExit(THREE,plug)'));
 assert(proceduralSource.includes('const flex=getCableExit(THREE,plug)'));
 assert(cableSource.includes("getInternalHeaderAnchor(cfg,'frontPanel')"));
 assert(read('js/partsRealScale.js').includes('psuCableSockets'));
+// Regresión 8.4.8: el eje de la clavija lo determina el puerto, NO la curva.
+const harness=read('js/cablesProcedural.js');
+assert(harness.includes('const port=physicalHeader(id,side,boardId)'));
+assert(harness.includes('port.localToWorld(up.clone())'));
+assert(harness.includes('scene.worldToLocal(outward).sub(p).normalize()'));
+assert(harness.includes('plug.quaternion.setFromUnitVectors(up,pose.normal)'));
+assert(!harness.includes('next.sub(plug.position)'),
+  'Los waypoints no deben orientar el enchufe');
+assert(harness.includes('getCableExit(THREE,plug,root)'));
+assert(harness.includes('const straightLength='));
+assert(harness.includes('tube(g,[exits[side].toArray(),knees[side].toArray()]'));
+assert(harness.includes('straightMm'));
+assert(read('js/procedural3d.js').includes('createCableHarness(THREE,root,assembly)'));
+assert(read('js/procedural3d.js').includes('angleDegrees:axis?axis.angleTo(expected)'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

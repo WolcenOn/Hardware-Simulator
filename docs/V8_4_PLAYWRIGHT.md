@@ -185,3 +185,14 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - Diagnósticos `PC3D.getCableExitAlignment()`, `PC3D.getInternalPlugAlignment()`, `PC3D.getPsuPlugAlignment()`, `getRearUsbAlignment().flexGapMm` y `getRearVideoAlignment().flexGapMm`.
 - Pruebas smoke de alturas de salida rígida, cabeceras y conectores; E2E con distancia flexible y coincidencia física de inserción.
 - Sin cambios a `main/index.html`; vista previa `/preview/v7/?v=8-4-7-cable-exits`.
+
+## 8.4.8 — inserción normal a la toma y curvas después del guardacable
+
+- Se elimina de `js/cablesProcedural.js` el cálculo de orientación por el waypoint adyacente (que inclinaba ATX24, EPS, PCIe y POWER SW).
+- `createCableHarness(THREE,root,assembly)` recibe el ensamblaje real. `getEndPose` lee el origen y el vector normal +Y transformado en WORLD de `assembly.internalHeaderModels`, `assembly.gpuPowerHeader` y `assembly.psuCableSockets`; lo convierte a local del chasis, compensando la rotación y la escala no uniforme de la fuente.
+- El enchufe mantiene un eje de inserción perpendicular fijo al receptáculo; la ruta del cable no altera el giro. Sólo los extremos sin toma (frontal físico, caja y discos) usan normales explícitas coherentes con el chasis.
+- Salida flexible desde `getCableExit()`; tramo rígido/recto independiente de 0,27 u (13,5 mm) o 0,37 u (18,5 mm), seguido de una curva Catmull-Rom. Los mazos eléctricos se reúnen antes de entrar en el protector.
+- Los waypoints de ATX, EPS, GPU, SATA, F_PANEL, USB 19 pin y Type-E evitan subir desde la canaleta a través de la PCB; pasan antes por el borde derecho/izquierdo y por encima del header.
+- `PC3D.getCableExitAlignment()` ahora devuelve `angleDegrees` (ambos extremos) y `straightMm`, además de `gapsMm`. `getInternalPlugAlignment()` y `getPsuPlugAlignment()` miden ángulos contra **las tomas 3D reales**, no contra el siguiente punto del cable. SATA/PWM utilizan el extremo correcto de la manguera.
+- Pruebas smoke comprueban que ya no exista `next.sub(plug.position)`; Playwright comprueba perpendicularidad, encaje y tramo recto, incluso cambiando B650/A520/Z790.
+- Publicación de previsualización: `/preview/v7/?v=8-4-8-orthogonal-connections`. No modificar `main/index.html` estable.

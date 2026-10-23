@@ -6,7 +6,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-7-cable-exits';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-8-orthogonal-connections';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
@@ -71,7 +71,7 @@ function fan(parent,x,y,z,r=.27,options={}){
 
 const assembly=buildRealScale({THREE,scene:root,group,rounded,box,cylinder,trace,label,fan,materials});
 const tower=createATXTower(THREE,root,materials);
-const cables=createCableHarness(THREE,root);
+const cables=createCableHarness(THREE,root,assembly);
 const workbench=createWorkbench(THREE,scene,materials);
 const staging=createStagingTable(THREE,scene);
 
@@ -602,17 +602,32 @@ window.PC3D={
     const refs={...boardHeaders,gpu:assembly.gpuPowerHeader};
     root.updateMatrixWorld(true);
     return Object.entries(refs).map(([kind,header])=>{
-      const plug=cables.getPlugWorld(kind,1);
+      const side=['fan','sataData'].includes(kind)?0:1;
+      const plugMesh=cables.getPlugMesh(kind,side);
+      const plug=plugMesh?.getWorldPosition(new THREE.Vector3());
       const port=header?.getWorldPosition(new THREE.Vector3());
-      return {kind,gapMm:port&&plug?port.distanceTo(plug)*MM_PER_UNIT:null};
+      const portNormal=header&&port?header.localToWorld(new THREE.Vector3(0,1,0))
+        .sub(port).normalize():null;
+      const plugNormal=plugMesh&&plug?plugMesh.localToWorld(new THREE.Vector3(0,1,0))
+        .sub(plug).normalize():null;
+      const angleDegrees=portNormal&&plugNormal?
+        portNormal.angleTo(plugNormal)*180/Math.PI:null;
+      return {kind,gapMm:port&&plug?port.distanceTo(plug)*MM_PER_UNIT:null,
+        angleDegrees};
     });
   },
   getPsuPlugAlignment:()=>{
     root.updateMatrixWorld(true);
     return Object.entries(assembly.psuCableSockets).map(([kind,header])=>{
-      const plug=cables.getPlugWorld(kind,0);
+      const plugMesh=cables.getPlugMesh(kind,0);
+      const plug=plugMesh?.getWorldPosition(new THREE.Vector3());
       const port=header.getWorldPosition(new THREE.Vector3());
-      return {kind,gapMm:plug?plug.distanceTo(port)*MM_PER_UNIT:null};
+      const expected=header.localToWorld(new THREE.Vector3(0,1,0))
+        .sub(port).normalize();
+      const axis=plugMesh&&plug?plugMesh.localToWorld(new THREE.Vector3(0,1,0))
+        .sub(plug).normalize():null;
+      return {kind,gapMm:plug?plug.distanceTo(port)*MM_PER_UNIT:null,
+        angleDegrees:axis?axis.angleTo(expected)*180/Math.PI:null};
     });
   },
   getRearPortCounts:()=>({
