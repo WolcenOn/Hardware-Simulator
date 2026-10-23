@@ -140,3 +140,24 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
   USB-A, USB-C y cables independientes.
 - Vista previa de prueba: `/preview/v7/?v=8-4-4-front-io`.
 - La versión estable `main/index.html` permanece intacta.
+
+## 8.4.5 — terminales realistas y puertos traseros USB
+
+- `js/connectors3d.js` genera clavijas procedurales específicas con carcasas,
+  contactos, pestañas, guías, muescas SATA y alivios de tensión. Incorpora
+  ATX24, EPS8, PCIe, SATA datos/power, F_PANEL, PWM, USB 19-pin, Type-E,
+  USB-A, USB-C y HDMI/DisplayPort.
+- Los conectores de `cablesProcedural.js` se orientan con el vector del
+  extremo de su propio mazo; se elimina el bloque genérico compartido.
+- `getRearUsbAnchor(cfg,index)` centraliza posición de los cinco puertos
+  del I/O shield en `partsRealScale.js`. Teclado y ratón utilizan
+  los puertos 2 y 3; los cables y clavijas se reconstruyen al cambiar la
+  placa (no quedan en coordenadas absolutas del banco).
+- La salida de vídeo externa también se actualiza con el puerto GPU o placa
+  elegido, y muestra clavija metálica HDMI/DP.
+- Añadido diagnóstico `PC3D.getRearUsbAlignment()` para comprobar la
+  coincidencia de clavija-toma en mm, y `PC3D.getConnectorModels()`.
+- Smoke geométrico por placa y E2E WebGL comprueban anclajes, modelo de
+  clavijas y conexiones tras cambiar de motherboard.
+- Versión de trabajo en `feature/v7-procedural-3d`; vista previa en
+  `/preview/v7/?v=8-4-5-real-connectors`. Mantener intacto `main/index.html`.

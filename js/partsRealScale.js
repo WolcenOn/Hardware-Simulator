@@ -29,6 +29,21 @@ export const PSU_CABLE_PORTS = Object.freeze({
   sataPower:[-.83,.84,4.87]
 });
 
+// Anclaje en la cara exterior de la abertura I/O, coincidente con la malla
+// de USB de la chapa. El cable se recalcula cuando cambia el layout de placa.
+export const REAR_USB_COUNT=5;
+export function getRearUsbAnchor(cfg,index){
+  if(!Number.isInteger(index)||index<0||index>=REAR_USB_COUNT)
+    throw new RangeError('Puerto USB trasero fuera de rango');
+  return [cfg.x-cfg.w/2-.20+.035,
+    MOTHERBOARD_MOUNT.offsetY+.51,
+    cfg.z-cfg.d/2+.55+index*.50];
+}
+export function getRearVideoAnchor(cfg){
+  return [cfg.x-cfg.w/2-.20+.035,MOTHERBOARD_MOUNT.offsetY+.80,
+    cfg.z-cfg.d/2+.38];
+}
+
 export const REAR_CASE_FAN_Y=2.23; // Evita la chapa rear I/O (50 mm/unidad).
 export const FRONT_IO_LAYOUT=Object.freeze({
   power:[4.23,3.13,-3.52],

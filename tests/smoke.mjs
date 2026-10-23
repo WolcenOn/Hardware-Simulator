@@ -1,5 +1,6 @@
 import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNIT,
-  REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from '../js/partsRealScale.js';
+  REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders,
+  REAR_USB_COUNT, getRearUsbAnchor, getRearVideoAnchor } from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -97,4 +98,25 @@ for(const cfg of Object.values(BOARD_LAYOUTS)){
   assert(headers.usbC[0]<cfg.x+cfg.w/2,'USB-C dentro de PCB');
 }
 assert(html.includes('pc3d-case-power'),'El botón 3D debe invocar la acción POWER');
+// La hilera USB de la chapa I/O es la única referencia para los cables
+// externos. Los índices cambian de altura pero no pierden la línea del I/O.
+assert.equal(REAR_USB_COUNT,5);
+for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
+  const sockets=Array.from({length:REAR_USB_COUNT},(_,i)=>getRearUsbAnchor(cfg,i));
+  assert.equal(new Set(sockets.map(v=>v.join(','))).size,5,id);
+  for(let i=0;i<REAR_USB_COUNT;i++){
+    assert(Math.abs(sockets[i][1]-(MOTHERBOARD_MOUNT.offsetY+.51))<1e-10,id);
+    const shieldPortZ=cfg.z-cfg.d/2+1.58-1.03+i*.50;
+    assert(Math.abs(sockets[i][2]-shieldPortZ)<1e-10,id);
+    assert(Math.abs(sockets[i][0]-(cfg.x-cfg.w/2-.165))<1e-10,id);
+  }
+  const video=getRearVideoAnchor(cfg);
+  assert(Math.abs(video[2]-(cfg.z-cfg.d/2+.38))<1e-10,id);
+}
+assert.throws(()=>getRearUsbAnchor(BOARD_LAYOUTS.b650,5),RangeError);
+const connectorSource=read('js/connectors3d.js');
+for(const kind of ['atx24','eps','gpu','frontUsb3','frontUsbC','frontPanel',
+  'sataData','sataPower','fan','usbA','usbC','hdmi'])
+  assert(connectorSource.includes("'"+kind+"'"),'Conector no modelado: '+kind);
+assert(read('js/workbench3d.js').includes('getRearUsbAnchor'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

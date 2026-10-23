@@ -1,7 +1,8 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from './partsRealScale.js?v=8-4-4-front-io';
+import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from './partsRealScale.js?v=8-4-5-real-connectors';
+import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -64,13 +65,18 @@ export function createCableHarness(THREE,scene){
       tube(g,waypoints,radius,palette[id]);
     }
 
-    // Terminales con proporción y posición coherentes con cada conector.
-    const dims=id==='atx24'?[.32,.33,.43]:id==='sataData'?[.20,.13,.26]:
-      id==='frontPanel'?[.14,.10,.16]:id==='gpu'?[.27,.19,.27]:
-      id==='eps'?[.26,.19,.24]:[.19,.15,.24];
+    // Clavijas diferenciadas: 24/8 pines, PCIe, SATA en L,
+    // front USB 19-pin/Type-E, F_PANEL, PWM y HDMI/DP. La boca mira
+    // al header y el sobremolde al tramo adyacente de su propio cable.
     [0,waypoints.length-1].forEach((index,terminal)=>{
-      const plug=new THREE.Mesh(new THREE.BoxGeometry(...dims),connectorMaterial);
-      plug.position.set(...waypoints[index]);
+      const kind=id.startsWith('caseFan')?'fan':id;
+      const plug=createConnector3d(THREE,kind);
+      const end=new THREE.Vector3(...waypoints[index]);
+      const next=new THREE.Vector3(...waypoints[index===0?1:index-1]);
+      const direction=next.sub(end);
+      if(direction.lengthSq()>1e-8)
+        plug.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.normalize());
+      plug.position.copy(end);
       plug.name='conector_'+id+(terminal?'_destino':'_origen');
       g.add(plug);
     });
@@ -208,5 +214,7 @@ export function createCableHarness(THREE,scene){
     wires.videoIGPU.visible=!exploded&&!!state.monitorCable&&
       !!installed.motherboard&&!!installed.cpu&&boardOutput;
   }
-  return {update,root,ports:PSU_CABLE_PORTS,isVisible:id=>!!wires[id]?.visible};
+  return {update,root,ports:PSU_CABLE_PORTS,isVisible:id=>!!wires[id]?.visible,
+    connectorTypes:id=>wires[id]?.children?.filter(o=>o.userData?.connectorType)
+      .map(o=>o.userData.connectorType)||[]};
 }

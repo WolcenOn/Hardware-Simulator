@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-4-front-io';
+import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints, getRearVideoAnchor } from './partsRealScale.js?v=8-4-5-real-connectors';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-4-front-io';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-5-real-connectors';
+import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-5-real-connectors';
 import { createATXTower } from './towerATX.js?v=8-4-4-front-io';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
@@ -72,21 +73,44 @@ const cables=createCableHarness(THREE,root);
 const workbench=createWorkbench(THREE,scene,materials);
 const staging=createStagingTable(THREE,scene);
 
-// HDMI/DP de la torre al monitor físico (el resto del cable está dentro del PC).
+// Salida de vídeo calculada en cada cambio de placa/GPU. Ya no termina
+// en una coordenada fija del taller; el conector metálico mira a rear I/O.
 root.updateMatrixWorld(true);
 const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughness:.87});
-const gpuRear=root.localToWorld(new THREE.Vector3(-4.08,.58+MOTHERBOARD_MOUNT.offsetY,.9));
 const {monitor:monitorLocation}=WORKBENCH_LAYOUT;
-const externalVideo=new THREE.Mesh(new THREE.TubeGeometry(
-  new THREE.CatmullRomCurve3([
-    gpuRear.clone(),
-    gpuRear.clone().add(new THREE.Vector3(-.65,-1.32,-.45)),
-    new THREE.Vector3(-4.75,.28,-1.9),
-    new THREE.Vector3(-5.65,.24,-5.38),
-    new THREE.Vector3(monitorLocation.x+.4,.28,-5.55),
-    new THREE.Vector3(monitorLocation.x+4.62,3.52,monitorLocation.z-.17)
-  ]),55,.029,7,false),videoOutsideMaterial);
+const externalVideo=new THREE.Mesh(new THREE.BufferGeometry(),videoOutsideMaterial);
 externalVideo.visible=false;scene.add(externalVideo);
+const externalVideoPlug=createConnector3d(THREE,'hdmi');
+externalVideoPlug.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),
+  new THREE.Vector3(-1,0,0));
+externalVideoPlug.visible=false;scene.add(externalVideoPlug);
+let lastVideoRoute='';
+function updateExternalVideo(state,cfg){
+  const gpuSelected=!!state.installed?.gpu&&state.selected?.gpu!=='none';
+  const gpuOutput=state.videoPort==='gpu'||
+    (state.videoPort!=='motherboard'&&gpuSelected);
+  const local=gpuOutput?
+    [-4.06,.58+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.30]:
+    getRearVideoAnchor(cfg);
+  const sig=[gpuOutput?'gpu':'igpu',...local].join(':');
+  if(sig!==lastVideoRoute){
+    root.updateMatrixWorld(true);
+    const end=root.localToWorld(new THREE.Vector3(...local));
+    const curve=new THREE.CatmullRomCurve3([
+      end.clone(),end.clone().add(new THREE.Vector3(-.68,-1.20,-.48)),
+      new THREE.Vector3(-4.75,.28,-1.9),new THREE.Vector3(-5.65,.24,-5.38),
+      new THREE.Vector3(monitorLocation.x+.4,.28,-5.55),
+      new THREE.Vector3(monitorLocation.x+4.62,3.52,monitorLocation.z-.17)
+    ]);
+    externalVideo.geometry.dispose();
+    externalVideo.geometry=new THREE.TubeGeometry(curve,55,.029,7,false);
+    externalVideoPlug.position.copy(end);
+    lastVideoRoute=sig;
+  }
+  const visible=!!state.installed?.case&&!!state.installed?.motherboard&&
+    !!state.monitorCable;
+  externalVideo.visible=visible;externalVideoPlug.visible=visible;
+}
 
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
@@ -153,12 +177,11 @@ const spreads={
 function sync(state,details={}){
   if(!state)return;
   current=state;
-  externalVideo.visible=!!state.installed?.motherboard&&
-    !!state.monitorCable&&!!state.installed?.case;
-  workbench.updateConnections(state);
+  const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
+  workbench.updateConnections(state,cfg,root);
+  updateExternalVideo(state,cfg);
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
     !!details.videoSignal);
-  const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
   tower.setMotherboardLayout(cfg);
   tower.setFinish?.(state.selected?.caseVariant||'tower');
@@ -534,6 +557,11 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root),
+  getConnectorModels:()=>Object.fromEntries(['atx24','eps','gpu','sataData',
+    'sataPower','frontPanel','frontUsb3','frontUsbC','fan','video']
+    .map(id=>[id,cables.connectorTypes(id)])),
+  getVideoPlugPosition:()=>externalVideoPlug.position.toArray(),
   getCasePowerScreenPoint,
   getFrontIOState:()=>({mounted:tower.root.visible,
     ledOn:tower.powerLed.material.emissiveIntensity>1,

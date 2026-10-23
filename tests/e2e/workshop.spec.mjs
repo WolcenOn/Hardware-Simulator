@@ -206,6 +206,38 @@ test('los conectores USB frontales se conectan por separado y muestran sus cable
   expect((await page.evaluate(() => window.PC3D.getFrontIOState())).usb3CableVisible).toBe(false);
 });
 
+test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de la PCB', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  await page.locator('#keyboardToggle').click();
+  await page.locator('#mouseToggle').click();
+  const before=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
+  expect(before).toHaveLength(2);
+  expect(before.map(p=>p.portIndex)).toEqual([2,3]);
+  for(const row of before){
+    expect(row.connectorType).toBe('usbA');
+    expect(row.visible).toBe(true);
+    expect(row.gapMm).toBeLessThan(.1);
+  }
+  await page.locator('select[data-cat="motherboard"]').selectOption('a520');
+  const after=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
+  expect(after).toHaveLength(2);
+  for(const row of after)expect(row.gapMm).toBeLessThan(.1);
+});
+
+test('ATX, EPS, PCIe, SATA y USB frontal tienen clavijas con geometría propia', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  const models=await page.evaluate(() => window.PC3D.getConnectorModels());
+  for(const id of ['atx24','eps','gpu','sataData','sataPower',
+    'frontPanel','frontUsb3','frontUsbC','fan','video']){
+    expect(models[id],id).toContain(id);
+    expect(models[id].length).toBe(2);
+  }
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
