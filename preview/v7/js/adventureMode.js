@@ -330,21 +330,33 @@ function createAdventureGame(api){
       }
       const previous=!!st.installed[part];
       const previousLog=st.log?.[0];
-      // El motor puede rechazar una instalación por seguridad u orden de
-      // montaje. Antes el rechazo quedaba oculto en el historial técnico.
+      // La vista 3D se actualiza *dentro* de api.install. Es imprescindible
+      // definir el color y el modelo de refrigeración ANTES de ese render.
+      const oldFinish=st.selected.caseVariant||'tower';
+      const oldCooler=st.selected.cooler||'air';
+      if(part==='case')st.selected.caseVariant=id;
+      if(part==='cooler')st.selected.cooler=id;
       try{api.install(part);}catch(err){
+        st.selected.caseVariant=oldFinish;
+        st.selected.cooler=oldCooler;
+        api.render();
         message('Error instalando '+label(cat,id)+': '+(err?.message||String(err)));
         return;
+      }
+      if(!st.installed[part]&&!previous){
+        // Una condición de montaje rechazó la operación; no pintar una caja
+        // o disipador todavía sin instalar ni consumir la referencia.
+        st.selected.caseVariant=oldFinish;
+        st.selected.cooler=oldCooler;
+        api.render();
       }
       if(st.installed[part]&&!previous){
         expend(k);
         if(part==='case'){
-          st.selected.caseVariant=id;
           st.casePlaced=true;
           api.workView?.();
-          message('Caja colocada en el banco de montaje. Ahora puedes abrirla y equiparla.','ok');
+          message('Caja '+label(cat,id)+' colocada con el acabado elegido.','ok');
         }
-        if(part==='cooler')st.selected.cooler=id;
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
         else message(label(cat,id)+' encajado. Comprueba tornillos y conexiones.','ok');
       }else if(previous)message('La pieza ya está instalada: prueba atornillar o conectar.');
