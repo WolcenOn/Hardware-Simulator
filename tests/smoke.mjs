@@ -1,4 +1,5 @@
-import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNIT } from '../js/partsRealScale.js';
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNIT,
+  REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -53,6 +54,10 @@ buy('item','keyboard');buy('item','mouse');
 g.connect('keyboard');g.connect('mouse');
 assert(l.s.keyboardConnected&&l.s.mouseConnected);
 g.disconnect('keyboard');assert(!l.s.keyboardConnected);
+g.connect('frontusb3');g.connect('frontusbc');
+assert(l.s.frontUsb3&&l.s.frontUsbC,'Los cables de panel frontal deben ser conectables');
+g.disconnect('frontusb3');
+assert(!l.s.frontUsb3&&l.s.frontUsbC,'Cada cable USB tiene estado independiente');
 buy('item','rgbStrip');g.select('item:rgbStrip');g.perform('apply');
 assert(l.s.rgbInstalled);
 buy('cpu','r7600');fit('cpu:r7600');
@@ -80,4 +85,16 @@ for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
   assert.equal(new Set(holes.map(v=>v.join(':'))).size,4,id);
   assert(holes.every(([x,z])=>x>=-4.055&&x<=1.695&&z>=-3.33&&z<=3.31),id);
 }
+// Traslado del ventilador, por fuera de la chapa I/O y dentro de la caja.
+const rearIOUpper=MOTHERBOARD_MOUNT.offsetY+1.04+.05;
+assert(REAR_CASE_FAN_Y-1.13>rearIOUpper+.15,'Ventilador trasero invade la chapa I/O');
+assert(REAR_CASE_FAN_Y+1.13<3.88,'Ventilador trasero atraviesa el lateral');
+assert.equal(FRONT_IO_LAYOUT.usbA.length,2);
+assert(FRONT_IO_LAYOUT.usbC[2]<-3.32,'USB-C debe sobresalir de la cubierta');
+for(const cfg of Object.values(BOARD_LAYOUTS)){
+  const headers=getFrontUsbHeaders(cfg);
+  assert(headers.usb3[0]<cfg.x+cfg.w/2,'USB3 dentro de PCB');
+  assert(headers.usbC[0]<cfg.x+cfg.w/2,'USB-C dentro de PCB');
+}
+assert(html.includes('pc3d-case-power'),'El botón 3D debe invocar la acción POWER');
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

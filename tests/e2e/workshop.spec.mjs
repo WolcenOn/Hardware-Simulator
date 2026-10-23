@@ -153,6 +153,59 @@ test('la PCB se asienta sobre separadores de 6,5 mm', async ({ page }) => {
   expect(mount.standoffTopY).toBeCloseTo(mount.boardBottomY,3);
 });
 
+test('el ventilador trasero, los USB y el botón POWER están integrados en la torre', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click();
+  await page.locator('#viewIso').click();
+  const before=await page.evaluate(() => window.PC3D.getFrontIOState());
+  expect(before.mounted).toBe(true);
+  expect(before.usbA).toBe(2);
+  expect(before.usbC).toBe(1);
+  expect(before.ledOn).toBe(false);
+  expect(before.usb3CableVisible).toBe(true);
+  expect(before.usbCCableVisible).toBe(true);
+  const point=await page.evaluate(() => window.PC3D.getCasePowerScreenPoint());
+  const canvas=await page.locator('#viewport').boundingBox();
+  expect(point.inside).toBe(true);
+  expect(point.x).toBeGreaterThan(0);
+  expect(point.x).toBeLessThan(canvas.width);
+  expect(point.y).toBeGreaterThan(0);
+  expect(point.y).toBeLessThan(canvas.height);
+  await page.locator('#viewport').click({position:{x:point.x,y:point.y}});
+  await expect(page.locator('#powerStatus')).toHaveText('Encendido');
+  expect((await page.evaluate(() => window.PC3D.getFrontIOState())).ledOn).toBe(true);
+  await page.locator('#viewport').click({position:{x:point.x,y:point.y}});
+  await expect(page.locator('#powerStatus')).toHaveText('Apagado');
+  expect((await page.evaluate(() => window.PC3D.getFrontIOState())).ledOn).toBe(false);
+});
+
+test('los conectores USB frontales se conectan por separado y muestran sus cables', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready===true);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await openSection(page,'actions');
+  const usbA=page.locator('.adv-connection-row').filter({hasText:'USB-A frontales'});
+  const usbC=page.locator('.adv-connection-row').filter({hasText:'USB-C frontal'});
+  await expect(usbA).toContainText('Sin conectar');
+  await usbA.locator('button').click();
+  await expect(usbA).toContainText('Conectado');
+  let status=await page.evaluate(() => window.PC3D.getFrontIOState());
+  expect(status.frontUsb3).toBe(true);
+  expect(status.usb3CableVisible).toBe(true);
+  expect(status.usbCCableVisible).toBe(false);
+  await usbC.locator('button').click();
+  await expect(usbC).toContainText('Conectado');
+  status=await page.evaluate(() => window.PC3D.getFrontIOState());
+  expect(status.frontUsbC).toBe(true);
+  expect(status.usbCCableVisible).toBe(true);
+  await usbA.locator('button').click();
+  await expect(usbA).toContainText('Sin conectar');
+  expect((await page.evaluate(() => window.PC3D.getFrontIOState())).usb3CableVisible).toBe(false);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-3-board-standoffs';
+import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-4-front-io';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-3-board-standoffs';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-4-front-io';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
-import { createATXTower } from './towerATX.js?v=8-4-3-board-standoffs';
+import { createATXTower } from './towerATX.js?v=8-4-4-front-io';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
@@ -163,6 +163,7 @@ function sync(state,details={}){
   tower.setMotherboardLayout(cfg);
   tower.setFinish?.(state.selected?.caseVariant||'tower');
   tower.setRgb?.(!!state.rgbInstalled&&!!state.power&&!!state.rgbOn);
+  tower.setPower(!!state.power);
   assembly.fanMountGroup.visible=!!state.installed?.case;
   activeSnapTargets=snapTargets;
   if(draggedPart&&snapTargets[draggedPart]){
@@ -234,6 +235,14 @@ function hoverPart(e){
     const key=staging.identify(hit.object);
     if(key)return {key,source:'table'};
   }
+  if(current?.installed?.case&&raycaster.intersectObject(tower.powerControl,true).length)
+    return {key:'casePower',source:'front'};
+  if(current?.installed?.case){
+    for(const port of tower.frontUsbPorts){
+      if(raycaster.intersectObject(port.object,true).length)
+        return {key:port.id,source:'front'};
+    }
+  }
   if(current?.ioShield&&assembly.ioShield.visible&&
     raycaster.intersectObject(assembly.ioShield,true).length)
     return {key:'ioShield',source:'tower'};
@@ -294,11 +303,14 @@ view.addEventListener('dblclick',e=>{
      raycaster.intersectObject(workbench.mouseGroup,true).length){
     viewPeripherals();return;
   }
+  // El doble clic sobre POWER no debe cambiar de vista ni pulsar dos veces.
+  if(current?.installed?.case&&raycaster.intersectObject(tower.powerControl,true).length)return;
   if(current?.installed?.case&&raycaster.intersectObject(tower.root,true).length){
     viewHardware();return;
   }
   if(raycaster.intersectObject(workbench.root,true).length)viewAssemblyDesk();
 });
+let lastPowerPress=-Infinity;
 view.addEventListener('pointerdown',e=>{
   press={x:e.clientX,y:e.clientY};
 });
@@ -330,6 +342,23 @@ view.addEventListener('pointerup',e=>{
       detail:{key:stageKey,clientX:e.clientX,clientY:e.clientY}
     }));
     return;
+  }
+  // Pulsador de la caja: lanzar la MISMA acción que el botón HTML.
+  if(current?.installed?.case&&raycaster.intersectObject(tower.powerControl,true).length){
+    const now=performance.now();
+    if(now-lastPowerPress>350){
+      lastPowerPress=now;
+      tower.pressPowerButton();
+      window.dispatchEvent(new CustomEvent('pc3d-case-power'));
+    }
+    return;
+  }
+  if(current?.installed?.case){
+    for(const port of tower.frontUsbPorts){
+      if(raycaster.intersectObject(port.object,true).length){
+        select3D(port.id,e.clientX,e.clientY);return;
+      }
+    }
   }
   // El chasis transparente no debe impedir seleccionar conectores y piezas
   // visibles en su interior. Los ventiladores tienen puntos propios.
@@ -448,6 +477,7 @@ function animate(now){
     if(spin)f.rotor.rotation.y+=dt*(fast?16:5.4);
   }
   if(highlight){highlight.visible=!!partGroups[selected]?.visible;highlight.update();}
+  tower.updateFrontIO(dt);
   smoothZoom.update(dt);
   controls.update();renderer.render(scene,camera);
 }
@@ -469,6 +499,13 @@ function getMountAlignment(){
     holes:getMotherboardMountPoints(cfg),
     posts:tower.mountPosts.map(item=>[item.position.x,item.position.z])
   };
+}
+function getCasePowerScreenPoint(){
+  root.updateMatrixWorld(true);
+  const rect=view.getBoundingClientRect();
+  const projected=tower.powerControl.getWorldPosition(new THREE.Vector3()).project(camera);
+  return {x:(projected.x+1)*rect.width/2,y:(1-projected.y)*rect.height/2,
+    inside:projected.z>=-1&&projected.z<=1};
 }
 window.PC3D={
   ready:true,
@@ -497,6 +534,14 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  getCasePowerScreenPoint,
+  getFrontIOState:()=>({mounted:tower.root.visible,
+    ledOn:tower.powerLed.material.emissiveIntensity>1,
+    usbA:tower.frontUsbPorts.filter(p=>p.id==='frontUsb3').length,
+    usbC:tower.frontUsbPorts.filter(p=>p.id==='frontUsbC').length,
+    frontUsb3:!!current?.frontUsb3,frontUsbC:!!current?.frontUsbC,
+    usb3CableVisible:cables.isVisible('frontUsb3'),
+    usbCCableVisible:cables.isVisible('frontUsbC') }),
   getMountAlignment,
   // Zoom por botón con la misma interpolación que la rueda.
   zoom:amount=>smoothZoom.step(amount),

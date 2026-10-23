@@ -8,7 +8,8 @@ const titles={case:'Caja ATX',cooler:'Disipador CPU',motherboard:'Placa base',
   cpu:'Procesador',ram:'Memoria RAM',storage:'Almacenamiento',
   gpu:'Tarjeta gráfica',psu:'Fuente ATX',monitor:'Monitor',keyboard:'Teclado USB',
   mouse:'Ratón USB',fan0:'Ventilador frontal 1',fan1:'Ventilador frontal 2',
-  fan2:'Ventilador trasero'};
+  fan2:'Ventilador trasero',casePower:'Botón de encendido',
+  frontUsb3:'USB-A frontal 3.0',frontUsbC:'Puerto USB-C frontal'};
 const special={
   'case:tower':{name:'Caja ATX negra',sizeMm:'453 × 230 × 466 mm',desc:'Torre ATX negra con PSU inferior.'},
   'case:towerWhite':{name:'Caja ATX blanca',sizeMm:'453 × 230 × 466 mm',desc:'Misma torre en acabado blanco.'},
@@ -63,6 +64,7 @@ function createPartInspector(api){
   function installed(t,st){
     if(t.category.startsWith('fan'))return !!st.caseFans?.[Number(t.category.slice(-1))]?.installed;
     if(['monitor','keyboard','mouse'].includes(t.category))return true;
+    if(['casePower','frontUsb3','frontUsbC'].includes(t.category))return !!st.installed?.case;
     if(t.category==='item')return false;
     return !!st.installed?.[t.category]&&
       (['case','cooler'].includes(t.category)||st.selected?.[t.category]===t.id);
@@ -120,6 +122,12 @@ function createPartInspector(api){
       return [good('Montado',!!fan?.installed),good('Cable PWM · SYS_FAN',!!fan?.connected),
         info('Refrigeración',fan?.installed&&fan?.connected?'Activo':'Inactivo')];
     }
+    if(t.category==='casePower')return [
+      good('POWER SW → F_PANEL',!!st.frontPanel),
+      info('Estado',st.power?'PC encendido':'PC apagado')];
+    if(t.category==='frontUsb3'||t.category==='frontUsbC')return [
+      good('Cable interno USB conectado',!!st[t.category]),
+      info('Cabecera',t.category==='frontUsb3'?'USB 3.0 (19 pines)':'USB-C Type-E')];
     if(t.category==='monitor')return [good('Cable de vídeo',!!st.monitorCable),
       good('Señal de imagen',!!api.video?.(api.evaluate?.()),'Requiere POST, salida adecuada y equipo encendido'),
       info('Salida seleccionada',st.videoPort==='motherboard'?'Placa HDMI/DP':'GPU dedicada / automática')];
@@ -176,6 +184,12 @@ function createPartInspector(api){
       if(on)actions.push({verb:'connect',target:'sysfan'+n,label:st.caseFans?.[n]?.connected?'Desconectar PWM':'Conectar PWM',enabled:true});
       return actions;
     }
+    if(['frontUsb3','frontUsbC'].includes(t.category)){
+      const connector=t.category==='frontUsb3'?'frontusb3':'frontusbc';
+      actions.push({verb:st[t.category]?'disconnect':'connect',target:connector,
+        label:st[t.category]?'Desconectar cable USB':'Conectar cable USB',enabled:true});
+      return actions;
+    }
     if(['keyboard','mouse','monitor'].includes(t.category)){
       const target=t.category;
       const flag=target==='monitor'?'monitorCable':target+'Connected';
@@ -194,7 +208,8 @@ function createPartInspector(api){
       // necesaria y no pedir nunca SATA a un disco NVMe.
       const plugs={
         motherboard:[['atx24','atx24','ATX24'],['eps','eps','EPS CPU'],
-          ['frontPanel','frontpanel','POWER SW']],
+          ['frontPanel','frontpanel','POWER SW'],
+           ['frontUsb3','frontusb3','USB-A frontal'],['frontUsbC','frontusbc','USB-C frontal']],
         psu:[['atx24','atx24','ATX24'],['eps','eps','EPS'],
           ...(st.installed.gpu?[['gpuPower','gpupower','PCIe GPU']]:[])],
         cooler:[['cpuFan','cpufan','CPU_FAN']],

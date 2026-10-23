@@ -121,3 +121,22 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - CPU, RAM, GPU, NVMe, chapa I/O, marcadores y extremos de cables acompañan a la PCB.
 - Smoke comprueba las cotas; Playwright comprueba las mallas Three.js.
 - Vista previa: `/preview/v7/?v=8-4-3-board-standoffs` sin modificar `main/index.html`.
+
+## 8.4.4 — ventilador trasero y conexiones frontales
+
+- Ventilador trasero desplazado al exterior de la huella de la chapa I/O; se
+  actualizan rejilla trasera y origen de su cable SYS_FAN.
+- Panel frontal superior procedural con pulsador momentáneo, LED de POWER,
+  dos puertos USB-A y un USB-C.
+- Pulsador 3D capturado por raycasting antes de la caja. Despacha
+  `pc3d-case-power`, que pulsa el mismo control HTML de encendido, respetando
+  las reglas de POWER SW / F_PANEL, PSU, POST y el modo aventura.
+- Dos cabeceras internas diferenciadas USB3 (19 pines) y USB-C (Type-E),
+  cableado visible sólo cuando se conecta cada circuito desde la interfaz o
+  ficha contextual 3D. No se obliga al jugador a comprar cables internos
+  que ya vienen con el chasis.
+- El montaje recomendado conecta ambos cables USB para demostrar su recorrido.
+- Tests smoke de geometría y conexiones; pruebas Playwright para pulsador, LED,
+  USB-A, USB-C y cables independientes.
+- Vista previa de prueba: `/preview/v7/?v=8-4-4-front-io`.
+- La versión estable `main/index.html` permanece intacta.

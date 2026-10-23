@@ -1,7 +1,7 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT } from './partsRealScale.js?v=8-4-3-board-standoffs';
+import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from './partsRealScale.js?v=8-4-4-front-io';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -127,12 +127,24 @@ export function createCableHarness(THREE,scene){
       [1.55,channelY,drive[2]],[...drive]
     ],.023);
 
-    // Panel frontal se conecta a F_PANEL por la canaleta.
+    // POWER SW y los dos mazos USB parten del frontal superior del chasis.
     const frontX=cfg.x+cfg.w/2-.42,frontZ=cfg.z+cfg.d/2-.32;
+    const frontUsb=getFrontUsbHeaders(cfg);
     make('frontPanel',[
-      [5.00,.40,-1.36],[4.88,channelY,-1.40],
-      [1.64,channelY,2.54],[frontX,.52+boardY,frontZ]
+      FRONT_IO_LAYOUT.powerLead,[4.70,2.93,-3.00],
+      [4.72,channelY,-2.94],[1.66,channelY,2.54],
+      [frontX,.52+boardY,frontZ]
     ],.018);
+    make('frontUsb3',[
+      FRONT_IO_LAYOUT.usbALead,[4.75,1.94,-2.99],
+      [4.70,channelY,-2.74],[1.72,channelY,frontUsb.usb3[1]],
+      [frontUsb.usb3[0],.57+boardY,frontUsb.usb3[1]]
+    ],.029);
+    make('frontUsbC',[
+      FRONT_IO_LAYOUT.usbCLead,[4.73,.98,-3.02],
+      [4.68,channelY,-2.51],[1.63,channelY,frontUsb.usbC[1]],
+      [frontUsb.usbC[0],.56+boardY,frontUsb.usbC[1]]
+    ],.023);
     make('fan',[
       [cfg.cpuX+.93,.55+boardY,cfg.cpuZ+.88],
       [cfg.cpuX+1.03,.93+boardY,cfg.cpuZ+.85],
@@ -144,7 +156,7 @@ export function createCableHarness(THREE,scene){
        [cfg.x-.63,.60+boardY,cfg.z+2.42]],
       [[4.78,1.61,.47],[4.67,.72,.49],[1.70,channelY,.52],
        [cfg.x+cfg.w/2-.23,.61+boardY,cfg.z+1.62]],
-      [[-3.89,1.61,-1.25],[-3.74,.58,-1.18],[-3.49,channelY,-1.14],
+      [[-3.89,REAR_CASE_FAN_Y,-1.25],[-3.74,1.15,-1.18],[-3.49,channelY,-1.14],
        [cfg.x-.93,.60+boardY,cfg.z-cfg.d/2+.52]]
     ].forEach((points,i)=>make('caseFan'+i,points,.018));
 
@@ -178,6 +190,10 @@ export function createCableHarness(THREE,scene){
       !!installed.storage&&!!state.sataData;
     wires.frontPanel.visible=!exploded&&!!installed.case&&
       !!installed.motherboard&&!!state.frontPanel;
+    wires.frontUsb3.visible=!exploded&&!!installed.case&&
+      !!installed.motherboard&&!!state.frontUsb3;
+    wires.frontUsbC.visible=!exploded&&!!installed.case&&
+      !!installed.motherboard&&!!state.frontUsbC;
     wires.fan.visible=!exploded&&!!installed.motherboard&&
       !!installed.cooler&&!!state.cpuFan;
     for(let i=0;i<3;i++)wires['caseFan'+i].visible=!exploded&&
@@ -192,5 +208,5 @@ export function createCableHarness(THREE,scene){
     wires.videoIGPU.visible=!exploded&&!!state.monitorCable&&
       !!installed.motherboard&&!!installed.cpu&&boardOutput;
   }
-  return {update,root,ports:PSU_CABLE_PORTS};
+  return {update,root,ports:PSU_CABLE_PORTS,isVisible:id=>!!wires[id]?.visible};
 }

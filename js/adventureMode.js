@@ -54,7 +54,9 @@ const CATEGORIES={case:'Caja',motherboard:'Placa',cpu:'CPU',ram:'RAM',
   item:'Herramientas y accesorios'};
 const CONNECTIONS=[
   ['atx24','Placa · ATX 24 pines'],['eps','CPU · EPS 8 pines'],
-  ['frontpanel','Caja · POWER SW'],['gpupower','GPU · PCIe / 12VHPWR'],
+  ['frontpanel','Caja · POWER SW'],
+  ['frontusb3','Caja · USB 3.0 frontal (2 puertos)'],
+  ['frontusbc','Caja · USB-C frontal'],['gpupower','GPU · PCIe / 12VHPWR'],
   ['sataData','Disco · SATA datos'],['sataPower','Disco · SATA alimentación'],
   ['cpufan','Disipador · CPU_FAN'],['monitor','Monitor · HDMI / DP'],
   ['keyboard','Teclado · USB'],['mouse','Ratón · USB'],
@@ -455,6 +457,8 @@ function createAdventureGame(api){
       atx24:()=>st.installed.psu&&st.installed.motherboard,
       eps:()=>st.installed.psu&&st.installed.motherboard,
       frontpanel:()=>st.installed.case&&st.installed.motherboard,
+      frontusb3:()=>st.installed.case&&st.installed.motherboard,
+      frontusbc:()=>st.installed.case&&st.installed.motherboard,
       gpupower:()=>st.installed.psu&&st.installed.gpu,
       sataData:()=>st.installed.storage&&st.installed.motherboard&&api.part('storage').interface==='SATA',
       sataPower:()=>st.installed.storage&&st.installed.psu&&api.part('storage').interface==='SATA',
@@ -484,12 +488,14 @@ function createAdventureGame(api){
     const material={sataData:'item:sataCable',monitor:'item:hdmi',
       keyboard:'item:keyboard',mouse:'item:mouse'}[target];
     if(material&&!owned(material)){message('Falta comprar '+LABELS[material]+'.');return;}
-    const flags={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',gpupower:'gpuPower',
+    const flags={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',
+      frontusb3:'frontUsb3',frontusbc:'frontUsbC',gpupower:'gpuPower',
       sataData:'sataData',sataPower:'sataPower',cpufan:'cpuFan',
       monitor:'monitorCable',keyboard:'keyboardConnected',mouse:'mouseConnected'};
     if(st[flags[target]]){message('Esa conexión ya está realizada.');return;}
     const actions={atx24:'connect_atx24',eps:'connect_eps',
-      frontpanel:'connect_frontpanel',gpupower:'gpu_power',
+      frontpanel:'connect_frontpanel',frontusb3:'connect_frontusb3',
+      frontusbc:'connect_frontusbc',gpupower:'gpu_power',
       sataData:'connect_sata',sataPower:'connect_sata_power',cpufan:'connect_fan',
       monitor:'connect_monitor',keyboard:'connect_keyboard',mouse:'connect_mouse'};
     api.action(actions[target]);
@@ -509,6 +515,7 @@ function createAdventureGame(api){
       message('SYS_FAN '+(i+1)+' desconectado.','ok');return true;
     }
     const props={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',
+      frontusb3:'frontUsb3',frontusbc:'frontUsbC',
       gpupower:'gpuPower',sataData:'sataData',sataPower:'sataPower',
       cpufan:'cpuFan',monitor:'monitorCable',keyboard:'keyboardConnected',
       mouse:'mouseConnected'};
@@ -723,7 +730,9 @@ function createAdventureGame(api){
       '<div class="adv-connectivity">'+
       [['keyboard','Teclado USB',stActions.keyboardConnected],
        ['mouse','Ratón USB',stActions.mouseConnected],
-       ['monitor','Monitor HDMI/DP',stActions.monitorCable]]
+       ['monitor','Monitor HDMI/DP',stActions.monitorCable],
+        ['frontusb3','USB-A frontales (header 19 pines)',stActions.frontUsb3],
+        ['frontusbc','USB-C frontal (header Type-E)',stActions.frontUsbC]]
        .map(([id,label,on])=>
         '<div class="adv-connection-row"><span>'+label+
         '<small>'+(on?'Conectado':'Sin conectar')+'</small></span>'+
