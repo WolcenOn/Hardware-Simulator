@@ -98,15 +98,17 @@ function createAdventureGame(api){
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
-      selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'motherboard',
+      selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false
     };
+    state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
     message('Nuevo encargo: '+CASES[which].client+'. Compra componentes y herramientas antes de montar.','ok');
     api.render();
   }
   function exit(){
+    api.stage?.([], '');
     api.document.body.classList.remove('adventure-on');
     const state=api.state();
     state.adventureMode=false;
@@ -164,6 +166,21 @@ function createAdventureGame(api){
       '. Diferencia: '+(delta>=0?'+':'')+format(delta)+'.','ok');
     return true;
   }
+  // Todo objeto comprado permanece visible en la mesa auxiliar mientras
+  // existe una unidad física en la mochila. Los montados abandonan la mesa.
+  function stagedItems(){
+    if(!game)return [];
+    const available=Object.entries(game.stock)
+      .filter(([k,n])=>n>0)
+      .map(([k,n])=>{
+        const [category,id]=k.split(':');
+        return {key:k,category,id,label:label(category,id),quantity:n};
+      });
+    // Piezas esenciales primero; los consumibles siguen en el inventario.
+    const priority=['case','motherboard','cpu','ram','cooler','gpu','psu','storage','item'];
+    available.sort((a,b)=>priority.indexOf(a.category)-priority.indexOf(b.category));
+    return available;
+  }
   function purchase(cat,id){
     const cost=price(cat,id);
     if(cost==null||!game)return;
@@ -177,9 +194,17 @@ function createAdventureGame(api){
     game.spent+=cost;
     game.purchases.push({k,price:cost});
     game.selected=k;
+    game.openSections=['shop','inventory'];
+    // Tras comprar la primera caja se ve directamente sobre la mesa auxiliar.
+    if(cat==='case')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
   }
-  function select(k){if(!owned(k)){message('No tienes ese objeto en el inventario.');return;}game.selected=k;paint();}
+  function select(k){
+    if(!owned(k)){message('No tienes ese objeto en el inventario.');return;}
+    game.selected=k;
+    game.openSections=['inventory','actions'];
+    paint();
+  }
   function selectVerb(verb){game.verb=verb;paint();}
   function perform(override=null){
     if(!game)return;
@@ -195,6 +220,10 @@ function createAdventureGame(api){
     if(verb==='apply'){apply(k);return;}
     const [cat,id]=k.split(':');
     if(verb==='fit'){
+      if(k==='case:tower'&&st.installed.case){
+        message('La caja ya está situada en la mesa principal. Abre el panel para colocar componentes.');
+        return;
+      }
       if(cat==='ram'&&st.installed.ram&&!st.ramSeated){
         api.action('seat_ram');message('DIMM encajado en ambas pestañas.','ok');return;
       }
@@ -226,6 +255,11 @@ function createAdventureGame(api){
       api.install(part);
       if(st.installed[part]&&!previous){
         expend(k);
+        if(part==='case'){
+          st.casePlaced=true;
+          api.workView?.();
+          message('Caja colocada en el banco de montaje. Ahora puedes abrirla y equiparla.','ok');
+        }
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
         else message(label(cat,id)+' encajado. Comprueba tornillos y conexiones.','ok');
       }else if(previous)message('La pieza ya está instalada: prueba atornillar o conectar.');
@@ -266,6 +300,7 @@ function createAdventureGame(api){
         message('Necesitas un destornillador para retirar la pieza.');return;
       }
       st.installed[cat]=false;
+      if(cat==='case')st.casePlaced=false;
       if(cat==='gpu'){st.gpuPower=false;st.monitorCable=false;}
       if(cat==='psu'){st.eps=false;st.atx24=false;st.gpuPower=false;}
       if(cat==='ram')st.ramSeated=false;
@@ -464,11 +499,74 @@ function createAdventureGame(api){
       (!canReturn(k)||!available.length?' disabled':'')+'>Cambiar producto</button>'+
       '</div>';
   }
+  function contextSuggestions(){
+    const st=api.state(),k=game.selected;
+    const [cat,id]=String(k).split(':');
+    if(!k)return '<p class="muted">Selecciona una pieza de la mesa auxiliar o del inventario para ver qué puedes hacer con ella.</p>';
+    const ideas=[];
+    const add=(name,desc,verb,enabled=true)=>ideas.push(
+      '<button type="button" class="adv-suggest" data-suggest="'+verb+'"'+
+      (!enabled?' disabled':'')+'><b>'+name+'</b><small>'+desc+'</small></button>');
+    if(k==='case:tower'){
+      if(st.installed.case)add('✓ Caja colocada','Ya está en el banco principal; ahora abre el panel.','inspect');
+      else add('Colocar caja en mesa de montaje','Primera acción del encargo · encajar','fit',has(k));
+    }else if(k==='item:ioShield'){
+      add('Encajar chapa I/O','Antes de atornillar la placa base','fit',has(k)&&!!st.installed.case&&!st.installed.motherboard);
+    }else if(k==='item:paste'){
+      add('Aplicar pasta sobre CPU','Antes de montar el disipador','apply',
+        has(k)&&!!st.installed.cpu&&!st.installed.cooler);
+    }else if(cat==='item'){
+      if(id==='fan')add('Encajar ventilador','Colócalo en una ranura del chasis','fit',has(k));
+      else add('Material de taller','Se utiliza con Atornillar, Conectar o Instalar SO','inspect');
+    }else if(cat!=='undefined'){
+      if(!st.installed[cat])
+        add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
+      else if(cat==='ram'&&!st.ramSeated)
+        add('Fijar pestañas DIMM','Presiona la RAM hasta hacer clic','fit');
+      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&!game.screwed[cat])
+        add('Atornillar '+label(cat,id),'Necesitas destornillador y tornillos','screw');
+      else
+        add('Inspeccionar pieza','Revisar el estado y las conexiones','inspect');
+    }
+    if(st.installed[cat]&&cat!=='case')
+      add('Retirar '+label(cat,id),'Primero apaga el equipo y abre la caja','remove');
+    return '<div class="adv-suggestions">'+ideas.join('')+'</div>';
+  }
+  function progressText(){
+    const st=api.state();
+    if(!st.installed.case)
+      return '1 · Compra una CAJA en la tienda. Selecciónala en la mesa auxiliar y pulsa «Colocar caja en mesa de montaje».';
+    if(!st.ioShield)
+      return '2 · La caja ya está colocada. Compra y encaja la chapa I/O antes de poner la placa.';
+    if(!st.installed.motherboard)
+      return '3 · Coloca la placa base dentro de la caja y fíjala con tornillos.';
+    if(!st.installed.cpu||!st.installed.ram)
+      return '4 · Instala CPU y RAM. Encaja las pestañas de memoria; compra pasta térmica.';
+    if(!st.installed.cooler||!st.cpuFan)
+      return '5 · Aplica pasta antes del disipador y conecta CPU_FAN.';
+    if(!st.installed.psu||!st.atx24||!st.eps||!st.frontPanel)
+      return '6 · Coloca la fuente, atorníllala y conecta ATX24, EPS y POWER SW.';
+    if(!st.installed.storage)
+      return '7 · Instala una unidad SATA o NVMe y asegúrala.';
+    if(!st.power)
+      return '8 · Comprueba conexiones, conecta periféricos y enciende el equipo.';
+    if(!st.osInstalled)return '9 · Entra en BIOS, arranca desde USB y usa «Instalar SO».';
+    return '10 · Verifica temperaturas y tornillos. Entrega el PC al cliente.';
+  }
+  function section(name,title,content,count=''){
+    return '<details class="adv-accordion" data-section="'+name+'"'+
+      (game.openSections.includes(name)?' open':'')+'>'+
+      '<summary><span>'+title+'</span>'+
+      (count?'<em>'+count+'</em>':'')+'</summary>'+
+      '<div class="adv-accordion-body">'+content+'</div></details>';
+  }
   function paint(){
     if(!game){if(panel)panel.innerHTML='';return;}
+    const top=panel.scrollTop;
     const job=CASES[game.caseId];
-    panel.innerHTML=
-      '<div class="title"><h2>Encargos y tienda</h2><span>Aventura de montaje</span></div>'+
+    const available=stagedItems();
+    api.stage?.(available,game.selected);
+    const mission=
       '<label class="adventure-label">Cliente</label><select id="advClient">'+
       Object.entries(CASES).map(([id,c])=>'<option value="'+id+'"'+(id===game.caseId?' selected':'')+
         '>'+safe(c.name)+'</option>').join('')+'</select>'+
@@ -476,27 +574,32 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<p class="muted">Precios ficticios en euros, únicamente para el juego.</p>'+ '<h3>1. Tu inventario (editable)</h3>'+
-      '<p class="muted">Devuelve piezas sin montar o cámbialas por otra referencia. Para devolver algo instalado, utiliza primero Retirar.</p>'+
+      '<p class="adv-guide">'+safe(progressText())+'</p>';
+    const inventory=
+      '<p class="muted">Comprado → mesa auxiliar → instalado. Pulsa una pieza para seleccionarla. Devuelve o cambia las no utilizadas.</p>'+
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
+      '<p class="adv-current">Selección: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguna')+'</b></p>'+
+      exchangeMarkup();
+    const shop='<p class="muted">Compra una caja para empezar. Todos los precios son ficticios.</p>'+shopMarkup();
+    const actions=
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
-      exchangeMarkup()+
-      '<h3>2. Tienda de informática</h3>'+shopMarkup()+
-      '<h3>3. Acciones</h3><div class="adv-verbs">'+VERBS.map(([id,text])=>
+      '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
+      '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
-      '<label class="adventure-label">Destino del cable (verbo Conectar)</label>'+
       '<label class="adventure-label">Salida de vídeo al monitor</label>'+
       '<select id="advVideoOutput">'+
       '<option value="motherboard"'+(game.videoOutput==='motherboard'?' selected':'')+
-      '>Placa base · HDMI/DP (requiere iGPU de CPU)</option>'+
+      '>Placa · HDMI/DP (CPU con iGPU)</option>'+
       '<option value="gpu"'+(game.videoOutput==='gpu'?' selected':'')+
       '>Tarjeta gráfica dedicada · HDMI/DP</option></select>'+
+      '<label class="adventure-label">Conector (para Conectar / Desconectar)</label>'+
       '<select id="advConnection">'+CONNECTIONS.map(([id,text])=>
         '<option value="'+id+'"'+(id===game.connection?' selected':'')+'>'+text+'</option>').join('')+'</select>'+
       '<div class="adv-actions"><button type="button" class="primary" data-go>Realizar acción</button>'+
       '<button type="button" data-rear>Ver trasera</button>'+
-      '<button type="button" data-close>Cerrar / abrir caja</button></div>'+
-      '<h3>4. Encargo</h3><p class="adv-story">'+job.goals.map(safe).join(' · ')+'</p>'+
+      '<button type="button" data-close>Abrir / cerrar caja</button></div>';
+    const delivery=
+      '<p class="adv-story">'+job.goals.map(safe).join(' · ')+'</p>'+
       '<button type="button" class="primary adv-deliver" data-deliver>Entregar PC al cliente</button>'+
       (game.report?'<div class="adv-report"><b>'+ (game.report.ok?'ENCARGO SUPERADO':'REVISAR MONTAJE')+
         ' · '+game.report.score+'/10</b>'+
@@ -505,6 +608,15 @@ function createAdventureGame(api){
       '<div class="adv-log" role="status" aria-live="polite">'+game.messages.map(m=>
         '<p class="'+(m.level==='ok'?'oktxt':'warntxt')+'">'+safe(m.text)+'</p>').join('')+'</div>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
+    panel.innerHTML=
+      '<div class="title"><h2>Taller de montaje</h2><span>Modo aventura</span></div>'+
+      '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
+      section('mission','Encargo y progreso',mission)+
+      section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
+      section('shop','Tienda de informática',shop)+
+      section('actions','Acciones y herramientas',actions,game.selected?'●':'')+
+      section('delivery','Diagnóstico y entrega',delivery);
+    panel.scrollTop=top;
   }
   // El inventario también se puede arrastrar hasta los anclajes verdes
   // del 3D. Nunca instala piezas que no se hayan comprado.
@@ -531,8 +643,22 @@ function createAdventureGame(api){
     perform('fit');
   }
   panel.addEventListener('click',event=>{
+    const summary=event.target.closest('summary');
+    if(summary&&panel.contains(summary)){
+      event.preventDefault();
+      const details=summary.parentElement;
+      const name=details?.dataset.section;
+      if(!name||!game)return;
+      if(details.open)game.openSections=game.openSections.filter(x=>x!==name);
+      else game.openSections=[...game.openSections.filter(x=>x!==name),name].slice(-2);
+      panel.querySelectorAll('details[data-section]').forEach(d=>{
+        d.open=game.openSections.includes(d.dataset.section);
+      });
+      return;
+    }
     const button=event.target.closest('button');if(!button||!game)return;
-    if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
+    if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
+    else if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
     else if(button.hasAttribute('data-exchange-go')){
       const target=query('#advExchangeTarget');
       if(target)exchange(game.selected,target.value);
@@ -558,7 +684,7 @@ function createAdventureGame(api){
       paint();
     }
   });
-  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,connect,disconnect,apply,installOS,checkDelivery,
+  return {start,exit,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
