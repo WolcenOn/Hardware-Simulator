@@ -177,3 +177,62 @@ salidas HDMI/DP de la placa solo los exponen.
 
 - [x] Ahora el verbo **Desconectar** permite soltar cables internos con PC apagado y periféricos externos (HDMI/USB) sin salir al modo técnico.
 - [x] Cable HDMI conectado: devolución bloqueada; tras desconectar se devuelve y recupera el precio pagado.
+
+
+## Iteración 8.2-alpha: mesas de preparación y menú plegable (23-10-2026)
+
+### Dos mesas 3D independientes
+- Se crea `js/stagingTable3d.js`: mesa auxiliar de 825 × 850 mm situada
+  a la derecha del banco de montaje, con 12 huecos visibles por página.
+- Las compras aparecen físicamente como representaciones procedurales
+  reconocibles (caja, placa, CPU, RAM, GPU, PSU, SSD/HDD/NVMe,
+  disipador y herramientas/consumibles). No se utilizan activos CAD externos.
+- Sólo aparecen los objetos con existencias disponibles; al encajar
+  una pieza desaparece de la mesa auxiliar. Si se retira, vuelve al
+  inventario y a la mesa auxiliar.
+- El clic sobre una pieza 3D la selecciona en inventario y abre
+  automáticamente el acordeón de acciones.
+- La navegación ◀/▶ cambia de página cuando hay más de 12 referencias.
+- La cámara «Mesa de piezas» aproxima la preparación; «Taller completo»
+  muestra ambas mesas. La torre sigue conservando sus vistas dedicadas.
+
+### Colocar la caja sin confusión
+- En un encargo nuevo, tienda y encargo están abiertos inicialmente y
+  el tutorial indica que hay que comprar la caja.
+- Tras comprar «Caja ATX con bandejas», aparece sobre la mesa auxiliar
+  y la cámara se acerca a ella.
+- Al seleccionarla se sugiere la acción
+  **«Colocar caja en mesa de montaje»**. Ejecutarla equivale a
+  encajar la caja en el banco; `state.casePlaced` se marca verdadero,
+  consume una unidad de inventario y la cámara vuelve a la torre.
+- La caja sigue sujeta a las reglas físicas existentes: no permite
+  instalar una placa sin chasis ni cablear con el PC encendido.
+
+### Panel de acordeones
+- El panel lateral de aventura es independiente del modo técnico,
+  con scroll propio en escritorio y altura máxima del viewport.
+- Secciones: Encargo y progreso, Inventario y cambios,
+  Tienda de informática, Acciones y herramientas,
+  Diagnóstico y entrega.
+- Máximo dos acordeones simultáneamente abiertos; el estado persiste
+  cuando cambia la selección o se actualiza el inventario.
+- Se conserva `scrollTop` durante la reconstrucción del panel;
+  evita que cada compra o acción obligue a desplazarse desde arriba.
+- Se muestran acciones contextuales: encajar caja, chapa I/O, aplicar
+  pasta, encajar DIMM, atornillar, retirar e inspeccionar.
+- El modelo de verbos general sigue disponible para operaciones avanzadas.
+
+### Comprobaciones
+- [x] Sintaxis de HTML y de ambos módulos 3D/juego.
+- [x] Comprar caja aparece en mesa y centra la cámara auxiliar.
+- [x] Acción contextual de colocar caja y consumir la pieza comprada.
+- [x] Inventario y mesa ya no muestran la caja como pendiente al montarla.
+- [x] Selección de piezas abre Inventario y Acciones sin perder su estado.
+- [x] Mesa 3D reconoce raycast sobre una pieza, oculta modelos instalados
+      y mantiene visibles los restantes.
+- [x] Encargo de oficina anterior: 759 € y diez criterios de entrega.
+- [ ] Inspección visual en navegador WebGL y pulido de las nuevas cámaras.
+- [ ] Animaciones físicas de traslado, colisiones reales y uso de herramientas
+      mediante clic sobre componentes concretos.
+
+**Vista previa**: `/preview/v7/?v=8-2-prep-bench`.
