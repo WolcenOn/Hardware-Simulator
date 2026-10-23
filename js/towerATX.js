@@ -93,14 +93,29 @@ export function createATXTower(THREE,parent,materials){
   }
   const rgbLight=new THREE.PointLight(0x23baff,.9,8.5);
   rgbLight.position.set(3.75,1.9,.1);rgbGroup.add(rgbLight);
+  let currentFinish='tower';
   function setFinish(variant){
     const palette={
       tower:[0x232d38,0x354450,0x596d78],
       towerWhite:[0xc0cbd5,0xe8eff5,0xb4c6d3],
       towerGraphite:[0x566570,0x74828c,0x8a9faa]
     };
-    const colors=palette[variant]||palette.tower;
-    steel.color.setHex(colors[0]);panel.color.setHex(colors[1]);mesh.color.setHex(colors[2]);
+    currentFinish=Object.hasOwn(palette,variant)?variant:'tower';
+    const colors=palette[currentFinish];
+    // Aplicar el acabado a todo el bastidor, la bandeja y el panel, no
+    // sólo al frontal. Evita un chasis negro con una pequeña franja blanca.
+    steel.color.setHex(colors[0]);
+    panel.color.setHex(colors[1]);
+    mesh.color.setHex(colors[2]);
+    cageMaterial.color.setHex(currentFinish==='towerWhite'?0x617584:
+      currentFinish==='towerGraphite'?0x374b59:0x18222d);
+    shroudFront.color.setHex(currentFinish==='towerWhite'?0x91a8b7:
+      currentFinish==='towerGraphite'?0x415360:0x101921);
+    shroudFront.opacity=currentFinish==='towerWhite'?.52:.69;
+  }
+  function getFinish(){
+    return {variant:currentFinish,frame:steel.color.getHex(),
+      panel:panel.color.getHex()};
   }
   function sync(installed,closedState){
     tower.visible=!!installed;
@@ -109,6 +124,6 @@ export function createATXTower(THREE,parent,materials){
   sync(false,false);
   function setRgb(enabled){rgbGroup.visible=!!enabled;}
   setRgb(false);
-  return {root:tower,sync,setFinish,setRgb,hinge,rearSSD,hddCage,psuSeat,
+  return {root:tower,sync,setFinish,getFinish,setRgb,hinge,rearSSD,hddCage,psuSeat,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }
