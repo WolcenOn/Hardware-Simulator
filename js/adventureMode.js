@@ -77,6 +77,7 @@ function createAdventureGame(api){
   function message(text,level='warn'){
     if(!game)return;
     game.messages.unshift({text,level});
+    game.lastFeedback={text,level};
     game.messages=game.messages.slice(0,9);
     api.log(level,text);
     paint();
@@ -99,7 +100,7 @@ function createAdventureGame(api){
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
-      screwed:{},messages:[],attempts:0,inspection:'',report:null,
+      screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false
     };
     state.casePlaced=false;
@@ -269,11 +270,17 @@ function createAdventureGame(api){
       if(cat==='item'){message('Selecciona una pieza instalada para atornillarla.');return;}
       const part=cat;
       if(!st.installed[part]){message('Antes de atornillar debes encajar la pieza.');return;}
+      if(st.power){message('Apaga el ordenador antes de utilizar el destornillador.');return;}
+      if(st.caseClosed){message('Abre el panel lateral antes de atornillar el hardware.');return;}
       if(!owned('item:screwdriver')||!has('item:screws')){
-        message('Necesitas destornillador y tornillos sin usar. Cómpralos en la tienda.');return;
+        const missing=[
+          !owned('item:screwdriver')?'destornillador':null,
+          !has('item:screws')?'tornillos':null
+        ].filter(Boolean).join(' y ');
+        message('Falta '+missing+'. Compra el material en la tienda, luego repite Atornillar.');return;
       }
-      if(g.screwed[part]){message('Esta pieza ya está atornillada.');return;}
-      expend('item:screws');
+      if(g.screwed[part]){message('Esta pieza ya está atornillada.','ok');return;}
+      if(!expend('item:screws')){message('No quedan tornillos disponibles.');return;}
       g.screwed[part]=true;
       message('Atornillado: '+label(cat,id)+'.','ok');
       return;
