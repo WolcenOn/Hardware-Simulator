@@ -280,3 +280,50 @@ salidas HDMI/DP de la placa solo los exponen.
 - [ ] Añadir dibujos detallados de zócalos, tornillos y puertos seleccionables.
 
 Vista previa: `/preview/v7/?v=8-3-part-inspection`.
+
+
+## Corrección 8.3.1-alpha: operaciones desde ficha y lateral sin solapamientos (23-10-2026)
+
+### Operaciones de herramientas / menús 3D
+- La **ficha técnica**, además del menú flotante, muestra sus propios
+  botones ejecutables «Atornillar», «Conectar»/«Soltar», etc.
+- Las acciones explícitas se envían al motor de aventura, y su resultado
+  aparece **dentro del propio menú y de la ficha técnica**, no escondido
+  únicamente en el registro del acordeón de entrega.
+- Si faltan tornillos o destornillador, el jugador recibe el mensaje
+  «Falta destornillador y tornillos. Compra el material en la tienda».
+- Para atornillar es obligatorio que la pieza esté montada,
+  el PC esté apagado, el chasis abierto y haya destornillador
+  y al menos un tornillo disponible. El tornillo se consume y el
+  estado de fijación pasa a correcto.
+- Una vez atornillado el componente, desaparece la opción de
+  volver a atornillarlo; la ficha muestra el estado actualizado.
+- La ficha permite usar acciones sin cerrar el documento ni depender
+  del menú flotante situado detrás.
+
+### CSS responsivo del lateral
+- Todos los controles del panel de aventura usan `box-sizing:border-box`;
+  los `select` de 100 % dejan de sobresalir por sus bordes/padding.
+- Las tarjetas de tienda limitan explícitamente el ancho del bloque
+  «Ficha/Comprar», evitando que la regla genérica `.adv-card div`
+  lo expandiese al mismo tiempo que la descripción.
+- Los botones, textos largos, indicadores de inventario, tarjetas de
+  estado, títulos de acordeones y columnas tienen anchos mínimos cero
+  y ajuste de palabra. Las cuadrículas usan `minmax(0,1fr)` para
+  impedir que un texto largo empuje a otro componente.
+- En pantallas estrechas se acotan anchos de «Devolver» y botones de
+  acciones. El inspector usa un nivel visual por encima del menú
+  flotante cuando se abre la ficha.
+
+### Regresión automatizada
+- [x] Ficha de placa montada incluye acción «Atornillar».
+- [x] Sin herramientas: advertencia visible en la propia ficha.
+- [x] No cambia el estado de tornillos ante la operación rechazada.
+- [x] Tras comprar destornillador y bolsa, el botón de la ficha fija
+      la placa, descuenta 1 de 10 tornillos y muestra confirmación.
+- [x] Se actualiza el estado de la ficha y del menú contextual.
+- [x] La opción Atornillar desaparece cuando ya se ha fijado la pieza.
+- [x] Sintaxis JavaScript válida.
+- [ ] Revisión visual del lateral a 320–1440 px con WebGL real.
+
+Vista previa: `/preview/v7/?v=8-3-1-action-layout`.
