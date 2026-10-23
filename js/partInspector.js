@@ -168,7 +168,11 @@ function createPartInspector(api){
       actions.push({verb:st[flag]?'disconnect':'connect',target,label:st[flag]?'Desconectar':'Conectar',enabled:true});
       return actions;
     }
-    if(!on)actions.push({verb:'fit',label:t.category==='case'?'Colocar caja':'Encajar',enabled:true});
+    if(!on){
+      if(t.category==='motherboard'&&st.installed.psu&&!st.psuAccessRouted)
+        actions.push({verb:'route',label:'Apartar mazos PSU',enabled:true});
+      actions.push({verb:'fit',label:t.category==='case'?'Colocar caja':'Encajar',enabled:true});
+    }
     else{
       if(['motherboard','psu','storage','gpu'].includes(t.category)&&!ad.game?.screwed?.[t.category])
         actions.push({verb:'screw',label:'Atornillar',enabled:true});
