@@ -3,6 +3,15 @@
 // orientativas; cada pieza conserva su categoría y compatibilidad.
 window.PC_HARDWARE_EXPANSION={
  motherboards:{
+  x670e:{name:'X670E ATX AM5 · WiFi / DP',sizeMm:'305 × 244 mm',socket:'AM5',ram:'DDR5',chipset:'X670E',
+    slots:{dimm:4,pcieX16:2,m2:4,sata:6},videoOutputs:['HDMI','DisplayPort'],
+    desc:'Modelo de práctica AM5 con varios M.2 y headers PWM/ARGB.'},
+  b760m:{name:'B760M mATX LGA1700 · HDMI',sizeMm:'244 × 244 mm',socket:'LGA1700',ram:'DDR5',chipset:'B760',
+    slots:{dimm:4,pcieX16:1,m2:2,sata:4},videoOutputs:['HDMI'],
+    desc:'Placa Intel DDR5 en formato compacto mATX.'},
+  x570:{name:'X570 ATX AM4 · HDMI',sizeMm:'305 × 244 mm',socket:'AM4',ram:'DDR4',chipset:'X570',
+    slots:{dimm:4,pcieX16:2,m2:2,sata:6},videoOutputs:['HDMI'],
+    desc:'Placa AM4 avanzada; el HDMI precisa un Ryzen con Radeon integrada.'},
   b650m:{name:'B650M AM5 mATX · HDMI/DP',sizeMm:'244 × 244 mm',socket:'AM5',ram:'DDR5',chipset:'B650',
     slots:{dimm:4,pcieX16:1,m2:2,sata:4},videoOutputs:['HDMI','DisplayPort'],
     desc:'Salida de vídeo de placa sólo con CPU que incluya iGPU.'},
@@ -64,4 +73,17 @@ window.PC_HARDWARE_EXPANSION={
   psu1000:{name:'PSU 1000W ATX 3.0',sizeMm:'150 × 150 × 86 mm',max:1000,
     connectors:{PCIE_8:3,'12VHPWR':1},desc:'Fuente sobredimensionada y con conector moderno.'}
  }
+};
+
+window.PC_COOLER_OPTIONS={
+  air:{name:'Torre de aire 120 mm',kind:'air',thermalGain:0,watts:4,requires:'CPU_FAN',sizeMm:'125 × 120 × 155 mm'},
+  stock:{name:'Disipador de serie bajo',kind:'air',thermalGain:-6,watts:3,requires:'CPU_FAN',sizeMm:'90 × 90 × 55 mm'},
+  twinTower:{name:'Torre doble 120 mm',kind:'air',thermalGain:5,watts:6,requires:'CPU_FAN',sizeMm:'140 × 125 × 160 mm'},
+  aio240:{name:'AIO líquida 240 mm',kind:'liquid',thermalGain:8,watts:11,requires:'CPU_FAN / bomba',sizeMm:'Radiador 240 × 120 mm'},
+  aio360:{name:'AIO líquida 360 mm',kind:'liquid',thermalGain:11,watts:16,requires:'CPU_FAN / bomba',sizeMm:'Radiador 360 × 120 mm'}
+};
+window.PC_CASE_FINISHES={
+  tower:{name:'Negro',color:0x232d38,panel:0x354450},
+  towerWhite:{name:'Blanco',color:0xc0cbd5,panel:0xe8eff5},
+  towerGraphite:{name:'Grafito',color:0x566570,panel:0x74828c}
 };
