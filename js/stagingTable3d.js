@@ -242,7 +242,7 @@ export function createStagingTable(THREE,scene){
         const label=new THREE.Sprite(new THREE.SpriteMaterial({
           map:tx,transparent:true,depthTest:false,depthWrite:false
         }));
-        label.position.set(0,1.90,1.30);
+        label.position.set(0,2.98,1.35);
         label.scale.set(4.18,1.05,1);
         label.renderOrder=12;
         label.userData.stagingLabel=true;
