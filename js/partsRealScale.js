@@ -188,10 +188,12 @@ export function buildRealScale(p) {
     }
     // Tomas gráficas integradas: HDMI y DisplayPort son conectores de la
     // placa; únicamente producen señal si el procesador incorpora iGPU.
-    rounded(.23,.10,.34,.02,black,b,left+.115,.54,top+.38);
-    rounded(.17,.042,.27,.013,gold,b,left+.066,.546,top+.38);
-    rounded(.24,.12,.35,.02,black,b,left+.115,.54,top+3.23);
-    rounded(.17,.05,.28,.012,silver,b,left+.066,.546,top+3.23);
+    // HDMI y DisplayPort comparten la abertura trasera con los USB.
+    // Su segunda fila está un poco más alta para no solaparse con ellos.
+    rounded(.23,.10,.34,.02,black,b,left+.115,.80,top+.38);
+    rounded(.17,.042,.27,.013,gold,b,left+.066,.806,top+.38);
+    rounded(.24,.12,.35,.02,black,b,left+.115,.80,top+2.72);
+    rounded(.17,.05,.28,.012,silver,b,left+.066,.806,top+2.72);
     // Socket real, CPU retirada en pieza independiente.
     rounded(1.13,.085,1.13,.065,silver,b,cfg.cpuX,.43,cfg.cpuZ);
     rounded(.94,.04,.94,.04,dark,b,cfg.cpuX,.50,cfg.cpuZ);
