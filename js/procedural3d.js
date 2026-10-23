@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=8-3-2-io-shield';
+import { buildRealScale } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-3-2-io-shield';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
-import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
+import { createATXTower } from './towerATX.js?v=8-4-1-gameplay-e2e';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-workshop-tooltips';
 
@@ -160,6 +160,8 @@ function sync(state,details={}){
     !!details.videoSignal);
   const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
+  tower.setFinish?.(state.selected?.caseVariant||'tower');
+  tower.setRgb?.(!!state.rgbInstalled&&!!state.power&&!!state.rgbOn);
   assembly.fanMountGroup.visible=!!state.installed?.case;
   activeSnapTargets=snapTargets;
   if(draggedPart&&snapTargets[draggedPart]){
