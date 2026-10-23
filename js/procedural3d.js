@@ -249,6 +249,13 @@ view.addEventListener('pointerup',e=>{
   }
   // El chasis transparente no debe impedir seleccionar conectores y piezas
   // visibles en su interior. Los ventiladores tienen puntos propios.
+  // La chapa se puede seleccionar desde la cara trasera,
+  // incluso antes de haber instalado la placa base.
+  if(current?.ioShield&&assembly.ioShield.visible&&
+    raycaster.intersectObject(assembly.ioShield,true).length){
+    select3D('ioShield',e.clientX,e.clientY);
+    return;
+  }
   const fanHits=raycaster.intersectObjects(
     assembly.caseFanMounts.filter(x=>x.visible),true);
   if(fanHits.length){
