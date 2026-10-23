@@ -1,3 +1,5 @@
+import { getRearUsbAnchor } from './partsRealScale.js?v=8-4-5-real-connectors';
+import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
 // Banco de trabajo y periféricos hechos con Three.js (sin assets externos).
 // La pantalla refleja literalmente la misma cadena de texto del monitor HTML.
 // Medidas: 1 unidad Three.js = 50 mm. Mesa 1350 x 850 mm aprox.
@@ -123,35 +125,80 @@ export function createWorkbench(THREE,scene,materials) {
   ]);
   const wire=new THREE.Mesh(new THREE.TubeGeometry(wireCurve,24,.018,6,false),rubber);
   root.add(wire);
-  // Dos cables USB independientes hacia puertos traseros de la placa base.
+  // Los puertos del ratón y del teclado son puntos de la propia placa base,
+  // no coordenadas absolutas congeladas antes de ajustar sus separadores.
   const usbGroup=new THREE.Group();usbGroup.name='Conexiones USB externas';root.add(usbGroup);
-  function usbCable(id,points,color){
-    const group=new THREE.Group();group.name='usb_'+id;usbGroup.add(group);
-    const jacket=new THREE.MeshStandardMaterial({color,roughness:.85});
-    const path=new THREE.CatmullRomCurve3(points.map(v=>new THREE.Vector3(...v)));
-    const cable=new THREE.Mesh(new THREE.TubeGeometry(path,40,.018,7,false),jacket);
-    group.add(cable);
-    const connector=new THREE.Mesh(new THREE.BoxGeometry(.18,.095,.22),materials.black);
-    connector.position.set(...points[points.length-1]);connector.name='USB-A '+id;
-    group.add(connector);
-    return group;
+  const rearCables={};
+  const USB_PORT_INDEX={keyboard:2,mouse:3};
+  const cablePaths={
+    keyboard:[[kbX,-.10,kbZ-1.28],[kbX-.55,-.19,kbZ-1.90],
+      [-16.0,-.17,.35],[-14.75,-.12,-5.55],[-6.50,-.10,-5.65]],
+    mouse:[[mouseX,-.05,mouseZ-1.06],[mouseX+.38,-.16,3.85],
+      [-5.70,-.17,2.75],[-6.25,-.15,-4.95]]
+  };
+  const cableColors={keyboard:0x455768,mouse:0x42505d};
+  let rearLayoutKey='';
+  function clearRearCables(){
+    for(const entry of Object.values(rearCables)){
+      usbGroup.remove(entry.group);
+      const disposed=new Set();
+      entry.group.traverse(node=>{
+        node.geometry?.dispose();
+        const all=Array.isArray(node.material)?node.material:[node.material];
+        for(const mat of all)if(mat&&!disposed.has(mat)){mat.dispose();disposed.add(mat);}
+      });
+    }
+    for(const id of Object.keys(rearCables))delete rearCables[id];
   }
-  // Las tomas USB están en el panel trasero de la torre; sus cables
-  // pasan por el borde posterior del banco, evitando teclado y monitor.
-  const keyUsb=usbCable('keyboard',[
-    [kbX,-.10,kbZ-1.28],[kbX-.55,-.19,kbZ-1.90],
-    [-16.0,-.17,.35],[-14.75,-.12,-5.55],
-    [-6.50,-.10,-5.65],[-4.35,2.50,-2.70],[-3.08,7.15,1.61]
-  ],0x455768);
-  const mouseUsb=usbCable('mouse',[
-    [mouseX,-.05,mouseZ-1.06],[mouseX+.38,-.16,3.85],
-    [-5.70,-.17,2.75],[-6.25,-.15,-4.95],
-    [-4.28,2.12,-2.10],[-3.08,6.30,1.61]
-  ],0x42505d);
-  wire.visible=false; // la nueva ruta USB sustituye al tramo decorativo anterior
-  function updateConnections(s){
-    keyUsb.visible=!!s?.keyboardConnected&&!!s?.installed?.motherboard;
-    mouseUsb.visible=!!s?.mouseConnected&&!!s?.installed?.motherboard;
+  function rebuildRearCables(cfg,assemblyRoot){
+    const key=[cfg.x,cfg.z,cfg.w,cfg.d].join(':');
+    if(rearLayoutKey===key)return;
+    assemblyRoot.updateMatrixWorld(true);
+    clearRearCables();
+    for(const id of ['keyboard','mouse']){
+      const socketLocal=getRearUsbAnchor(cfg,USB_PORT_INDEX[id]);
+      const socket=assemblyRoot.localToWorld(new THREE.Vector3(...socketLocal));
+      const toArray=v=>[v.x,v.y,v.z];
+      const path=[...cablePaths[id],
+        [socket.x-1.12,socket.y-1.50,socket.z-.85],
+        [socket.x-.63,socket.y-.40,socket.z-.29],
+        toArray(socket)];
+      const g=new THREE.Group();g.name='USB-A '+id;usbGroup.add(g);
+      const material=new THREE.MeshStandardMaterial({color:cableColors[id],roughness:.86});
+      const curve=new THREE.CatmullRomCurve3(path.map(v=>new THREE.Vector3(...v)),
+        false,'centripetal',.4);
+      const wire=new THREE.Mesh(new THREE.TubeGeometry(curve,64,.022,8,false),material);
+      wire.name='Cable USB '+id;g.add(wire);
+      const plug=createConnector3d(THREE,'usbA');
+      plug.name='Clavija USB-A '+id;
+      plug.position.copy(socket);
+      // Puerto trasero orientado hacia -X: la clavija se introduce hacia +X,
+      // mientras que el cable sale perpendicularmente hacia el exterior.
+      plug.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(-1,0,0));
+      g.add(plug);
+      rearCables[id]={group:g,plug,portIndex:USB_PORT_INDEX[id],socketLocal};
+    }
+    rearLayoutKey=key;
+  }
+  wire.visible=false; // El tramo anterior era sólo decorativo.
+  function updateConnections(s,cfg,assemblyRoot){
+    if(cfg&&assemblyRoot)rebuildRearCables(cfg,assemblyRoot);
+    for(const id of ['keyboard','mouse']){
+      const row=rearCables[id];
+      if(row)row.group.visible=!!s?.[id+'Connected']&&!!s?.installed?.motherboard;
+    }
+  }
+  function getRearUsbAlignment(assemblyRoot){
+    if(!assemblyRoot)return [];
+    assemblyRoot.updateMatrixWorld(true);
+    return ['keyboard','mouse'].map(id=>{
+      const row=rearCables[id];if(!row)return null;
+      const socket=assemblyRoot.localToWorld(new THREE.Vector3(...row.socketLocal));
+      const plug=row.plug.getWorldPosition(new THREE.Vector3());
+      return {id,portIndex:row.portIndex,portWorld:socket.toArray(),
+        plugWorld:plug.toArray(),gapMm:socket.distanceTo(plug)*50,
+        visible:row.group.visible,connectorType:row.plug.userData.connectorType};
+    }).filter(Boolean);
   }
 
   let lastSignature='';
@@ -229,6 +276,6 @@ export function createWorkbench(THREE,scene,materials) {
   }
   updateScreen('Sistema apagado.',false,false,false);
   updateConnections({});
-  return {root,updateScreen,updateConnections,hitBootOption,display,
+  return {root,updateScreen,updateConnections,getRearUsbAlignment,hitBootOption,display,
     screen,keyboard,mouseGroup,texture:tex,layout:WORKBENCH_LAYOUT};
 }
