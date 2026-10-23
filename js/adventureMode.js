@@ -23,13 +23,20 @@ const OFFERS={
   storage:[['sataSSD',64],['sataSSD2',109],['nvmeSSD',79],['nvme2',145],['hdd',57],['hdd4',99]],
   gpu:[['rx6600',179],['rx7600',249],['rtx3060',235],['rtx4060',289],['rtx4070',529]],
   psu:[['psu450',49],['psu550',69],['psu650',89],['psu750',115],['psu850',139],['psu1000',199]],
-  case:[['tower',89]],
-  cooler:[['air',39]],
+  case:[['tower',89],['towerWhite',94],['towerGraphite',94]],
+  cooler:[['air',39],['stock',15],['twinTower',69],['aio240',109],['aio360',155]],
   item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
-    ['hdmi',10],['keyboard',22],['mouse',14],['osusb',18],['fan',15]]
+    ['hdmi',10],['keyboard',22],['mouse',14],['osusb',18],['fan',15],['rgbStrip',18]]
 };
 const LABELS={
-  'case:tower':'Caja ATX con bandejas',
+  'case:tower':'Caja ATX negra',
+  'case:towerWhite':'Caja ATX blanca',
+  'case:towerGraphite':'Caja ATX grafito',
+  'cooler:stock':'Disipador compacto de serie',
+  'cooler:twinTower':'Disipador doble torre 120 mm',
+  'cooler:aio240':'Refrigeración líquida AIO 240 mm',
+  'cooler:aio360':'Refrigeración líquida AIO 360 mm',
+  'item:rgbStrip':'Tira LED ARGB 5V',
   'cooler:air':'Disipador de CPU (aire)',
   'item:screwdriver':'Destornillador de estrella',
   'item:screws':'Juego de tornillos (10)',
@@ -101,24 +108,34 @@ function createAdventureGame(api){
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
-      purchases:[],osUSB:false
+      purchases:[],osUSB:false,pendingDemo:false
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
     message('Nuevo encargo: '+CASES[which].client+'. Compra componentes y herramientas antes de montar.','ok');
     api.render();
   }
-  function demoBuild(){
-    if(!game)return;
-    // Evitar perder compras y progreso al abandonar un encargo.
-    const approval=root.confirm?.('El montaje recomendado es una demostración independiente. Saldrás del encargo actual y se reiniciarán sus compras. ¿Quieres continuar?');
-    if(approval!==true){
-      message('Demostración cancelada. Sigues en tu encargo y conservas las compras.','ok');
-      return;
-    }
-    // La demostración técnica no regala productos ni supera misiones.
+  function runTechnicalDemo(){
+    // La demostración no consume presupuesto ni entrega encargos.
     exit();
     api.demoBuild?.();
+    api.document.getElementById('workshopFeedback').textContent=
+      'Demostración técnica cargada: utiliza Encender PC o Entrar BIOS.';
+  }
+  function demoBuild(){
+    if(!game)return;
+    const hasProgress=game.purchases.length>0||
+      Object.values(api.state().installed||{}).some(Boolean);
+    if(!hasProgress){runTechnicalDemo();return;}
+    // Confirmación accesible dentro del panel, evitando window.confirm
+    // que muchos navegadores de prueba y bloqueadores cierran sin avisar.
+    game.pendingDemo=true;game.openSections=['mission','actions'];
+    message('La demostración reiniciará este encargo y sus compras. Confirma o cancela aquí.', 'warn');
+  }
+  function cancelDemo(){
+    if(!game)return;
+    game.pendingDemo=false;
+    message('Demostración cancelada. Se conservan las compras.', 'ok');
   }
   function exit(){
     api.stage?.([], '');
@@ -267,7 +284,7 @@ function createAdventureGame(api){
     if(verb==='apply'){apply(k);return;}
     const [cat,id]=k.split(':');
     if(verb==='fit'){
-      if(k==='case:tower'&&st.installed.case){
+      if(cat==='case'&&st.installed.case){
         message('La caja ya está situada en la mesa principal. Abre el panel para colocar componentes.');
         return;
       }
@@ -322,10 +339,12 @@ function createAdventureGame(api){
       if(st.installed[part]&&!previous){
         expend(k);
         if(part==='case'){
+          st.selected.caseVariant=id;
           st.casePlaced=true;
           api.workView?.();
           message('Caja colocada en el banco de montaje. Ahora puedes abrirla y equiparla.','ok');
         }
+        if(part==='cooler')st.selected.cooler=id;
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
         else message(label(cat,id)+' encajado. Comprueba tornillos y conexiones.','ok');
       }else if(previous)message('La pieza ya está instalada: prueba atornillar o conectar.');
@@ -588,7 +607,7 @@ function createAdventureGame(api){
     const add=(name,desc,verb,enabled=true)=>ideas.push(
       '<button type="button" class="adv-suggest" data-suggest="'+verb+'"'+
       (!enabled?' disabled':'')+'><b>'+name+'</b><small>'+desc+'</small></button>');
-    if(k==='case:tower'){
+    if(cat==='case'){
       if(st.installed.case)add('✓ Caja colocada','Ya está en el banco principal; ahora abre el panel.','inspect');
       else add('Colocar caja en mesa de montaje','Primera acción del encargo · encajar','fit',has(k));
     }else if(k==='item:ioShield'){
@@ -656,6 +675,10 @@ function createAdventureGame(api){
     const available=stagedItems();
     api.stage?.(available,game.selected);
     const mission=
+      (game.pendingDemo?'<div class="adv-confirm-demo" role="alert">'+
+        '<p>¿Abrir montaje recomendado? Se perderá el progreso de este encargo, no se comprarán piezas.</p>'+
+        '<button type="button" data-confirm-demo class="primary">Sí, abrir demostración</button>'+
+        '<button type="button" data-cancel-demo>Conservar encargo</button></div>':'')+
       '<label class="adventure-label">Cliente</label><select id="advClient">'+
       Object.entries(CASES).map(([id,c])=>'<option value="'+id+'"'+(id===game.caseId?' selected':'')+
         '>'+safe(c.name)+'</option>').join('')+'</select>'+
@@ -670,6 +693,22 @@ function createAdventureGame(api){
       '<p class="adv-current">Selección: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguna')+'</b></p>'+
       exchangeMarkup();
     const shop='<p class="muted">Compra una caja para empezar. Todos los precios son ficticios.</p>'+shopMarkup();
+    const stActions=api.state();
+    const peripherals=
+      '<div class="adv-connectivity">'+
+      [['keyboard','Teclado USB',stActions.keyboardConnected],
+       ['mouse','Ratón USB',stActions.mouseConnected],
+       ['monitor','Monitor HDMI/DP',stActions.monitorCable]]
+       .map(([id,label,on])=>
+        '<div class="adv-connection-row"><span>'+label+
+        '<small>'+(on?'Conectado':'Sin conectar')+'</small></span>'+
+        '<button type="button" data-quick-connector="'+id+'">'+
+        (on?'Desconectar':'Conectar')+'</button></div>').join('')+
+      (stActions.installed.psu&&!stActions.psuAccessRouted?
+       '<button type="button" data-quick="route">Apartar y asegurar mazos PSU</button>':
+       stActions.psuAccessRouted?
+       '<p class="muted">✓ Mazos PSU asegurados</p>':'')+
+      '</div>';
     const actions=
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       '<div class="adv-quick-actions">'+
@@ -677,6 +716,7 @@ function createAdventureGame(api){
       (api.state().power?'Apagar ordenador':'Encender ordenador')+'</button>'+
       '<button type="button" data-quick="bios">Entrar / salir BIOS</button>'+
       '</div>'+
+      peripherals+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
@@ -760,6 +800,15 @@ function createAdventureGame(api){
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
+    if(button.hasAttribute('data-confirm-demo')){runTechnicalDemo();return;}
+    if(button.hasAttribute('data-cancel-demo')){cancelDemo();return;}
+    if(button.dataset.quickConnector){
+      const c=button.dataset.quickConnector;
+      const st=api.state();
+      const active=c==='monitor'?st.monitorCable:st[c+'Connected'];
+      if(active)disconnect(c);else connect(c);
+      return;
+    }
     if(button.dataset.mountedInspect){api.inspectPart?.(button.dataset.mountedInspect);return;}
     if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
     else if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
@@ -788,7 +837,7 @@ function createAdventureGame(api){
       paint();
     }
   });
-  return {start,exit,demoBuild,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
+  return {start,exit,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
