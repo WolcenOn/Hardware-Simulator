@@ -229,9 +229,22 @@ function createAdventureGame(api){
         api.action('seat_ram');message('DIMM encajado en ambas pestañas.','ok');return;
       }
       if(k==='item:ioShield'){
-        if(!has(k)){message('Necesitas la chapa I/O.');return;}
-        api.installIOShield();
-        if(st.ioShield){expend(k);message('Chapa I/O colocada antes de la placa.','ok');}
+        if(st.ioShield){
+          message('La chapa I/O ya está encajada en los puertos traseros de la caja.','ok');
+          return;
+        }
+        if(!has(k)){message('Necesitas comprar una chapa I/O.');return;}
+        const beforeLog=st.log?.[0];
+        try{api.installIOShield();}catch(err){
+          message('No se pudo colocar la chapa I/O: '+(err?.message||String(err)));return;
+        }
+        if(st.ioShield){
+          expend(k);
+          message('Chapa I/O colocada en la abertura trasera USB/HDMI. Ya puedes montar la placa.','ok');
+        }else{
+          const reason=st.log?.[0]!==beforeLog?st.log?.[0]?.m:null;
+          message('Chapa I/O no instalada: '+(reason||'revisa que la caja esté abierta, colocada y sin corriente.'));
+        }
         return;
       }
       if(!has(k)){message('Ya has usado esa pieza o no está en el inventario.');return;}
@@ -253,7 +266,13 @@ function createAdventureGame(api){
         st.selected[cat]=id;
       }
       const previous=!!st.installed[part];
-      api.install(part);
+      const previousLog=st.log?.[0];
+      // El motor puede rechazar una instalación por seguridad u orden de
+      // montaje. Antes el rechazo quedaba oculto en el historial técnico.
+      try{api.install(part);}catch(err){
+        message('Error instalando '+label(cat,id)+': '+(err?.message||String(err)));
+        return;
+      }
       if(st.installed[part]&&!previous){
         expend(k);
         if(part==='case'){
@@ -264,6 +283,13 @@ function createAdventureGame(api){
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
         else message(label(cat,id)+' encajado. Comprueba tornillos y conexiones.','ok');
       }else if(previous)message('La pieza ya está instalada: prueba atornillar o conectar.');
+      else{
+        const reason=st.log?.[0]!==previousLog?st.log?.[0]?.m:null;
+        const detail=reason||st.lastRenderError||
+          'La pieza no quedó instalada. Comprueba que el chasis esté abierto, sin alimentación y que los separadores estén accesibles.';
+        message('No se puede montar '+label(cat,id)+': '+detail);
+        g.openSections=['actions','mission'];
+      }
       return;
     }
     if(verb==='screw'){
