@@ -236,3 +236,47 @@ salidas HDMI/DP de la placa solo los exponen.
       mediante clic sobre componentes concretos.
 
 **Vista previa**: `/preview/v7/?v=8-2-prep-bench`.
+
+
+## Iteración 8.3-alpha: menús contextuales 3D y fichas técnicas (23-10-2026)
+
+- Clic en cualquier componente físico visible de la mesa auxiliar abre
+  un **menú contextual** junto al puntero: ficha, encajar, aplicar, etc.
+- También se reconocen placa, CPU, RAM, cooler, PSU, GPU, discos,
+  chasis, tres ventiladores de caja, monitor, teclado y ratón
+  ya montados en el entorno 3D.
+- Desde la tienda hay un botón **Ficha** antes de comprar, para poder
+  comparar características sin gastar dinero ni instalar la referencia.
+- `js/partInspector.js` consulta los catálogos de la 8.1 para mostrar
+  socket, tipo de RAM, interfaces, potencia, conectores, dimensiones,
+  descripción del producto y compatibilidad con piezas seleccionadas.
+- El contexto ofrece conexiones independientes: ATX 24p, EPS, POWER SW,
+  PCIe / 12VHPWR, SATA de datos y alimentación, CPU_FAN, USB/vídeo
+  o SYS_FAN según la pieza. NVMe no solicita SATA.
+- En la ficha, el **estado montado** indica cada condición:
+  atornillado, RAM bien encajada, pasta térmica, temperatura,
+  cableado ATX/EPS/F_PANEL, GPU, SATA, CPU_FAN y PWM,
+  monitor con señal, teclado y ratón conectados, etc.
+- Las fijaciones se conocen mediante las operaciones de atornillado
+  realizadas en el modo aventura; el modo técnico indica
+  «No registrado en modo técnico» en lugar de inventar tornillos.
+- Nuevo acordeón «Estado de piezas montadas» con desglose resumido
+  y enlaces a cada ficha. Los cambios se reflejan al ejecutar operaciones.
+- La interfaz visual del inspector pertenece al escenario 3D,
+  no sustituye a los botones del modo técnico, y usa el motor
+  de aventura para validar todas las acciones; no instala piezas gratis.
+- Un botón ✕ y la tecla Escape cierran los menús. En pantallas estrechas
+  la ficha ocupa el área visible del escenario.
+
+### Validación
+- [x] Sintaxis del módulo clásico, script inline y renderizador 3D.
+- [x] Selección sobre mesa auxiliar y sobre hardware montado.
+- [x] Ficha de CPU sin comprar y detección socket AM4 ↔ AM5.
+- [x] Estado ATX, EPS, POWER SW pendientes individualmente.
+- [x] Al cambiar ATX24 conectado, el menú cambia de «Conectar» a «Soltar».
+- [x] Unidad NVMe no ofrece cables SATA en el menú.
+- [x] Resumen de piezas instaladas visible en acordeón.
+- [ ] Pruebas de clic/raycast y colocación exacta de menús en navegador WebGL.
+- [ ] Añadir dibujos detallados de zócalos, tornillos y puertos seleccionables.
+
+Vista previa: `/preview/v7/?v=8-3-part-inspection`.
