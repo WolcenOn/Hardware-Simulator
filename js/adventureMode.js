@@ -110,8 +110,13 @@ function createAdventureGame(api){
   }
   function demoBuild(){
     if(!game)return;
-    // El ejemplo utiliza el modo técnico: no regala productos ni entrega
-    // encargos de clientes sin pagar las piezas.
+    // Evitar perder compras y progreso al abandonar un encargo.
+    const approval=root.confirm?.('El montaje recomendado es una demostración independiente. Saldrás del encargo actual y se reiniciarán sus compras. ¿Quieres continuar?');
+    if(approval!==true){
+      message('Demostración cancelada. Sigues en tu encargo y conservas las compras.','ok');
+      return;
+    }
+    // La demostración técnica no regala productos ni supera misiones.
     exit();
     api.demoBuild?.();
   }
