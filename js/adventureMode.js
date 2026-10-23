@@ -412,6 +412,7 @@ function createAdventureGame(api){
     message('Esa acción no es válida para el objeto seleccionado.');
   }
   function apply(k){
+    const st=api.state();
     if(k==='item:rgbStrip'){
       if(!has(k)){message('Compra una tira LED ARGB antes de aplicarla.');return;}
       if(st.power||st.caseClosed||!st.installed.case){
@@ -423,7 +424,6 @@ function createAdventureGame(api){
       api.render();return;
     }
     if(k!=='item:paste'){message('Selecciona pasta térmica o una tira LED ARGB para aplicar.');return;}
-    const st=api.state();
     if(st.power||st.caseClosed){message('No apliques pasta con el PC encendido o cerrado.');return;}
     if(!st.installed.cpu||st.installed.cooler){
       message('La pasta se aplica sobre la CPU, antes de fijar el disipador.');return;
