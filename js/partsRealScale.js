@@ -28,7 +28,7 @@ export const BOARD_LAYOUTS = {
 // Variantes 8.1 reutilizan posiciones de tornillos, DIMM y PCIe de
 // una placa del mismo formato. Esta geometría es representativa, no CAD exacto.
 for(const [key,base] of Object.entries({
-  b650m:'b650',b550:'b650',h610:'a520',b760:'z790'
+  b650m:'b650',b550:'b650',h610:'a520',b760:'z790',x670e:'b650',b760m:'h610',x570:'b650'
 })){
   BOARD_LAYOUTS[key]={...BOARD_LAYOUTS[base],name:key.toUpperCase()};
 }
@@ -298,6 +298,49 @@ export function buildRealScale(p) {
     fan(wrapper,0,0,0,r,options);
   }
   frontFan(cooler,0,1.63,.57,mm(120)/2,{kind:'cooler',square:true});
+  // Cada refrigerador comparte el mismo anclaje de CPU, pero utiliza
+  // una silueta diferente. Se mantiene el modelo clásico para air.
+  const coolerAir=new THREE.Group();
+  for(const child of [...cooler.children])coolerAir.add(child);
+  cooler.add(coolerAir);
+  const coolerStock=new THREE.Group();cooler.add(coolerStock);
+  rounded(1.50,.28,1.50,.09,metal,coolerStock,0,.26,0);
+  for(let i=0;i<9;i++)rounded(1.45,.045,1.22,.014,alu,coolerStock,0,.42+i*.085,0);
+  frontFan(coolerStock,0,1.16,0,mm(87)/2,{kind:'cooler',square:true});
+  const coolerTwin=new THREE.Group();cooler.add(coolerTwin);
+  for(const x of [-.65,.65]){
+    rounded(.89,.16,1.65,.06,copper,coolerTwin,x,.22,0);
+    for(let i=0;i<22;i++)
+      rounded(1.12,.045,1.69,.012,alu,coolerTwin,x,.48+i*.12,0);
+    for(const z of [-.44,.44])cylinder(.047,3.07,copper,coolerTwin,x,1.54,z,12);
+  }
+  frontFan(coolerTwin,0,1.61,.75,1.09,{kind:'cooler',square:true});
+  function buildAIO(count){
+    const aio=new THREE.Group();cooler.add(aio);
+    rounded(1.05,.49,1.05,.09,black,aio,0,.56,0);
+    rounded(.71,.065,.71,.03,materials.blue,aio,0,.85,0);
+    // Radiador plano y ventiladores por encima del bloque de CPU.
+    const length=count===3?6.95:4.73;
+    rounded(length,.35,1.89,.08,metal,aio,1.12,3.18,-1.26);
+    for(let i=0;i<count;i++){
+      const x=1.12+(i-(count-1)/2)*2.29;
+      frontFan(aio,x,3.42,-1.26,.99,{kind:'case',square:true});
+    }
+    for(const z of [-.25,.23]){
+      // Tubos flexibles de bomba hacia radiador.
+      const path=new THREE.CatmullRomCurve3([
+        new THREE.Vector3(z,.94,-.18),
+        new THREE.Vector3(-1.30,1.57,z-.50),
+        new THREE.Vector3(-1.0,3.04,-1.0+z),
+        new THREE.Vector3(-.45,3.19,-1.29+z)
+      ]);
+      aio.add(new THREE.Mesh(new THREE.TubeGeometry(path,22,.055,8,false),black));
+    }
+    return aio;
+  }
+  const coolerAIO240=buildAIO(2),coolerAIO360=buildAIO(3);
+  const coolerVariants={air:coolerAir,stock:coolerStock,twinTower:coolerTwin,
+    aio240:coolerAIO240,aio360:coolerAIO360};
 
   // GPU perpendicular a placa base, con ventiladores visibles empotrados
   // en la cubierta y chapa PCIe diferenciada.
@@ -415,6 +458,8 @@ export function buildRealScale(p) {
     for(const [key,obj] of Object.entries(motherboardModels))obj.visible=key===id;
     cpu.position.set(cfg.cpuX,.40,cfg.cpuZ);
     cooler.position.set(cfg.cpuX,.43,cfg.cpuZ);
+    for(const [id,obj] of Object.entries(coolerVariants))
+      obj.visible=id===(s?.selected?.cooler||'air');
     const chosen=s?.selected?.ram;
     const twoSticks=['ddr5_32','ddr4_32','ddr5_64'].includes(chosen);
     modules[0].position.set(cfg.dimmXs[Math.max(0,cfg.dimms===2?0:1)],.50,cfg.cpuZ+.05);
