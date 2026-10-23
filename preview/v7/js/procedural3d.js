@@ -4,12 +4,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
-  getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-6-port-geometry';
+  getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-6-port-geometry';
-import { createConnector3d } from './connectors3d.js?v=8-4-6-port-geometry';
-import {alignRearPlug} from './portProfiles.js?v=8-4-6-port-geometry';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-6-port-geometry';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-7-cable-exits';
+import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
+import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
 import { createATXTower } from './towerATX.js?v=8-4-4-front-io';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
@@ -103,16 +103,23 @@ function updateExternalVideo(state,cfg){
   if(sig!==lastVideoRoute){
     root.updateMatrixWorld(true);
     const end=root.localToWorld(new THREE.Vector3(...local));
+    const plug=externalVideoPlugs[type];
+    plug.position.copy(end);
+    plug.updateMatrixWorld(true);
+    const flex=getCableExit(THREE,plug);
+    const axis=new THREE.Vector3(0,1,0).applyQuaternion(
+      plug.getWorldQuaternion(new THREE.Quaternion()));
+    // El cable arranca en el último milímetro del guardacable de HDMI/DP.
     const curve=new THREE.CatmullRomCurve3([
-      end.clone(),end.clone().add(new THREE.Vector3(-.48,0,0)),
-      end.clone().add(new THREE.Vector3(-1.12,-.66,-.37)),
+      flex.clone(),flex.clone().addScaledVector(axis,.27),
+      flex.clone().addScaledVector(axis,.85).add(new THREE.Vector3(0,-.54,-.38)),
       new THREE.Vector3(-4.75,.28,-1.9),new THREE.Vector3(-5.65,.24,-5.38),
       new THREE.Vector3(monitorLocation.x+.4,.28,-5.55),
       new THREE.Vector3(monitorLocation.x+4.62,3.52,monitorLocation.z-.17)
     ],false,'centripetal',.40);
     externalVideo.geometry.dispose();
     externalVideo.geometry=new THREE.TubeGeometry(curve,64,.027,8,false);
-    externalVideoPlugs[type].position.copy(end);
+    externalVideo.userData.flexTail=flex.clone();
     lastVideoRoute=sig;
   }
   const visible=!!state.installed?.case&&!!state.installed?.motherboard&&
@@ -136,7 +143,9 @@ function getVideoReceptacleAlignment(){
     plug.getWorldQuaternion(new THREE.Quaternion()));
   const angleDegrees=Math.acos(Math.min(1,Math.abs(socketAxis.dot(maleAxis))))*180/Math.PI;
   return {type,portWorld:portWorld.toArray(),plugWorld:plugWorld.toArray(),
-    gapMm:portWorld.distanceTo(plugWorld)*MM_PER_UNIT,angleDegrees};
+    gapMm:portWorld.distanceTo(plugWorld)*MM_PER_UNIT,angleDegrees,
+    flexGapMm:getCableExit(THREE,plug).distanceTo(externalVideo.userData.flexTail||
+      getCableExit(THREE,plug))*MM_PER_UNIT};
 }
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
@@ -586,6 +595,26 @@ window.PC3D={
   getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getRearVideoAlignment:getVideoReceptacleAlignment,
+  getCableExitAlignment:()=>cables.getFlexAlignment(),
+  getInternalPlugAlignment:()=>{
+    const id=current?.selected?.motherboard||'b650';
+    const boardHeaders=assembly.internalHeaderModels[id]||{};
+    const refs={...boardHeaders,gpu:assembly.gpuPowerHeader};
+    root.updateMatrixWorld(true);
+    return Object.entries(refs).map(([kind,header])=>{
+      const plug=cables.getPlugWorld(kind,1);
+      const port=header?.getWorldPosition(new THREE.Vector3());
+      return {kind,gapMm:port&&plug?port.distanceTo(plug)*MM_PER_UNIT:null};
+    });
+  },
+  getPsuPlugAlignment:()=>{
+    root.updateMatrixWorld(true);
+    return Object.entries(assembly.psuCableSockets).map(([kind,header])=>{
+      const plug=cables.getPlugWorld(kind,0);
+      const port=header.getWorldPosition(new THREE.Vector3());
+      return {kind,gapMm:plug?plug.distanceTo(port)*MM_PER_UNIT:null};
+    });
+  },
   getRearPortCounts:()=>({
     usb:assembly.rearUsbSockets[current?.selected?.motherboard||'b650']?.length||0,
     gpu:assembly.gpuBracketPorts.length}),

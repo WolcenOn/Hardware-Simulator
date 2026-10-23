@@ -1,6 +1,6 @@
-import { getRearUsbAnchor } from './partsRealScale.js?v=8-4-6-port-geometry';
-import { createConnector3d } from './connectors3d.js?v=8-4-6-port-geometry';
-import {alignRearPlug} from './portProfiles.js?v=8-4-6-port-geometry';
+import { getRearUsbAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
+import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
+import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 // Banco de trabajo y periféricos hechos con Three.js (sin assets externos).
 // La pantalla refleja literalmente la misma cadena de texto del monitor HTML.
 // Medidas: 1 unidad Three.js = 50 mm. Mesa 1350 x 850 mm aprox.
@@ -159,17 +159,8 @@ export function createWorkbench(THREE,scene,materials) {
     for(const id of ['keyboard','mouse']){
       const socketLocal=getRearUsbAnchor(cfg,USB_PORT_INDEX[id]);
       const socket=assemblyRoot.localToWorld(new THREE.Vector3(...socketLocal));
-      const toArray=v=>[v.x,v.y,v.z];
-      const path=[...cablePaths[id],
-        [socket.x-1.08,socket.y-.62,socket.z-.37],
-        [socket.x-.48,socket.y,socket.z],
-        toArray(socket)];
+      const toArray=v=>v.toArray();
       const g=new THREE.Group();g.name='USB-A '+id;usbGroup.add(g);
-      const material=new THREE.MeshStandardMaterial({color:cableColors[id],roughness:.86});
-      const curve=new THREE.CatmullRomCurve3(path.map(v=>new THREE.Vector3(...v)),
-        false,'centripetal',.4);
-      const wire=new THREE.Mesh(new THREE.TubeGeometry(curve,64,.022,8,false),material);
-      wire.name='Cable USB '+id;g.add(wire);
       const plug=createConnector3d(THREE,'usbA');
       plug.name='Clavija USB-A '+id;
       plug.position.copy(socket);
@@ -177,7 +168,22 @@ export function createWorkbench(THREE,scene,materials) {
       // mientras que el cable sale perpendicularmente hacia el exterior.
       alignRearPlug(THREE,plug,assemblyRoot);
       g.add(plug);
-      rearCables[id]={group:g,plug,portIndex:USB_PORT_INDEX[id],socketLocal};
+      g.updateMatrixWorld(true);
+      const tail=getCableExit(THREE,plug);
+      const axis=new THREE.Vector3(0,1,0).applyQuaternion(
+        plug.getWorldQuaternion(new THREE.Quaternion()));
+      // El cable flexible parte DESPUÉS del sobremolde, no del contacto USB.
+      const path=[...cablePaths[id],
+        toArray(tail.clone().addScaledVector(axis,.82).add(new THREE.Vector3(0,-.35,0))),
+        toArray(tail.clone().addScaledVector(axis,.25)),
+        toArray(tail)];
+      const material=new THREE.MeshStandardMaterial({color:cableColors[id],roughness:.86});
+      const curve=new THREE.CatmullRomCurve3(path.map(v=>new THREE.Vector3(...v)),
+        false,'centripetal',.4);
+      const cable=new THREE.Mesh(new THREE.TubeGeometry(curve,64,.022,8,false),material);
+      cable.name='Cable flexible USB '+id;g.add(cable);
+      rearCables[id]={group:g,plug,flexTail:tail.clone(),
+        portIndex:USB_PORT_INDEX[id],socketLocal};
     }
     rearLayoutKey=key;
   }
@@ -206,6 +212,7 @@ export function createWorkbench(THREE,scene,materials) {
       return {id,portIndex:row.portIndex,portWorld:portWorld.toArray(),
         plugWorld:plug.toArray(),gapMm:portWorld.distanceTo(plug)*50,
         angleDegrees,
+        flexGapMm:getCableExit(THREE,row.plug).distanceTo(row.flexTail)*50,
         visible:row.group.visible,connectorType:row.plug.userData.connectorType};
     }).filter(Boolean);
   }

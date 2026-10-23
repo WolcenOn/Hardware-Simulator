@@ -1,3 +1,4 @@
+import {createInternalHeader3d} from './connectors3d.js?v=8-4-7-cable-exits';
 import {createRearReceptacle3d} from './rearPorts3d.js?v=8-4-6-port-geometry';
 // Escenario 7.0: proporciones derivadas de tamaños físicos (1 unidad = 50 mm).
 // Referencias: ATX 305x244; ASUS A520M-K 226x221; GPU ASUS Dual RX7600 245x134x49,
@@ -68,6 +69,31 @@ export const getFrontUsbHeaders=cfg=>({
   usb3:[cfg.x+cfg.w/2-.62,cfg.z+cfg.d/2-1.13],
   usbC:[cfg.x+cfg.w/2-.77,cfg.z+cfg.d/2-1.70]
 });
+
+// Orígenes de conexión a ras del labio de cada toma REAL, ya con offset
+// de PCB. La malla del header y el extremo de la clavija usan este objeto.
+export function getInternalHeaderAnchor(cfg,kind){
+  const usb=getFrontUsbHeaders(cfg);
+  const fp=[cfg.x+cfg.w/2-.42,cfg.z+cfg.d/2-.32];
+  const yz=(x,y,z)=>[x,MOTHERBOARD_MOUNT.offsetY+y,z];
+  const ports={
+    atx24:yz(cfg.atxX,.83,cfg.atxZ),
+    eps:yz(cfg.epsX,.75,cfg.epsZ),
+    sataData:yz(cfg.sataX,.59,cfg.sataZ),
+    frontPanel:yz(fp[0],.56,fp[1]),
+    frontUsb3:yz(usb.usb3[0],.665,usb.usb3[1]),
+    frontUsbC:yz(usb.usbC[0],.635,usb.usbC[1]),
+    fan:yz(cfg.cpuX+.93,.58,cfg.cpuZ+.88)
+  };
+  if(!ports[kind])throw new RangeError('Puerto interno desconocido: '+kind);
+  return ports[kind];
+}
+export function getGpuPowerAnchor(cfg,choice='rx7600'){
+  const len=(choice==='rtx4070'?267.01:245)/MM_PER_UNIT;
+  const h=(choice==='rtx4070'?133.94:134)/MM_PER_UNIT;
+  return [cfg.pcieX+len*.37,.46+h+.13+MOTHERBOARD_MOUNT.offsetY,
+    cfg.pcieZ+.12];
+}
 
 export const BOARD_LAYOUTS = {
   b650: {name:'B650 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:2,m2:2,
@@ -216,6 +242,7 @@ export function buildRealScale(p) {
   }
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
+  const internalHeaderModels={};
   const rearUsbSockets={};
   const rearVideoSockets={};
   function createBoard(id,cfg){
@@ -274,22 +301,17 @@ export function buildRealScale(p) {
         box(.21,.14,.10,white,b,x,.49,z+sign*mm(66));
       }
     }
-    // Cabeceras internas para los dos USB-A y el USB-C del frontal.
-    const frontUsb=getFrontUsbHeaders(cfg);
-    rounded(.42,.24,.29,.024,black,b,frontUsb.usb3[0],.53,frontUsb.usb3[1]);
-    rounded(.27,.21,.20,.020,dark,b,frontUsb.usbC[0],.52,frontUsb.usbC[1]);
-    // ATX 24 pines (derecha), EPS CPU (esquina superior izquierda).
-    rounded(.28,.43,.90,.02,dark,b,cfg.atxX,.60,cfg.atxZ);
-    rounded(.40,.32,.48,.02,dark,b,cfg.epsX,.55,cfg.epsZ);
-    // Cabecera F_PANEL y sus dos filas de pines en el borde inferior derecho.
-    const frontX=cfg.x+cfg.w/2-.42,frontZ=cfg.z+cfg.d/2-.32;
-    rounded(.52,.075,.24,.014,dark,b,frontX,.44,frontZ);
-    for(let pin=0;pin<8;pin++){
-      const x=frontX-.19+(pin%4)*.125;
-      const z=frontZ+(pin<4?-.06:.06);
-      box(.025,.12,.027,gold,b,x,.52,z);
+    // Receptáculos internos diferenciados, huecos y con pines reales:
+    // ATX24, EPS8, USB 19-pin, USB-C Type-E, F_PANEL, SATA y PWM.
+    internalHeaderModels[id]={};
+    for(const kind of ['atx24','eps','frontUsb3','frontUsbC',
+      'frontPanel','sataData','fan']){
+      const header=createInternalHeader3d(THREE,kind);
+      const [x,y,z]=getInternalHeaderAnchor(cfg,kind);
+      header.position.set(x,y-MOTHERBOARD_MOUNT.offsetY,z);
+      b.add(header);
+      internalHeaderModels[id][kind]=header;
     }
-    for(let i=0;i<12;i++) cylinder(.018,.04,gold,b,cfg.atxX,.84,cfg.atxZ-.38+i*.064,6);
     // PCIe principal más ranuras de expansión inferiores.
     for(let i=0;i<cfg.slots;i++){
       const z=cfg.pcieZ+i*.80;
@@ -310,10 +332,8 @@ export function buildRealScale(p) {
       cylinder(.042,.16,alu,b,x,.50,z,10);
     }
     rounded(.83,.18,.85,.04,id==='a520'?silver:alu,b,right-.64,.49,bottom-.94);
-    // SATA orientados hacia el borde delantero.
-    for(let i=0;i<4;i++){
-      rounded(.25,.20,.14,.015,dark,b,cfg.sataX-(i%2)*.28,.47,cfg.sataZ+Math.floor(i/2)*.19);
-    }
+    // El header SATA de datos usa la ranura en L del grupo anterior.
+    // Conectores secundarios SATA se dejan sin cable en esta configuración.
     // Serigrafía técnica, etiqueta discreta y batería CMOS.
     const tag=label(id.toUpperCase(),.64,.18);
     tag.position.set(left+1.2,.369,bottom-.45);b.add(tag);
@@ -413,6 +433,8 @@ export function buildRealScale(p) {
     gpu.add(socket);
     return socket;
   });
+  const gpuPowerHeader=createInternalHeader3d(THREE,'gpu');
+  gpu.add(gpuPowerHeader);
   const gpuBracket=new THREE.Group();gpu.add(gpuBracket);
   rounded(.075,2.05,.48,.028,alu,gpuBracket,0,0,0);
 
@@ -439,7 +461,8 @@ export function buildRealScale(p) {
     for(let i=0;i<4;i++)
       box(.015,.11,.13,dark,g,-len/2-.10,.45+i*.25,.12);
     rounded(mm(86),.11,.08,.01,gold,g,-len*.16,.025,0);
-    rounded(id==='rtx4070'?.30:.38,.18,.18,.01,dark,g,len*.37,hgt+.10,0);
+    // El hueco 6+2 PCIe pertenece a gpuPowerHeader, compartido
+    // por cada variante, y se mueve con el ensamblaje.
   }
   makeCard('rx7600',[245,134,49],metal);
   makeCard('rtx4070',[267.01,133.94,51.13],materials.blue);
@@ -464,17 +487,19 @@ export function buildRealScale(p) {
   fan(psu,0,ph-.20,0,mm(120)/2,{kind:'psu',grille:true});
   // Panel modular orientado hacia +X, consistente con todos los mazos PSU.
   rounded(.11,1.36,1.90,.035,dark,psu,pw/2+.018,.95,0);
+  // Panel modular PSU: cuatro receptáculos reales orientados hacia +X.
+  // La PSU se escala no uniformemente, de modo que compensamos el tamaño
+  // de los headers para evitar ensanchamientos y solapes entre clavijas.
+  const psuCableSockets={};
   for(const [kind,p] of Object.entries(PSU_CABLE_PORTS)){
-    const yy=(p[1]-psu.position.y)/psu.scale.y;
-    const zz=(p[2]-psu.position.z)/psu.scale.z;
-    const big=kind==='atx24';
-    const h=big?.36:.24,d=big?.43:.34;
-    rounded(.12,h,d,.014,black,psu,pw/2+.09,yy,zz);
-    // Pines dorados en dos hileras dentro del conector.
-    for(let col=0;col<(big?5:3);col++)
-      for(let row=0;row<2;row++)
-        box(.016,.026,.026,gold,psu,pw/2+.157,yy+(row?-.058:.058),
-          zz+(col-((big?5:3)-1)/2)*(big?.074:.088));
+    const receptacle=createInternalHeader3d(THREE,kind);
+    receptacle.name='Puerto modular PSU '+kind;
+    receptacle.position.set((p[0]-psu.position.x)/psu.scale.x,
+      (p[1]-psu.position.y)/psu.scale.y,(p[2]-psu.position.z)/psu.scale.z);
+    receptacle.rotation.z=-Math.PI/2;
+    receptacle.scale.set(.55/psu.scale.y,.55,.55/psu.scale.z);
+    psu.add(receptacle);
+    psuCableSockets[kind]=receptacle;
   }
   // Toma IEC AC trasera, diferente de los cuatro conectores modulares.
   rounded(.57,.34,.075,.02,dark,psu,-.92,.57,-pd/2-.018);
@@ -542,6 +567,9 @@ export function buildRealScale(p) {
     const card=s?.selected?.gpu==='rtx4070'?'rtx4070':'rx7600'; // fallback mesh para variantes GPU 8.1
     for(const [key,obj] of Object.entries(videoCards))obj.visible=key===card;
     gpu.position.set(cfg.pcieX,.46+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.01);
+    const gpuFeed=getGpuPowerAnchor(cfg,card);
+    gpuPowerHeader.position.set(gpuFeed[0]-gpu.position.x,
+      gpuFeed[1]-gpu.position.y,gpuFeed[2]-gpu.position.z);
     gpuBracketPorts.forEach((socket,i)=>{
       const a=getGpuVideoAnchor(cfg,i);
       socket.position.set(a[0]-gpu.position.x,a[1]-gpu.position.y,a[2]-gpu.position.z);
@@ -594,6 +622,7 @@ export function buildRealScale(p) {
     return {cfg,anchors,snapTargets,sataDrive,hddDrive,m2Drive,tray,needsSata};
   }
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
-    configure,anchors,motherboardModels,rearUsbSockets,rearVideoSockets,
-    gpuBracketPorts,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
+    configure,anchors,motherboardModels,internalHeaderModels,gpuPowerHeader,
+    rearUsbSockets,rearVideoSockets,
+    gpuBracketPorts,psuCableSockets,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
 }
