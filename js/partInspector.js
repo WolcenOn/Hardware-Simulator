@@ -94,7 +94,14 @@ function createPartInspector(api){
     const isInstalled=installed(t,st),screw=k=>
       !g?info('Atornillado','No registrado en modo técnico'):
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
-    if(t.category==='item')return [info('Ubicación',g?.stock?.[t.key]?'Inventario / mesa auxiliar':'No disponible')];
+    if(t.key==='item:ioShield')return [
+      good('Chapa I/O trasera encajada',!!st.ioShield,
+        'El marco rodea las salidas USB y HDMI/DP de la placa'),
+      info('Posición','Abertura trasera del chasis · zona rear I/O'),
+      info('Placa instalada',st.installed.motherboard?'Sí':'No; instalar después de la chapa')
+    ];
+    if(t.category==='item')return [
+      info('Ubicación',g?.stock?.[t.key]?'Inventario / mesa auxiliar':'No disponible')];
     if(/^fan[0-2]$/.test(t.category)){
       const fan=st.caseFans?.[Number(t.category.slice(-1))];
       return [good('Montado',!!fan?.installed),good('Cable PWM · SYS_FAN',!!fan?.connected),
@@ -143,8 +150,11 @@ function createPartInspector(api){
     const actions=[{verb:'sheet',label:'Ficha técnica',enabled:true}];
     if(!active)return actions;
     if(t.category==='item'){
-      if(t.id==='paste'||t.id==='ioShield'||t.id==='fan')
-        actions.push({verb:t.id==='paste'?'apply':'fit',label:t.id==='paste'?'Aplicar':'Encajar',enabled:true});
+      if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'){
+        const mountedIO=t.id==='ioShield'&&st.ioShield;
+        if(!mountedIO)actions.push({verb:t.id==='paste'?'apply':'fit',
+          label:t.id==='paste'?'Aplicar':t.id==='ioShield'?'Encajar en rear I/O':'Encajar',enabled:true});
+      }
       return actions;
     }
     if(/^fan[0-2]$/.test(t.category)){
@@ -202,10 +212,12 @@ function createPartInspector(api){
       (r.description?'<small>'+escape(r.description)+'</small>':'')+'</div>').join('');
   }
   function summaryHTML(){
-    const st=api.state(),mounted=['case','motherboard','cpu','ram','cooler',
+    const st=api.state(),mounted=['case',...(st.ioShield?['item:ioShield']:[]),
+      'motherboard','cpu','ram','cooler',
       'gpu','storage','psu',...([0,1,2].filter(i=>st.caseFans?.[i]?.installed)
         .map(i=>'fan'+i))];
-    const rows=mounted.filter(part=>part.startsWith('fan')||!!st.installed?.[part])
+    const rows=mounted.filter(part=>part==='item:ioShield'||
+      part.startsWith('fan')||!!st.installed?.[part])
       .map(part=>{
         const t=getInfo(part);
         if(!t)return '';
