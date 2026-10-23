@@ -17,7 +17,7 @@ export default defineConfig({
     video: 'retain-on-failure',
     launchOptions: {
       args: ['--enable-webgl', '--use-angle=swiftshader-webgl',
-        '--enable-unsafe-swiftshader', '--disable-web-security']
+        '--enable-unsafe-swiftshader']
     }
   },
   projects: [
