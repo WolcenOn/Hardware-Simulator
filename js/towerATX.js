@@ -81,11 +81,34 @@ export function createATXTower(THREE,parent,materials){
   for(const z of [.09,9.08])add(hinge,[8.94,.09,.11],[4.49,0,z],panel);
   for(const x of [.06,8.88])add(hinge,[.10,.10,9.12],[x,0,4.56],panel);
   const closed=0,open=1.25;
+  const rgbMaterial=new THREE.MeshStandardMaterial({
+    color:0x16d7fc,emissive:0x13baff,emissiveIntensity:1.55,
+    roughness:.25,metalness:.18
+  });
+  const rgbGroup=new THREE.Group();rgbGroup.name='Tira LED ARGB';tower.add(rgbGroup);
+  // Dos tiras fijadas al marco frontal, sin interferir con el panel.
+  for(const y of [.13,4.45]){
+    const bar=new THREE.Mesh(new THREE.BoxGeometry(.055,.045,8.72),rgbMaterial);
+    bar.position.set(4.79,y,1.31);rgbGroup.add(bar);
+  }
+  const rgbLight=new THREE.PointLight(0x23baff,.9,8.5);
+  rgbLight.position.set(3.75,1.9,.1);rgbGroup.add(rgbLight);
+  function setFinish(variant){
+    const palette={
+      tower:[0x232d38,0x354450,0x596d78],
+      towerWhite:[0xc0cbd5,0xe8eff5,0xb4c6d3],
+      towerGraphite:[0x566570,0x74828c,0x8a9faa]
+    };
+    const colors=palette[variant]||palette.tower;
+    steel.color.setHex(colors[0]);panel.color.setHex(colors[1]);mesh.color.setHex(colors[2]);
+  }
   function sync(installed,closedState){
     tower.visible=!!installed;
     hinge.rotation.z=closedState?closed:open;
   }
   sync(false,false);
-  return {root:tower,sync,hinge,rearSSD,hddCage,psuSeat,
+  function setRgb(enabled){rgbGroup.visible=!!enabled;}
+  setRgb(false);
+  return {root:tower,sync,setFinish,setRgb,hinge,rearSSD,hddCage,psuSeat,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }
