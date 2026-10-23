@@ -77,3 +77,39 @@ npx playwright show-report
 **Vista previa:** `preview/v7/?v=8-4-1-gameplay-e2e`
 **Rama:** `feature/v7-procedural-3d`
 **Estable:** `main/index.html` sin sustituir.
+
+
+## Actualización 8.4.2 — color de caja y enfoque de cámaras
+
+- **Corrección de estado:** al colocar una caja del inventario, su
+  `caseVariant` se establece **antes** del primer `render`. Anteriormente
+  se asignaba después de `api.install`, por lo que la torre quedaba negra
+  hasta una actualización posterior. Lo mismo se aplica al modelo de cooler.
+- En instalaciones rechazadas no se consume el material ni se conserva
+  temporalmente un acabado o disipador que no se llegó a montar.
+- **Acabados:** el selector negro/blanco/grafito afecta al bastidor,
+  marcos, bandeja, panel, canaletas y cubierta de la fuente. La pintura
+  se mantiene al pasar de la mesa de componentes a la caja montada.
+- **Nuevas cámaras independientes:** «Vista general» (ambas mesas),
+  «Mesa de montaje» (banco principal), «Mesa de piezas» (banco auxiliar),
+  «Periféricos» (monitor, teclado y ratón), «Monitor 3D»,
+  «Vista torre», «Lateral» y «Trasera / cables».
+- Cada botón cambia cámara **y punto orbital**: zoom, órbita y control
+  de rueda giran alrededor de la zona elegida; no sólo acercan el
+  mismo encuadre general. El botón activo se marca visualmente.
+- **Doble clic** sobre mesa auxiliar, superficie del banco o periféricos
+  en WebGL centra la zona. El clic simple mantiene la ficha técnica.
+- Los cambios de montaje no fuerzan la cámara a una vista global.
+  Al encajar una caja se centra específicamente la mesa principal.
+
+### Pruebas
+- [x] La primera actualización 3D tras encajar una caja blanca contiene
+      el identificador `towerWhite`, no `tower`. Mismo test grafito.
+- [x] Cinco cámaras verificadas con posiciones y objetivos distintos,
+      sincronización del zoom y eventos de estado.
+- [x] Playwright añadido para ambos acabados y cuatro botones de cámara
+      (`tests/e2e/workshop.spec.mjs`).
+- [ ] Ejecución E2E completa en Chromium con WebGL real.
+- [ ] Ajuste visual de encuadres según resolución del usuario.
+
+Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
