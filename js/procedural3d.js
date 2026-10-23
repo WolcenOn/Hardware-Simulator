@@ -386,6 +386,7 @@ function focusCamera(id,position,target){
   smoothZoom.sync();
   cameraPreset=id;
   view.dataset.viewPreset=id;
+  stage.dataset.viewPreset=id;
   window.dispatchEvent(new CustomEvent('pc3d-view-change',{detail:{view:id}}));
 }
 function resetView(){
