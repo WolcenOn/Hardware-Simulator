@@ -120,6 +120,50 @@ body.adventure-on #resetBtn{display:none!important}
  width:100%;margin:.34rem 0;text-align:left;gap:.22rem .65rem;background:#102c3b}
 .part-mounted-row span.ok{color:#9cedc5;font-size:.72rem}
 .part-mounted-row span.warn{color:#ffd189;font-size:.72rem}
+
+/* v8.3.1: evitar controles solapados en el lateral de aventura.
+   El select global 100% se desbordaba por padding/border (content-box);
+   la regla .adv-card div aplicaba flex:1 también a los botones Ficha/Comprar. */
+#adventurePanel,#adventurePanel *{box-sizing:border-box;min-width:0}
+#adventurePanel{isolation:isolate}
+#adventurePanel .adv-accordion{max-width:100%;min-width:0}
+#adventurePanel .adv-accordion>summary{gap:.35rem;line-height:1.35;overflow-wrap:anywhere}
+#adventurePanel .adv-accordion>summary span{flex:1;min-width:0;overflow-wrap:anywhere}
+#adventurePanel .adv-accordion>summary em{flex:0 0 auto;max-width:40%}
+#adventurePanel .adv-accordion-body{min-width:0;max-width:100%}
+#adventurePanel .adv-accordion-body>*,#adventurePanel select,
+#adventurePanel button{max-width:100%;box-sizing:border-box}
+#adventurePanel select{width:100%}
+#adventurePanel .adv-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.35rem}
+#adventurePanel .adv-card>div:first-child{min-width:0;overflow-wrap:anywhere}
+#adventurePanel .adv-card .adv-shop-opts{min-width:0;max-width:83px;flex:none;display:grid;gap:.25rem}
+#adventurePanel .adv-card .adv-shop-opts button{min-width:0;width:100%;font-size:.73rem}
+#adventurePanel .adv-inventory-line{grid-template-columns:minmax(0,1fr) minmax(66px,auto)}
+#adventurePanel .adv-inventory-line .adv-inventory{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#adventurePanel .adv-inventory span{white-space:normal;overflow-wrap:anywhere;font-size:.7rem}
+#adventurePanel .adv-inventory-line>button:last-child{max-width:88px;white-space:normal}
+#adventurePanel .adv-verbs,#adventurePanel .adv-actions,#adventurePanel .adv-ledger{
+  grid-template-columns:repeat(2,minmax(0,1fr))}
+#adventurePanel .adv-verbs button,#adventurePanel .adv-actions button{
+  white-space:normal;overflow-wrap:anywhere}
+#adventurePanel .adv-ledger span,#adventurePanel .adv-story,
+#adventurePanel .adv-guide,#adventurePanel .adv-current,
+#adventurePanel .adv-report,#adventurePanel .part-mounted-row small{
+  overflow-wrap:anywhere;word-break:normal}
+#adventurePanel .part-mounted-row{grid-template-columns:minmax(0,1fr) auto}
+#adventurePanel .part-mounted-row span{white-space:normal;text-align:right}
+.part-context-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.part-context-actions button{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+.part-action-feedback{padding:.58rem .68rem;border-radius:9px;font-size:.8rem;line-height:1.45;
+  overflow-wrap:anywhere;border:1px solid #c3904d;background:#352814;color:#ffe5b1}
+.part-action-feedback.ok{border-color:#287c5c;background:#0e392b;color:#aeffd7}
+.partSpecSheet{z-index:11}
+@media(max-width:480px){
+ #adventurePanel .adv-card{grid-template-columns:minmax(0,1fr) 76px}
+ #adventurePanel .adv-inventory-line{grid-template-columns:minmax(0,1fr) 74px}
+ #adventurePanel .adv-verbs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 .part-mounted-row small{grid-column:span 2;color:#afc2d3;
  font-size:.72rem;font-weight:500;line-height:1.45}
 @media(max-width:650px){
@@ -133,7 +177,7 @@ body.adventure-on #resetBtn{display:none!important}
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.3-alpha: inspección y fichas técnicas 3D</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.3.1-alpha: acciones funcionales y panel lateral corregido</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <main class="layout">
 <section id="adventurePanel" class="panel"></section>
 <section id="legacyPanel" class="panel"><div class="title"><h2>Catálogo</h2><span>elige piezas</span></div><div id="selectors"></div><div class="title"><h2>Montaje</h2><span>estado</span></div><div id="installList"></div><div class="title"><h2>Proceso de montaje</h2><span>secuencia y dificultad</span></div>
@@ -156,8 +200,8 @@ body.adventure-on #resetBtn{display:none!important}
 <aside class="panel"><div class="title"><h2>Inspector IA</h2><span>diagnóstico</span></div><div class="status"><div><span>Alim.</span><strong id="powerStatus">Apagado</strong></div><div><span>POST</span><strong id="postStatus">Pendiente</strong></div><div><span>Boot</span><strong id="bootStatus">Pendiente</strong></div><div><span>Watts</span><strong id="wattsStatus">0 W</strong></div><div><span>CPU</span><strong id="tempStatus">35 °C</strong></div><div><span>Compat.</span><strong id="compatStatus">—</strong></div></div><h3>Conectores y reglas</h3><div id="compatPanel"></div><h3>Banco de errores</h3><select id="faultSelect"></select><div class="tools"><button id="injectFault" class="warnbtn">Inyectar</button><button id="randomFault" class="warnbtn">Aleatorio</button></div><div id="activeFaults"></div><h3>Correcciones</h3><div class="tools" id="fixButtons"></div><h3>Herramientas</h3><div class="tools"><button data-tool="visual">Inspección</button><button data-tool="beep">Pitidos</button><button data-tool="multimeter">Multímetro</button><button data-tool="smart">SMART</button><button data-tool="stress">Test estrés</button><button data-tool="bios">BIOS</button></div><h3>Bitácora</h3><ol id="eventLog"></ol></aside>
 </main><p class="foot">Versión 8.1-alpha: inventario editable, tienda ampliada, iGPU y diagnóstico. Torre ATX y BIOS en 3D.</p>
 <script src="./js/hardwareExpansion.js?v=8-1-inventory-igpu"></script>
-<script src="./js/adventureMode.js?v=8-3-part-inspection"></script>
-<script src="./js/partInspector.js?v=8-3-part-inspection"></script>
+<script src="./js/adventureMode.js?v=8-3-1-action-layout"></script>
+<script src="./js/partInspector.js?v=8-3-1-action-layout"></script>
 <script>
 const $=id=>document.getElementById(id);
 const catalog={motherboards:{b650:{name:'B650 ATX AM5',sizeMm:'305 × 244 mm',socket:'AM5',ram:'DDR5',chipset:'B650',slots:{dimm:4,pcieX16:1,m2:2,sata:4},desc:'Placa AMD AM5 con DDR5, M.2 y SATA.'},a520:{name:'A520 mATX AM4',sizeMm:'226 × 221 mm',socket:'AM4',ram:'DDR4',chipset:'A520',slots:{dimm:2,pcieX16:1,m2:1,sata:4},desc:'Placa AMD AM4 con DDR4.'},z790:{name:'Z790 ATX LGA1700',sizeMm:'305 × 244 mm',socket:'LGA1700',ram:'DDR5',chipset:'Z790',slots:{dimm:4,pcieX16:2,m2:4,sata:6},desc:'Placa Intel LGA1700 DDR5.'}},cpus:{r7600:{name:'Ryzen 5 7600',socket:'AM5',peak:88,igpu:true,desc:'CPU AM5.'},r5600:{name:'Ryzen 5 5600',socket:'AM4',peak:78,igpu:false,desc:'CPU AM4 sin iGPU.'},i513600k:{name:'Core i5-13600K',socket:'LGA1700',peak:181,igpu:true,desc:'CPU Intel potente.'}},ram:{ddr4_16:{name:'16 GB DDR4',type:'DDR4',watts:5,desc:'RAM DDR4.'},ddr5_16:{name:'16 GB DDR5',type:'DDR5',watts:8,desc:'RAM DDR5.'},ddr5_32:{name:'32 GB DDR5',type:'DDR5',watts:10,desc:'DDR5 alta capacidad.'}},storage:{sataSSD:{name:'SSD SATA 1 TB',sizeMm:'100 × 69,9 × 7 mm',interface:'SATA',watts:6,desc:'Requiere SATA datos y power.'},nvmeSSD:{name:'SSD NVMe M.2',sizeMm:'80 × 22 mm',interface:'M2_NVME',watts:8,desc:'Va directo a M.2.'},hdd:{name:'HDD SATA 2 TB',sizeMm:'147 × 101,6 × 26 mm',interface:'SATA',watts:9,desc:'Disco mecánico.'}},gpus:{none:{name:'Sin GPU',pcie:false,watts:0,power:[],gen:0,desc:'Usa iGPU si existe.'},rx7600:{name:'Radeon RX 7600',sizeMm:'245 × 134 × 49 mm',pcie:true,watts:165,power:['PCIE_8'],gen:4,desc:'GPU PCIe 4.0 con 8 pines.'},rtx4070:{name:'GeForce RTX 4070',sizeMm:'267 × 134 × 51 mm',pcie:true,watts:220,power:['12VHPWR'],gen:4,desc:'GPU PCIe 4.0 con 12VHPWR.'}},psus:{psu450:{name:'PSU 450W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:450,connectors:{PCIE_8:1,'12VHPWR':0},desc:'Fuente básica.'},psu650:{name:'PSU 650W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:650,connectors:{PCIE_8:2,'12VHPWR':0},desc:'Fuente media.'},psu850:{name:'PSU 850W ATX 3.0',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:850,connectors:{PCIE_8:3,'12VHPWR':1},desc:'Fuente moderna.'}}};
@@ -752,4 +796,4 @@ if(typeof window.createPartInspector==='function'){
   });
 }
 </script>
-<script type="module" src="./js/procedural3d.js?v=8-3-part-inspection"></script></body></html>
+<script type="module" src="./js/procedural3d.js?v=8-3-1-action-layout"></script></body></html>
