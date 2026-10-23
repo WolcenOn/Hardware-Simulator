@@ -276,6 +276,39 @@ test('HDMI de la placa y DisplayPort de GPU comparten posición con sus bocas f�
   expect(igpu.angleDegrees).toBeLessThan(.1);
 });
 
+test('la manguera termina al final del sobremolde, nunca en los contactos', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  await page.waitForTimeout(1000);
+  const routes=await page.evaluate(() => window.PC3D.getCableExitAlignment());
+  expect(routes.length).toBeGreaterThan(10);
+  for(const route of routes){
+    expect(route.gapsMm,route.id).toHaveLength(2);
+    for(const mm of route.gapsMm)expect(mm,route.id).toBeLessThan(.05);
+  }
+  const internal=await page.evaluate(() => window.PC3D.getInternalPlugAlignment());
+  for(const target of internal.filter(x=>x.gapMm!==null))
+    expect(target.gapMm,target.kind).toBeLessThan(.25);
+  const psu=await page.evaluate(() => window.PC3D.getPsuPlugAlignment());
+  for(const target of psu)expect(target.gapMm,target.kind).toBeLessThan(.25);
+});
+
+test('USB teclado/ratón y HDMI/DP terminan detrás de la parte rígida',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  await page.locator('#keyboardToggle').click();
+  await page.locator('#mouseToggle').click();
+  const rows=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
+  for(const row of rows){
+    expect(row.gapMm).toBeLessThan(.1);
+    expect(row.flexGapMm).toBeLessThan(.05);
+  }
+  const video=await page.evaluate(() => window.PC3D.getRearVideoAlignment());
+  expect(video.flexGapMm).toBeLessThan(.05);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

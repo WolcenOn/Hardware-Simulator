@@ -174,3 +174,14 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - `getRearUsbAlignment()` y `getRearVideoAlignment()` miden en milímetros la separación frente a la **malla del receptáculo renderizado**, además de error angular, no dos posiciones derivadas de la misma fórmula.
 - Smoke de perfiles y cableado; pruebas Playwright de la coincidencia real USB (B650/A520/Z790/B650M), GPU DP e iGPU HDMI.
 - Vista previa `/preview/v7/?v=8-4-6-port-geometry`; no se modifica `main/index.html`.
+
+## 8.4.7 — punto de salida flexible y conectores internos
+
+- Cada clavija define dos anclajes: `insertLocal` (boca de inserción en el receptáculo) y `cableExitLocal` (extremo exterior del guardacable tras el sobremolde).
+- `connectors3d.js` expone `getCableExit(THREE,plug,targetParent)` y una familia de alojamientos `createInternalHeader3d()`; el grosor, filas, guías y pestañas son específicos de ATX24, EPS4+4, PCIe6+2, SATA datos/power en L, USB 19-pin, USB Type-E, F_PANEL POWER SW y PWM 4 pines.
+- `partsRealScale.js` exporta `getInternalHeaderAnchor(cfg,kind)` y `getGpuPowerAnchor(cfg,choice)`; estos anclajes son los mismos de las bocas 3D. También se han creado tomas modulares en la PSU (con compensación de su escala no uniforme), con el cable unido al borde trasero del enchufe.
+- `cablesProcedural.js`: se instancian PRIMERO las clavijas; se transforma cada salida flexible a coordenadas locales de la torre y se genera DESPUÉS el tubo entre sus guardacables, sin atravesar el plástico o los contactos. Los mazos múltiples convergen sin separación al entrar al protector.
+- Teclado y ratón en `workbench3d.js` y vídeo externo de GPU/iGPU en `procedural3d.js` usan la salida de cable world-space tras aplicar el giro de la torre.
+- Diagnósticos `PC3D.getCableExitAlignment()`, `PC3D.getInternalPlugAlignment()`, `PC3D.getPsuPlugAlignment()`, `getRearUsbAlignment().flexGapMm` y `getRearVideoAlignment().flexGapMm`.
+- Pruebas smoke de alturas de salida rígida, cabeceras y conectores; E2E con distancia flexible y coincidencia física de inserción.
+- Sin cambios a `main/index.html`; vista previa `/preview/v7/?v=8-4-7-cable-exits`.

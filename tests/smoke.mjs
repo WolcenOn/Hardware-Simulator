@@ -2,6 +2,8 @@ import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNI
   REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders,
   REAR_USB_COUNT, getRearUsbAnchor, getRearVideoAnchor } from '../js/partsRealScale.js';
 import {REAR_PORT_SPECS,portOutline} from '../js/portProfiles.js';
+import {getPlugExitDistance,INTERNAL_HEADER_SPECS} from '../js/connectors3d.js';
+import {getInternalHeaderAnchor,getGpuPowerAnchor} from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -136,4 +138,33 @@ assert(read('js/workbench3d.js').includes('alignRearPlug(THREE,plug,assemblyRoot
 assert(read('js/procedural3d.js').includes('alignRearPlug(THREE,plug,root)'));
 assert(read('js/portProfiles.js').includes('getWorldQuaternion'));
 assert(read('js/cablesProcedural.js').includes('wires.video.visible=false'));
+// Regresión 8.4.7: NUNCA termina el flexible dentro del sobremolde.
+const rigidKinds=['usbA','usbC','hdmi','displayPort','atx24','eps','gpu',
+  'sataData','sataPower','frontPanel','frontUsb3','frontUsbC','fan'];
+for(const kind of rigidKinds){
+  const mm=getPlugExitDistance(kind)*MM_PER_UNIT;
+  assert(mm>25&&mm<65,'Salida flexible fuera del guardacable: '+kind);
+}
+for(const type of ['atx24','eps','gpu','frontUsb3','frontUsbC',
+  'frontPanel','fan','sataData','sataPower']){
+  const spec=INTERNAL_HEADER_SPECS[type];
+  assert(spec&&spec.depth>.12&&spec.w>.18&&spec.d>.16,type);
+}
+for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
+  for(const kind of ['atx24','eps','frontPanel','frontUsb3','frontUsbC','fan','sataData']){
+    const a=getInternalHeaderAnchor(cfg,kind);
+    assert(a.every(Number.isFinite),id+' '+kind);
+    assert(a[0]>cfg.x-cfg.w/2-.1&&a[0]<cfg.x+cfg.w/2+.1,id+' '+kind);
+  }
+  for(const gpu of ['rx7600','rtx4070'])
+    assert(getGpuPowerAnchor(cfg,gpu).every(Number.isFinite));
+}
+const cableSource=read('js/cablesProcedural.js');
+const workbenchSource=read('js/workbench3d.js');
+const proceduralSource=read('js/procedural3d.js');
+assert(cableSource.includes('const tips=plugs.map(plug=>getCableExit'));
+assert(workbenchSource.includes('const tail=getCableExit(THREE,plug)'));
+assert(proceduralSource.includes('const flex=getCableExit(THREE,plug)'));
+assert(cableSource.includes("getInternalHeaderAnchor(cfg,'frontPanel')"));
+assert(read('js/partsRealScale.js').includes('psuCableSockets'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');
