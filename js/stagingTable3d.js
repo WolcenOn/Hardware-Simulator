@@ -89,7 +89,7 @@ export function createStagingTable(THREE,scene){
           m(.12,2.55,.12,x,1.47,z,steel);
         m(2.31,2.48,.10,0,1.51,-1.26,plastic);
         m(2.31,2.48,.075,0,1.51,1.26,graphite);
-        m(2.30,2.45,.07,-1.22,1.51,0,glass);
+        m(.07,2.45,2.36,-1.22,1.51,0,glass);
         for(const y of [.78,1.58,2.31]){
           const rotor=cylinder(part,.28,.28,.05,0,y,1.34,steel,24);
           rotor.rotation.x=Math.PI/2;
