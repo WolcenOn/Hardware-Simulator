@@ -26,10 +26,22 @@ assert(g.active);
 l.autoBuild();assert(!g.active&&l.s.installed.motherboard);
 l.power();assert(l.s.power);l.bios();assert(l.s.bios);
 g.start('office');
+const caseRenders=[];
+const viewEvents=[];
+window.PC3D={
+  ready:true,
+  update(state){if(state.installed.case)
+    caseRenders.push(state.selected.caseVariant);},
+  updateStaging(){},
+  viewStaging(){viewEvents.push('staging')},
+  viewAssemblyDesk(){viewEvents.push('assembly')}
+};
 const buy=(c,id)=>g.purchase(c,id);
 const fit=k=>{g.select(k);g.perform('fit')};
 buy('case','towerWhite');fit('case:towerWhite');
 assert.equal(l.s.selected.caseVariant,'towerWhite');
+assert.equal(caseRenders.at(-1),'towerWhite','3D debe dibujar el acabado antes del encaje');
+assert(viewEvents.includes('assembly'),'Al montar caja enfoca la mesa principal');
 buy('item','ioShield');fit('item:ioShield');
 buy('psu','psu450');fit('psu:psu450');
 buy('motherboard','b650');fit('motherboard:b650');
@@ -50,5 +62,10 @@ l.s.cpuFan=true;
 const aio=l.calculateThermals([]);
 l.s.selected.cooler='stock';
 assert(aio<l.calculateThermals([]));
+g.start('office');
+buy('case','towerGraphite');fit('case:towerGraphite');
+assert.equal(l.s.selected.caseVariant,'towerGraphite');
+assert.equal(caseRenders.at(-1),'towerGraphite',
+  'El material grafito debe llegar al render 3D en el mismo frame');
 assert(!errors.length,'Browser mock errors: '+errors.join(', '));
-console.log('Smoke OK: demo BIOS PSU USB RGB AIO and case variants');
+console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');
