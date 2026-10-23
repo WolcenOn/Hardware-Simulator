@@ -9,6 +9,7 @@ import { createCableHarness } from './cablesProcedural.js?v=8-1-inventory-igpu';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
+import { createStagingTable } from './stagingTable3d.js?v=8-2-prep-bench';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -19,17 +20,17 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.25;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
-scene.fog=new THREE.Fog(0x101923,30,79);
-const camera=new THREE.PerspectiveCamera(48,1,.1,110);
-camera.position.set(-.20,18.2,34.0);
+scene.fog=new THREE.Fog(0x101923,40,110);
+const camera=new THREE.PerspectiveCamera(48,1,.1,140);
+camera.position.set(4.5,22,58.5);
 const controls=new OrbitControls(camera,view);
 controls.enableDamping=true;controls.dampingFactor=.10;
-controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=56;
+controls.enablePan=false;controls.minDistance=4.5;controls.maxDistance=78;
 controls.zoomSpeed=.45; // zoom multitáctil de OrbitControls; rueda gestionada aparte
 const smoothZoom=createSmoothZoom({
   camera,controls,element:view,minDistance:controls.minDistance,maxDistance:controls.maxDistance
 });
-controls.maxPolarAngle=Math.PI/2.02;controls.target.set(-4.55,4.5,.65);
+controls.maxPolarAngle=Math.PI/2.02;controls.target.set(4.15,4.25,.55);
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(new RoomEnvironment());
 scene.environment=env.texture;pmrem.dispose();
 scene.add(new THREE.HemisphereLight(0xcceaff,0x0b1724,1.6));
@@ -69,6 +70,8 @@ const assembly=buildRealScale({THREE,scene:root,group,rounded,box,cylinder,trace
 const tower=createATXTower(THREE,root,materials);
 const cables=createCableHarness(THREE,root);
 const workbench=createWorkbench(THREE,scene,materials);
+const staging=createStagingTable(THREE,scene);
+
 // HDMI/DP de la torre al monitor físico (el resto del cable está dentro del PC).
 root.updateMatrixWorld(true);
 const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughness:.87});
@@ -233,6 +236,12 @@ view.addEventListener('pointerup',e=>{
       return;
     }
   }
+  const stageHits=raycaster.intersectObject(staging.root,true);
+  const stageKey=stageHits.map(h=>staging.identify(h.object)).find(Boolean);
+  if(stageKey){
+    window.dispatchEvent(new CustomEvent('pc3d-stage-select',{detail:{key:stageKey}}));
+    return;
+  }
   if(hits.length){
     let obj=hits[0].object;
     while(obj&&!obj.userData.partId)obj=obj.parent;
@@ -246,10 +255,13 @@ function resize(){
   camera.updateProjectionMatrix();
 }
 function resetView(){
-  // Encuadre del banco completo: monitor y teclado a la izquierda,
-  // torre ATX a la derecha, sin oclusión entre equipos.
-  camera.position.set(-.20,18.2,34.0);
-  controls.target.set(-4.55,4.5,.65);controls.update();smoothZoom.sync();
+  // Ambas mesas: banco de montaje y mesa auxiliar de piezas adquiridas.
+  camera.position.set(4.5,22,58.5);
+  controls.target.set(4.15,4.25,.55);controls.update();smoothZoom.sync();
+}
+function viewStaging(){
+  camera.position.set(18.5,13.8,22.5);
+  controls.target.set(18.5,.35,.40);controls.update();smoothZoom.sync();
 }
 function viewHardware(){
   camera.position.set(11.0,10.3,15.8);
@@ -293,8 +305,19 @@ function animate(now){
 }
 window.PC3D={
   ready:true,
-  update:sync,dragPart,cancelDrag,viewIso:viewHardware,
+  update:sync,
+  updateStaging:(items,selected)=>{
+    staging.update(items,selected);
+    window.dispatchEvent(new CustomEvent('pc3d-stage-page',{detail:staging.getPageInfo()}));
+  },
+  turnStagingPage:delta=>{
+    staging.turnPage(delta);
+    const detail=staging.getPageInfo();
+    window.dispatchEvent(new CustomEvent('pc3d-stage-page',{detail}));
+  },
+  dragPart,cancelDrag,viewIso:viewHardware,
   viewWorkbench:resetView,
+  viewStaging,
   viewRearCables,
   viewScreen:()=>{
     camera.position.set(monitorLocation.x,6.20,monitorLocation.z+10.9);
