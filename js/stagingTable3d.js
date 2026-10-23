@@ -111,11 +111,13 @@ export function createStagingTable(THREE,scene){
     return part;
   }
   const stockGroups=new Map();
-  let selectedKey='';
-  let overflow=0;
+  let selectedKey='',page=0,allItems=[],overflow=0;
   function update(items=[],selected=''){
     selectedKey=selected;
-    const available=items.filter(v=>v.quantity>0).slice(0,12);
+    allItems=items.filter(v=>v.quantity>0);
+    const count=Math.max(1,Math.ceil(allItems.length/12));
+    page=Math.max(0,Math.min(page,count-1));
+    const available=allItems.slice(page*12,(page+1)*12);
     const keys=new Set(available.map(v=>v.key));
     for(const [key,group] of stockGroups){
       if(!keys.has(key)){
@@ -146,7 +148,7 @@ export function createStagingTable(THREE,scene){
       g.scale.setScalar(highlighted?1.09:1);
       g.userData.stageItem=true;g.userData.stageKey=item.key;
     });
-    overflow=Math.max(0,items.filter(v=>v.quantity>0).length-12);
+    overflow=Math.max(0,allItems.length-(page+1)*12);
   }
   // Los modelos se seleccionan a través de raycasting sobre meshes de su grupo.
   function identify(object){
@@ -157,5 +159,16 @@ export function createStagingTable(THREE,scene){
     }
     return null;
   }
-  return {root,update,identify,get overflow(){return overflow;},layout:STAGING_LAYOUT};
+  function turnPage(step){
+    const count=Math.max(1,Math.ceil(allItems.length/12));
+    page=(page+step+count)%count;
+    update(allItems,selectedKey);
+    return page+1;
+  }
+  function getPageInfo(){
+    return {page:page+1,pages:Math.max(1,Math.ceil(allItems.length/12)),
+      total:allItems.length};
+  }
+  return {root,update,identify,turnPage,getPageInfo,
+    get overflow(){return overflow;},layout:STAGING_LAYOUT};
 }
