@@ -462,9 +462,11 @@ function createAdventureGame(api){
       '</select><div class="adv-list">'+entries.map(([id,cost])=>
         '<div class="adv-card"><div><strong>'+safe(label(cat,id))+'</strong>'+
         '<small>'+safe(cat==='item'?'Herramienta/consumible':CATEGORIES[cat])+'</small></div>'+
+        '<div class="adv-shop-opts"><button type="button" data-shop-info="'+
+        safe(key(cat,id))+'">Ficha</button>'+
         '<button type="button" data-buy="'+safe(key(cat,id))+'"'+
         (cost>game.budget-game.spent?' disabled':'')+'>'+
-        format(cost)+'</button></div>').join('')+'</div>';
+        format(cost)+'</button></div></div>').join('')+'</div>';
   }
   function inventoryMarkup(){
     const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
@@ -661,6 +663,7 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
     if(button.dataset.mountedInspect){api.inspectPart?.(button.dataset.mountedInspect);return;}
     if(button.dataset.suggest){game.verb=button.dataset.suggest;perform(button.dataset.suggest);}
     else if(button.dataset.returnItem)returnItem(button.dataset.returnItem);
