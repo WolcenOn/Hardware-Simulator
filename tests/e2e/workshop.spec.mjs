@@ -57,6 +57,7 @@ test('la demo exige confirmación dentro de la página si ya hubo compras', asyn
   await expect(page.locator('[data-confirm-demo]')).toBeVisible();
   await page.locator('[data-cancel-demo]').click();
   await expect(page.locator('#adventurePanel')).toBeVisible();
+  await openSection(page, 'inventory');
   await expect(page.locator('[data-select-item="case:tower"]')).toBeVisible();
   await page.locator('#autoBuild').click();
   await page.locator('[data-confirm-demo]').click();
