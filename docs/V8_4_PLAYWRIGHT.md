@@ -113,3 +113,11 @@ npx playwright show-report
 - [ ] Ajuste visual de encuadres según resolución del usuario.
 
 Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
+
+## 8.4.3 — separación entre placa y bandeja ATX
+
+- Placa desplazada hasta apoyar su cara posterior sobre separadores de 6,5 mm.
+- Los cuatro separadores comparten orificios con cada formato ATX/mATX.
+- CPU, RAM, GPU, NVMe, chapa I/O, marcadores y extremos de cables acompañan a la PCB.
+- Smoke comprueba las cotas; Playwright comprueba las mallas Three.js.
+- Vista previa: `/preview/v7/?v=8-4-3-board-standoffs` sin modificar `main/index.html`.

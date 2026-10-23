@@ -1,3 +1,4 @@
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNIT } from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -68,4 +69,15 @@ assert.equal(l.s.selected.caseVariant,'towerGraphite');
 assert.equal(caseRenders.at(-1),'towerGraphite',
   'El material grafito debe llegar al render 3D en el mismo frame');
 assert(!errors.length,'Browser mock errors: '+errors.join(', '));
+// Regresión: no dejar la motherboard suspendida sobre los separadores.
+const mount=MOTHERBOARD_MOUNT;
+const bottom=mount.pcbCenterY-mount.pcbThickness/2+mount.offsetY;
+assert(Math.abs(bottom-(mount.trayTopY+mount.standoffHeight))*MM_PER_UNIT<.1);
+assert.equal(mount.standoffHeight*MM_PER_UNIT,6.5);
+for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
+  const holes=getMotherboardMountPoints(cfg);
+  assert.equal(holes.length,4,id);
+  assert.equal(new Set(holes.map(v=>v.join(':'))).size,4,id);
+  assert(holes.every(([x,z])=>x>=-4.055&&x<=1.695&&z>=-3.33&&z<=3.31),id);
+}
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

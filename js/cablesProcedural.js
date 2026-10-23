@@ -1,7 +1,7 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
+import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT } from './partsRealScale.js?v=8-4-3-board-standoffs';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -85,6 +85,7 @@ export function createCableHarness(THREE,scene){
     }
     for(const id of Object.keys(wires))delete wires[id];
   }
+  const boardY=MOTHERBOARD_MOUNT.offsetY;
   function rebuild(cfg,gpuChoice,storageChoice,secured){
     clear();
     const len=gpuChoice==='rtx4070'?267.01/50:245/50;
@@ -103,26 +104,26 @@ export function createCableHarness(THREE,scene){
     make('atx24',[
       PSU_CABLE_PORTS.atx24,
       [1.76,channelY,4.25],[1.74,channelY,-1.45],
-      [1.52,crossY,-1.45],[cfg.atxX,.69,cfg.atxZ]
+      [1.52,crossY,-1.45],[cfg.atxX,.69+boardY,cfg.atxZ]
     ],.055);
     make('eps',[
       PSU_CABLE_PORTS.eps,[1.90,channelY,5.05],
       [1.85,channelY,-3.12],[-3.49,channelY,-3.09],
-      [cfg.epsX,.78,cfg.epsZ]
+      [cfg.epsX,.78+boardY,cfg.epsZ]
     ],.044);
     make('gpu',[
       PSU_CABLE_PORTS.gpu,[1.77,channelY,4.18],
       [1.75,channelY,2.86],[1.42,crossY,2.53],
       [1.20,2.42,cfg.pcieZ+.78],
-      [cfg.pcieX+len*.37,.46+height+.13,cfg.pcieZ+.12]
+      [cfg.pcieX+len*.37,.46+height+.13+boardY,cfg.pcieZ+.12]
     ],.045);
     make('sataPower',[
       PSU_CABLE_PORTS.sataPower,[1.60,channelY,4.91],
       [1.58,channelY,drive[2]],[...drive]
     ],.033);
     make('sataData',[
-      [cfg.sataX,.62,cfg.sataZ],
-      [1.51,.24,cfg.sataZ+.16],
+      [cfg.sataX,.62+boardY,cfg.sataZ],
+      [1.51,.24+boardY,cfg.sataZ+.16],
       [1.55,channelY,drive[2]],[...drive]
     ],.023);
 
@@ -130,32 +131,32 @@ export function createCableHarness(THREE,scene){
     const frontX=cfg.x+cfg.w/2-.42,frontZ=cfg.z+cfg.d/2-.32;
     make('frontPanel',[
       [5.00,.40,-1.36],[4.88,channelY,-1.40],
-      [1.64,channelY,2.54],[frontX,.52,frontZ]
+      [1.64,channelY,2.54],[frontX,.52+boardY,frontZ]
     ],.018);
     make('fan',[
-      [cfg.cpuX+.93,.55,cfg.cpuZ+.88],
-      [cfg.cpuX+1.03,.93,cfg.cpuZ+.85],
-      [cfg.cpuX+.88,1.93,cfg.cpuZ+.74],
-      [cfg.cpuX+.47,2.06,cfg.cpuZ+.63]
+      [cfg.cpuX+.93,.55+boardY,cfg.cpuZ+.88],
+      [cfg.cpuX+1.03,.93+boardY,cfg.cpuZ+.85],
+      [cfg.cpuX+.88,1.93+boardY,cfg.cpuZ+.74],
+      [cfg.cpuX+.47,2.06+boardY,cfg.cpuZ+.63]
     ],.016);
     [
       [[4.78,1.61,-2.0],[4.67,.72,-2.08],[1.69,channelY,-2.27],
-       [cfg.x-.63,.60,cfg.z+2.42]],
+       [cfg.x-.63,.60+boardY,cfg.z+2.42]],
       [[4.78,1.61,.47],[4.67,.72,.49],[1.70,channelY,.52],
-       [cfg.x+cfg.w/2-.23,.61,cfg.z+1.62]],
+       [cfg.x+cfg.w/2-.23,.61+boardY,cfg.z+1.62]],
       [[-3.89,1.61,-1.25],[-3.74,.58,-1.18],[-3.49,channelY,-1.14],
-       [cfg.x-.93,.60,cfg.z-cfg.d/2+.52]]
+       [cfg.x-.93,.60+boardY,cfg.z-cfg.d/2+.52]]
     ].forEach((points,i)=>make('caseFan'+i,points,.018));
 
     // Cableado interno de vídeo sólo hasta la salida trasera del PC.
     // El tramo externo al monitor se dibuja en coordenadas del taller.
     make('video',[
-      [cfg.pcieX-len/2-.09,1.18,cfg.pcieZ+.10],
-      [-3.75,.83,cfg.pcieZ+.30],[-4.06,.58,cfg.pcieZ+.30]
+      [cfg.pcieX-len/2-.09,1.18+boardY,cfg.pcieZ+.10],
+      [-3.75,.83+boardY,cfg.pcieZ+.30],[-4.06,.58+boardY,cfg.pcieZ+.30]
     ],.028);
     make('videoIGPU',[
-      [cfg.x-cfg.w/2+.13,.64,cfg.z-cfg.d/2+.48],
-      [-3.90,.69,cfg.z-cfg.d/2+.48],[-4.06,.58,cfg.z-cfg.d/2+.48]
+      [cfg.x-cfg.w/2+.13,.64+boardY,cfg.z-cfg.d/2+.48],
+      [-3.90,.69+boardY,cfg.z-cfg.d/2+.48],[-4.06,.58+boardY,cfg.z-cfg.d/2+.48]
     ],.028);
   }
   function update(state,cfg,needsSata){

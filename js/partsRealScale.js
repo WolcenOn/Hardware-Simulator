@@ -5,6 +5,22 @@
 export const MM_PER_UNIT = 50;
 const mm = value => value / MM_PER_UNIT;
 
+// Montaje PCB: separador físico de 6,5 mm medido desde la bandeja.
+export const MOTHERBOARD_MOUNT = Object.freeze({
+  trayTopY: -.47 + .12/2,
+  standoffHeight: mm(6.5),
+  pcbCenterY: .29,
+  pcbThickness: .13,
+  offsetY: (-.47 + .12/2) + mm(6.5) - (.29 - .13/2)
+});
+// Los mismos cuatro centros de orificio se utilizan para PCB y separadores.
+export const getMotherboardMountPoints = cfg => {
+  const left=cfg.x-cfg.w/2, right=cfg.x+cfg.w/2;
+  const top=cfg.z-cfg.d/2, bottom=cfg.z+cfg.d/2;
+  return [[left+.24,top+.22],[left+.24,bottom-.25],
+    [right-.24,top+.22],[right-.24,bottom-.25]];
+};
+
 // Cara modular +X de la PSU: todos los cables de ALIMENTACIÓN salen de aquí.
 export const PSU_CABLE_PORTS = Object.freeze({
   atx24:[-.83,1.60,4.27],
@@ -47,6 +63,8 @@ export function buildRealScale(p) {
   const gpu=group('gpu'),cooler=group('cooler'),psu=group('psu');
   const storage=group('storage'),chassis=group('case');
   const pcbTop=.40;
+  board.position.y=MOTHERBOARD_MOUNT.offsetY;
+  ram.position.y=MOTHERBOARD_MOUNT.offsetY;
   const silver=materials.silver, alu=materials.aluminium,black=materials.black;
   const dark=materials.black2,gold=materials.gold,metal=materials.case;
   const white=new THREE.MeshStandardMaterial({color:0xcbd5df,roughness:.46,metalness:.55});
@@ -170,11 +188,10 @@ export function buildRealScale(p) {
     const top=cfg.z-cfg.d/2, bottom=cfg.z+cfg.d/2;
     rounded(cfg.w,.13,cfg.d,.035,materials.pcb,b,cfg.x,.29,cfg.z);
     // Anclajes se sitúan siempre dentro del contorno de la placa.
-    for(const x of [left+.24,right-.24])
-      for(const z of [top+.22,bottom-.25]){
-        cylinder(.085,.018,gold,b,x,.37,z,12);
-        cylinder(.040,.020,dark,b,x,.389,z,12);
-      }
+    for(const [x,z] of getMotherboardMountPoints(cfg)){
+      cylinder(.085,.018,gold,b,x,.37,z,12);
+      cylinder(.040,.020,dark,b,x,.389,z,12);
+    }
     // Pistas de PCB finas, sin invadir el contorno.
     for(let i=0;i<76;i++){
       const x=left+.17+((i*17)%67)/67*(cfg.w-.37);
@@ -456,8 +473,8 @@ export function buildRealScale(p) {
     const id=s?.selected?.motherboard in BOARD_LAYOUTS?s.selected.motherboard:'b650';
     const cfg=BOARD_LAYOUTS[id];currentLayout=cfg;
     for(const [key,obj] of Object.entries(motherboardModels))obj.visible=key===id;
-    cpu.position.set(cfg.cpuX,.40,cfg.cpuZ);
-    cooler.position.set(cfg.cpuX,.43,cfg.cpuZ);
+    cpu.position.set(cfg.cpuX,.40+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ);
+    cooler.position.set(cfg.cpuX,.43+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ);
     for(const [id,obj] of Object.entries(coolerVariants))
       obj.visible=id===(s?.selected?.cooler||'air');
     const chosen=s?.selected?.ram;
@@ -467,8 +484,8 @@ export function buildRealScale(p) {
     modules[1].visible=twoSticks;
     const card=s?.selected?.gpu==='rtx4070'?'rtx4070':'rx7600'; // fallback mesh para variantes GPU 8.1
     for(const [key,obj] of Object.entries(videoCards))obj.visible=key===card;
-    gpu.position.set(cfg.pcieX,.46,cfg.pcieZ+.01);
-    m2Drive.position.set(cfg.x-.80,.49,cfg.z+.08);
+    gpu.position.set(cfg.pcieX,.46+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.01);
+    m2Drive.position.set(cfg.x-.80,.49+MOTHERBOARD_MOUNT.offsetY,cfg.z+.08);
     sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
     hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
     m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
@@ -478,33 +495,33 @@ export function buildRealScale(p) {
     // la PCB elegida. La placa se inserta en este marco por detrás.
     const rearX=cfg.x-cfg.w/2-.20;
     const ioZ=cfg.z-cfg.d/2+1.58;
-    ioShield.position.set(rearX,0,ioZ);
+    ioShield.position.set(rearX,MOTHERBOARD_MOUNT.offsetY,ioZ);
     ioShield.visible=!!s?.installed?.case&&!!s?.ioShield;
     caseFanMounts.forEach((mount,i)=>{
       mount.visible=!!s?.caseFans?.[i]?.installed;
     });
-    anchors.eps.set(cfg.epsX,.94,cfg.epsZ);
-    anchors.atx.set(cfg.atxX,.82,cfg.atxZ);
-    anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59,cfg.z+cfg.d/2-.32);
-    anchors.ram.set(modules[0].position.x,1.50,cfg.cpuZ+.05);
+    anchors.eps.set(cfg.epsX,.94+MOTHERBOARD_MOUNT.offsetY,cfg.epsZ);
+    anchors.atx.set(cfg.atxX,.82+MOTHERBOARD_MOUNT.offsetY,cfg.atxZ);
+    anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59+MOTHERBOARD_MOUNT.offsetY,cfg.z+cfg.d/2-.32);
+    anchors.ram.set(modules[0].position.x,1.50+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.05);
     anchors.sata.set(needsSata?(hddDrive.visible?1.57:-1.23):cfg.x-.80,
-      needsSata?(hddDrive.visible?.85:-.48):.76,
+      needsSata?(hddDrive.visible?.85:-.48):.76+MOTHERBOARD_MOUNT.offsetY,
       needsSata?(hddDrive.visible?4.70:.65):cfg.z+.08);
-    anchors.gpu.set(cfg.pcieX+1.08,3.36,cfg.pcieZ+.35);
-    anchors.fan.set(cfg.cpuX,3.45,cfg.cpuZ+.60);
+    anchors.gpu.set(cfg.pcieX+1.08,3.36+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.35);
+    anchors.fan.set(cfg.cpuX,3.45+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.60);
     // Objetivos físicos en el espacio del chasis para el encaje asistido.
     const snapTargets={
       case:new THREE.Vector3(.65,.20,.15),
-      motherboard:new THREE.Vector3(cfg.x,.38,cfg.z),
-      cpu:new THREE.Vector3(cfg.cpuX,.64,cfg.cpuZ),
-      cooler:new THREE.Vector3(cfg.cpuX,2.08,cfg.cpuZ),
-      ram:new THREE.Vector3(cfg.dimmXs[cfg.dimms-1],.97,cfg.cpuZ+.05),
-      gpu:new THREE.Vector3(cfg.pcieX,1.45,cfg.pcieZ),
+      motherboard:new THREE.Vector3(cfg.x,.38+MOTHERBOARD_MOUNT.offsetY,cfg.z),
+      cpu:new THREE.Vector3(cfg.cpuX,.64+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ),
+      cooler:new THREE.Vector3(cfg.cpuX,2.08+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ),
+      ram:new THREE.Vector3(cfg.dimmXs[cfg.dimms-1],.97+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.05),
+      gpu:new THREE.Vector3(cfg.pcieX,1.45+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ),
       psu:new THREE.Vector3(-2.50,1.55,4.58),
       storage:new THREE.Vector3(
         ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.x-.80:
           (['hdd','hdd4'].includes(s?.selected?.storage)?3.03:-.30),
-        ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?.54:
+        ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?.54+MOTHERBOARD_MOUNT.offsetY:
           (['hdd','hdd4'].includes(s?.selected?.storage)?.66:-.45),
         ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.z+.08:
           (['hdd','hdd4'].includes(s?.selected?.storage)?4.70:.65)

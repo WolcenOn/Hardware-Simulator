@@ -142,6 +142,17 @@ test('las cámaras enfocan por separado montaje, componentes, periféricos y vis
   await check('#viewDesk','general',4.15);
 });
 
+test('la PCB se asienta sobre separadores de 6,5 mm', async ({ page }) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  const mount=await page.evaluate(() => window.PC3D.getMountAlignment());
+  expect(mount.board).toBe('b650');
+  expect(mount.gapMm).toBeLessThan(.6);
+  expect(mount.holes).toEqual(mount.posts);
+  expect(mount.standoffTopY).toBeCloseTo(mount.boardBottomY,3);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

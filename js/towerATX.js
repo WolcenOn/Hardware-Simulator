@@ -2,6 +2,7 @@
 // Sistema local de montaje: X=trasera→frontal, Z=superior→inferior, Y=fondo→cristal.
 // Se transforma a vertical en procedural3d.js con rotation.x=Math.PI/2.
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-3-board-standoffs';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);
@@ -28,11 +29,27 @@ export function createATXTower(THREE,parent,materials){
   }
   // Bandeja que realmente sostiene la motherboard detrás del socket.
   add(tower,[5.75,.12,6.64],[-1.18,-.47,-.01],panel);
-  for(let x of [-3.30,1.08])for(let z of [-2.66,2.69]){
-    const fastener=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.12,10),mesh);
-    fastener.rotation.x=Math.PI/2;fastener.position.set(x,-.30,z);
-    tower.add(fastener);
+  // Separadores hexagonales M3 perpendiculares a la placa y apoyados
+  // sobre la bandeja, adaptados al formato de motherboard seleccionada.
+  const standoffGroup=new THREE.Group();standoffGroup.name='Separadores motherboard';
+  tower.add(standoffGroup);
+  const brass=new THREE.MeshStandardMaterial({color:0xb9a06b,roughness:.36,metalness:.72});
+  const mountPosts=[];
+  for(let i=0;i<4;i++){
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,
+      MOTHERBOARD_MOUNT.standoffHeight,6),brass);
+    post.name='Separador M3 '+(i+1);
+    post.position.y=MOTHERBOARD_MOUNT.trayTopY+MOTHERBOARD_MOUNT.standoffHeight/2;
+    standoffGroup.add(post);
+    mountPosts.push(post);
   }
+  function setMotherboardLayout(cfg){
+    getMotherboardMountPoints(cfg).forEach(([x,z],i)=>{
+      mountPosts[i].position.x=x;
+      mountPosts[i].position.z=z;
+    });
+  }
+  setMotherboardLayout(BOARD_LAYOUTS.b650);
   // Pasacables y canal posterior (la canaleta queda detrás de la placa).
   add(tower,[.24,.23,6.35],[1.63,-.48,.0],cageMaterial);
   for(const z of [-2.25,-.65,.85,2.2])
@@ -124,6 +141,6 @@ export function createATXTower(THREE,parent,materials){
   sync(false,false);
   function setRgb(enabled){rgbGroup.visible=!!enabled;}
   setRgb(false);
-  return {root:tower,sync,setFinish,getFinish,setRgb,hinge,rearSSD,hddCage,psuSeat,
+  return {root:tower,sync,setFinish,getFinish,setRgb,setMotherboardLayout,mountPosts,hinge,rearSSD,hddCage,psuSeat,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }

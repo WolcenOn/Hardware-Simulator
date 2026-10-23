@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
+import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints } from './partsRealScale.js?v=8-4-3-board-standoffs';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-1-gameplay-e2e';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-3-board-standoffs';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
-import { createATXTower } from './towerATX.js?v=8-4-2-focus-finishes';
+import { createATXTower } from './towerATX.js?v=8-4-3-board-standoffs';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
@@ -75,7 +75,7 @@ const staging=createStagingTable(THREE,scene);
 // HDMI/DP de la torre al monitor físico (el resto del cable está dentro del PC).
 root.updateMatrixWorld(true);
 const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughness:.87});
-const gpuRear=root.localToWorld(new THREE.Vector3(-4.08,.58,.9));
+const gpuRear=root.localToWorld(new THREE.Vector3(-4.08,.58+MOTHERBOARD_MOUNT.offsetY,.9));
 const {monitor:monitorLocation}=WORKBENCH_LAYOUT;
 const externalVideo=new THREE.Mesh(new THREE.TubeGeometry(
   new THREE.CatmullRomCurve3([
@@ -160,6 +160,7 @@ function sync(state,details={}){
     !!details.videoSignal);
   const {anchors,needsSata,cfg,snapTargets}=assembly.configure(state);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
+  tower.setMotherboardLayout(cfg);
   tower.setFinish?.(state.selected?.caseVariant||'tower');
   tower.setRgb?.(!!state.rgbInstalled&&!!state.power&&!!state.rgbOn);
   assembly.fanMountGroup.visible=!!state.installed?.case;
@@ -450,6 +451,25 @@ function animate(now){
   smoothZoom.update(dt);
   controls.update();renderer.render(scene,camera);
 }
+// Diagnóstico para Playwright: distancia entre las mallas reales.
+function getMountAlignment(){
+  const id=current?.selected?.motherboard||'b650';
+  const pcb=assembly.motherboardModels[id]?.children[0];
+  const post=tower.mountPosts[0];
+  if(!pcb||!post)return null;
+  root.updateMatrixWorld(true);
+  const pcbBottom=root.worldToLocal(pcb.localToWorld(
+    new THREE.Vector3(0,-MOTHERBOARD_MOUNT.pcbThickness/2,0)));
+  const postTop=root.worldToLocal(post.localToWorld(
+    new THREE.Vector3(0,MOTHERBOARD_MOUNT.standoffHeight/2,0)));
+  const cfg=assembly.configure(current||{selected:{motherboard:id}}).cfg;
+  return {
+    board:id,boardBottomY:pcbBottom.y,standoffTopY:postTop.y,
+    gapMm:Math.abs(pcbBottom.y-postTop.y)*MM_PER_UNIT,
+    holes:getMotherboardMountPoints(cfg),
+    posts:tower.mountPosts.map(item=>[item.position.x,item.position.z])
+  };
+}
 window.PC3D={
   ready:true,
   update:sync,
@@ -477,6 +497,7 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  getMountAlignment,
   // Zoom por botón con la misma interpolación que la rueda.
   zoom:amount=>smoothZoom.step(amount),
   focus:select3D
