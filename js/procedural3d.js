@@ -3,11 +3,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints, getRearVideoAnchor } from './partsRealScale.js?v=8-4-5-real-connectors';
+import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
+  getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-6-port-geometry';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-5-real-connectors';
-import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-5-real-connectors';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-6-port-geometry';
+import { createConnector3d } from './connectors3d.js?v=8-4-6-port-geometry';
+import {alignRearPlug} from './portProfiles.js?v=8-4-6-port-geometry';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-6-port-geometry';
 import { createATXTower } from './towerATX.js?v=8-4-4-front-io';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
@@ -80,38 +82,62 @@ const videoOutsideMaterial=new THREE.MeshStandardMaterial({color:0x252c36,roughn
 const {monitor:monitorLocation}=WORKBENCH_LAYOUT;
 const externalVideo=new THREE.Mesh(new THREE.BufferGeometry(),videoOutsideMaterial);
 externalVideo.visible=false;scene.add(externalVideo);
-const externalVideoPlug=createConnector3d(THREE,'hdmi');
-externalVideoPlug.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),
-  new THREE.Vector3(-1,0,0));
-externalVideoPlug.visible=false;scene.add(externalVideoPlug);
-let lastVideoRoute='';
+const externalVideoPlugs={
+  hdmi:createConnector3d(THREE,'hdmi'),
+  displayPort:createConnector3d(THREE,'displayPort')
+};
+for(const plug of Object.values(externalVideoPlugs)){
+  // El roll de 90° también alinea la sección (ancho Z / alto Y).
+  alignRearPlug(THREE,plug,root);
+  plug.visible=false;scene.add(plug);
+}
+let lastVideoRoute='',activeVideoType='hdmi';
 function updateExternalVideo(state,cfg){
   const gpuSelected=!!state.installed?.gpu&&state.selected?.gpu!=='none';
   const gpuOutput=state.videoPort==='gpu'||
     (state.videoPort!=='motherboard'&&gpuSelected);
-  const local=gpuOutput?
-    [-4.06,.58+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.30]:
-    getRearVideoAnchor(cfg);
-  const sig=[gpuOutput?'gpu':'igpu',...local].join(':');
+  const type=gpuOutput?'displayPort':'hdmi';
+  activeVideoType=type;
+  const local=gpuOutput?getGpuVideoAnchor(cfg,1):getRearVideoAnchor(cfg,'hdmi');
+  const sig=[type,...local].join(':');
   if(sig!==lastVideoRoute){
     root.updateMatrixWorld(true);
     const end=root.localToWorld(new THREE.Vector3(...local));
     const curve=new THREE.CatmullRomCurve3([
-      end.clone(),end.clone().add(new THREE.Vector3(-.68,-1.20,-.48)),
+      end.clone(),end.clone().add(new THREE.Vector3(-.48,0,0)),
+      end.clone().add(new THREE.Vector3(-1.12,-.66,-.37)),
       new THREE.Vector3(-4.75,.28,-1.9),new THREE.Vector3(-5.65,.24,-5.38),
       new THREE.Vector3(monitorLocation.x+.4,.28,-5.55),
       new THREE.Vector3(monitorLocation.x+4.62,3.52,monitorLocation.z-.17)
-    ]);
+    ],false,'centripetal',.40);
     externalVideo.geometry.dispose();
-    externalVideo.geometry=new THREE.TubeGeometry(curve,55,.029,7,false);
-    externalVideoPlug.position.copy(end);
+    externalVideo.geometry=new THREE.TubeGeometry(curve,64,.027,8,false);
+    externalVideoPlugs[type].position.copy(end);
     lastVideoRoute=sig;
   }
   const visible=!!state.installed?.case&&!!state.installed?.motherboard&&
-    !!state.monitorCable;
-  externalVideo.visible=visible;externalVideoPlug.visible=visible;
+    !!state.monitorCable&&(!gpuOutput||gpuSelected);
+  externalVideo.visible=visible;
+  for(const [kind,plug] of Object.entries(externalVideoPlugs))
+    plug.visible=visible&&kind===type;
 }
-
+function getVideoReceptacleAlignment(){
+  const type=activeVideoType,plug=externalVideoPlugs[type];
+  const id=current?.selected?.motherboard||'b650';
+  const port=type==='hdmi'?assembly.rearVideoSockets[id]?.hdmi:
+    assembly.gpuBracketPorts[1];
+  if(!port)return null;
+  root.updateMatrixWorld(true);
+  const portWorld=port.getWorldPosition(new THREE.Vector3());
+  const plugWorld=plug.getWorldPosition(new THREE.Vector3());
+  const socketAxis=new THREE.Vector3(0,0,1).applyQuaternion(
+    port.getWorldQuaternion(new THREE.Quaternion()));
+  const maleAxis=new THREE.Vector3(1,0,0).applyQuaternion(
+    plug.getWorldQuaternion(new THREE.Quaternion()));
+  const angleDegrees=Math.acos(Math.min(1,Math.abs(socketAxis.dot(maleAxis))))*180/Math.PI;
+  return {type,portWorld:portWorld.toArray(),plugWorld:plugWorld.toArray(),
+    gapMm:portWorld.distanceTo(plugWorld)*MM_PER_UNIT,angleDegrees};
+}
 
 // Anillos de incidencias: anclados a la posición del conector seleccionado.
 const markerGroup=new THREE.Group();root.add(markerGroup);
@@ -557,11 +583,16 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
-  getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root),
+  getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root,
+    assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
+  getRearVideoAlignment:getVideoReceptacleAlignment,
+  getRearPortCounts:()=>({
+    usb:assembly.rearUsbSockets[current?.selected?.motherboard||'b650']?.length||0,
+    gpu:assembly.gpuBracketPorts.length}),
   getConnectorModels:()=>Object.fromEntries(['atx24','eps','gpu','sataData',
     'sataPower','frontPanel','frontUsb3','frontUsbC','fan','video']
     .map(id=>[id,cables.connectorTypes(id)])),
-  getVideoPlugPosition:()=>externalVideoPlug.position.toArray(),
+  getVideoPlugPosition:()=>externalVideoPlugs[activeVideoType].position.toArray(),
   getCasePowerScreenPoint,
   getFrontIOState:()=>({mounted:tower.root.visible,
     ledOn:tower.powerLed.material.emissiveIntensity>1,

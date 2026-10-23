@@ -1,6 +1,7 @@
 import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNIT,
   REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders,
   REAR_USB_COUNT, getRearUsbAnchor, getRearVideoAnchor } from '../js/partsRealScale.js';
+import {REAR_PORT_SPECS,portOutline} from '../js/portProfiles.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -119,4 +120,20 @@ for(const kind of ['atx24','eps','gpu','frontUsb3','frontUsbC','frontPanel',
   'sataData','sataPower','fan','usbA','usbC','hdmi'])
   assert(connectorSource.includes("'"+kind+"'"),'Conector no modelado: '+kind);
 assert(read('js/workbench3d.js').includes('getRearUsbAnchor'));
+// Misma geometría de perfil en la boca hembra y punta macho.
+assert.equal(portOutline('usbA').length,4);
+assert.equal(portOutline('hdmi').length,6,'HDMI debe ser trapezoidal');
+assert.equal(portOutline('displayPort').length,5,'DP requiere esquina biselada');
+assert(REAR_PORT_SPECS.displayPort.width>REAR_PORT_SPECS.usbA.width);
+const ports=read('js/rearPorts3d.js'),board=read('js/partsRealScale.js');
+assert(ports.includes('portBezelGeometry'));
+assert(board.includes("createRearReceptacle3d(THREE,'usbA')"));
+assert(board.includes('gpuBracketPorts'));
+assert(board.includes('rearUsbSockets[id].push(socket)'));
+assert(read('js/workbench3d.js').includes('const real=receptacles[row.portIndex]'));
+assert(read('js/procedural3d.js').includes('getRearVideoAlignment:getVideoReceptacleAlignment'));
+assert(read('js/workbench3d.js').includes('alignRearPlug(THREE,plug,assemblyRoot)'));
+assert(read('js/procedural3d.js').includes('alignRearPlug(THREE,plug,root)'));
+assert(read('js/portProfiles.js').includes('getWorldQuaternion'));
+assert(read('js/cablesProcedural.js').includes('wires.video.visible=false'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

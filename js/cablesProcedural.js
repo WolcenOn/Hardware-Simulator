@@ -1,8 +1,8 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from './partsRealScale.js?v=8-4-5-real-connectors';
-import { createConnector3d } from './connectors3d.js?v=8-4-5-real-connectors';
+import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT, getFrontUsbHeaders } from './partsRealScale.js?v=8-4-6-port-geometry';
+import { createConnector3d } from './connectors3d.js?v=8-4-6-port-geometry';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
@@ -209,10 +209,11 @@ export function createCableHarness(THREE,scene){
     const port=state.videoPort||'auto';
     const gpuOutput=port==='gpu'||(port==='auto'&&onGPU);
     const boardOutput=port==='motherboard'||(port==='auto'&&!onGPU);
-    wires.video.visible=!exploded&&!!state.monitorCable&&
-      !!installed.motherboard&&onGPU&&gpuOutput;
-    wires.videoIGPU.visible=!exploded&&!!state.monitorCable&&
-      !!installed.motherboard&&!!installed.cpu&&boardOutput;
+    // El vídeo NO circula por un mazo independiente dentro del chasis.
+    // Sólo se dibuja el cable EXTERIOR en procedural3d, con una única
+    // clavija insertada en GPU DP o en HDMI de la placa.
+    wires.video.visible=false;
+    wires.videoIGPU.visible=false;
   }
   return {update,root,ports:PSU_CABLE_PORTS,isVisible:id=>!!wires[id]?.visible,
     connectorTypes:id=>wires[id]?.children?.filter(o=>o.userData?.connectorType)

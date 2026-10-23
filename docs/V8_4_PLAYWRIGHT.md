@@ -161,3 +161,16 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
   clavijas y conexiones tras cambiar de motherboard.
 - Versión de trabajo en `feature/v7-procedural-3d`; vista previa en
   `/preview/v7/?v=8-4-5-real-connectors`. Mantener intacto `main/index.html`.
+
+## 8.4.6 — tomas I/O físicas, USB-A, HDMI y DisplayPort
+
+- Módulo compartido `portProfiles.js`: cuatro lados USB-A, perfil trapezoidal HDMI y esquina recortada DisplayPort, en escala 1 unidad = 50 mm.
+- `rearPorts3d.js` modela receptáculos huecos con marcos metálicos, lengüetas aislantes y contactos. Se elimina la falsa hilera de bloques de los cinco USB de PCB y chapa trasera.
+- Todas las placas, incluidos los tamaños mATX, instancian cinco puertos USB-A y dos salidas HDMI/DisplayPort a partir de `getRearUsbAnchor()` y `getRearVideoAnchor()`.
+- La tarjeta gráfica incorpora un bracket para **3 DP y 1 HDMI** mediante `getGpuVideoAnchor()`.
+- USB-A con carcasa, doble seguro, cuatro contactos y alivio de tensión; DP con bisel/botón de retención; HDMI con perfil trapezoidal y contactos. `connectors3d.js` conserva los modelos internos ATX/EPS/PCIe/SATA/Type-E/PWM.
+- `alignRearPlug()` aplica orientación en coordenadas del chasis girado: inserción perpendicular y sección del macho paralela a la boca. El cable sale axialmente antes de doblarse.
+- El monitor exterior usa un único cable visible, DisplayPort si se elige GPU y HDMI si se elige iGPU; se suprimen duplicados de vídeo internos ficticios.
+- `getRearUsbAlignment()` y `getRearVideoAlignment()` miden en milímetros la separación frente a la **malla del receptáculo renderizado**, además de error angular, no dos posiciones derivadas de la misma fórmula.
+- Smoke de perfiles y cableado; pruebas Playwright de la coincidencia real USB (B650/A520/Z790/B650M), GPU DP e iGPU HDMI.
+- Vista previa `/preview/v7/?v=8-4-6-port-geometry`; no se modifica `main/index.html`.

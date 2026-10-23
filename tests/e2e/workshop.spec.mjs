@@ -238,6 +238,44 @@ test('ATX, EPS, PCIe, SATA y USB frontal tienen clavijas con geometría propia',
   }
 });
 
+test('USB real: clavijas alineadas con objetos de la PCB en varios formatos', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready === true);
+  await page.locator('#autoBuild').click();
+  await page.locator('#keyboardToggle').click();
+  await page.locator('#mouseToggle').click();
+  for(const id of ['b650','a520','z790','b650m']){
+    await page.locator('select[data-cat="motherboard"]').selectOption(id);
+    const rows=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
+    expect(rows).toHaveLength(2);
+    for(const row of rows){
+      expect(row.gapMm,id+' '+row.id).toBeLessThan(.1);
+      expect(row.angleDegrees,id+' '+row.id).toBeLessThan(.1);
+      expect(row.connectorType).toBe('usbA');
+    }
+    expect((await page.evaluate(() => window.PC3D.getRearPortCounts())).usb).toBe(5);
+  }
+});
+
+test('HDMI de la placa y DisplayPort de GPU comparten posición con sus bocas físicas', async ({page}) => {
+  await openGame(page);
+  await page.waitForFunction(() => window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click();
+  const outputs=await page.evaluate(() => ({
+    counts:window.PC3D.getRearPortCounts(),
+    video:window.PC3D.getRearVideoAlignment()
+  }));
+  expect(outputs.counts.gpu).toBe(4);
+  expect(outputs.video.type).toBe('displayPort');
+  expect(outputs.video.gapMm).toBeLessThan(.1);
+  expect(outputs.video.angleDegrees).toBeLessThan(.1);
+  await page.locator('select[data-cat="gpu"]').selectOption('none');
+  const igpu=await page.evaluate(() => window.PC3D.getRearVideoAlignment());
+  expect(igpu.type).toBe('hdmi');
+  expect(igpu.gapMm).toBeLessThan(.1);
+  expect(igpu.angleDegrees).toBeLessThan(.1);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
