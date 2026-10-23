@@ -277,6 +277,27 @@ view.addEventListener('pointerleave',()=>{
   press=null;view.style.cursor='grab';
   window.dispatchEvent(new CustomEvent('pc3d-hover',{detail:{key:null}}));
 });
+view.addEventListener('dblclick',e=>{
+  // Doble clic sobre una mesa o un periférico: centrar ese puesto.
+  // Un solo clic sigue abriendo la ficha de la pieza.
+  const rect=view.getBoundingClientRect();
+  if(!rect.width||!rect.height)return;
+  pointer.set(2*(e.clientX-rect.left)/rect.width-1,
+    1-2*(e.clientY-rect.top)/rect.height);
+  raycaster.setFromCamera(pointer,camera);
+  if(raycaster.intersectObject(staging.root,true).length){
+    viewStaging();return;
+  }
+  if(raycaster.intersectObject(workbench.screen,true).length||
+     raycaster.intersectObject(workbench.keyboard,true).length||
+     raycaster.intersectObject(workbench.mouseGroup,true).length){
+    viewPeripherals();return;
+  }
+  if(current?.installed?.case&&raycaster.intersectObject(tower.root,true).length){
+    viewHardware();return;
+  }
+  if(raycaster.intersectObject(workbench.root,true).length)viewAssemblyDesk();
+});
 view.addEventListener('pointerdown',e=>{
   press={x:e.clientX,y:e.clientY};
 });
@@ -354,22 +375,47 @@ function resize(){
   camera.aspect=width/height;
   camera.updateProjectionMatrix();
 }
+// Puntos de interés independientes: no se trata de un zoom global
+// fijo, cada vista cambia tanto la posición como el objetivo orbital.
+// Conserva la cámara elegida al conectar, comprar o renderizar piezas.
+let cameraPreset='general';
+function focusCamera(id,position,target){
+  camera.position.set(...position);
+  controls.target.set(...target);
+  controls.update();
+  smoothZoom.sync();
+  cameraPreset=id;
+  view.dataset.viewPreset=id;
+  window.dispatchEvent(new CustomEvent('pc3d-view-change',{detail:{view:id}}));
+}
 function resetView(){
-  // Ambas mesas: banco de montaje y mesa auxiliar de piezas adquiridas.
-  camera.position.set(4.5,22,58.5);
-  controls.target.set(4.15,4.25,.55);controls.update();smoothZoom.sync();
+  focusCamera('general',[4.5,22,58.5],[4.15,4.25,.55]);
+}
+function viewAssemblyDesk(){
+  // Banco principal de 1350 × 850 mm: PC, herramientas y periferia.
+  focusCamera('assembly',[-3.0,17.7,27.6],[-4.3,2.9,.35]);
 }
 function viewStaging(){
-  camera.position.set(18.5,13.8,22.5);
-  controls.target.set(18.5,.35,.40);controls.update();smoothZoom.sync();
+  // La mesa auxiliar vive en X=18.5; debe ocupar la mayor parte del canvas.
+  focusCamera('staging',[18.5,13.9,19.3],[18.5,.35,.35]);
+}
+function viewPeripherals(){
+  // Puesto del usuario: pantalla, teclado y ratón, a la izquierda de la torre.
+  focusCamera('peripherals',[-9.05,11.5,17.8],[-9.05,2.4,1.05]);
 }
 function viewHardware(){
-  camera.position.set(11.0,10.3,15.8);
-  controls.target.set(1.10,5.75,1.15);controls.update();smoothZoom.sync();
+  focusCamera('tower',[11.0,10.3,15.8],[1.10,5.75,1.15]);
 }
 function viewRearCables(){
-  camera.position.set(9.0,10.2,-14.0);
-  controls.target.set(1.0,5.0,.85);controls.update();smoothZoom.sync();
+  focusCamera('rear',[9.0,10.2,-14.0],[1.0,5.0,.85]);
+}
+function viewScreen(){
+  focusCamera('monitor',
+    [monitorLocation.x,6.20,monitorLocation.z+10.9],
+    [monitorLocation.x,monitorLocation.screenY,monitorLocation.z]);
+}
+function viewSide(){
+  focusCamera('side',[5.2,9.4,19.5],[1.2,5.30,.80]);
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);
 window.addEventListener('resize',resize);resize();
@@ -417,16 +463,18 @@ window.PC3D={
   },
   dragPart,cancelDrag,viewIso:viewHardware,
   viewWorkbench:resetView,
+  viewAssemblyDesk,
   viewStaging,
+  viewPeripherals,
   viewRearCables,
-  viewScreen:()=>{
-    camera.position.set(monitorLocation.x,6.20,monitorLocation.z+10.9);
-    controls.target.set(monitorLocation.x,monitorLocation.screenY,monitorLocation.z);
-    controls.update();smoothZoom.sync();
-  },
-  viewTop:()=>{
-    camera.position.set(5.2,9.4,19.5);controls.target.set(1.2,5.30,.80);controls.update();smoothZoom.sync();
-  },
+  viewScreen,
+  viewTop:viewSide,
+  // Útil para comprobar encuadres desde pruebas E2E reales.
+  getViewState:()=>({
+    view:cameraPreset,
+    position:camera.position.toArray(),
+    target:controls.target.toArray()
+  }),
   // Zoom por botón con la misma interpolación que la rueda.
   zoom:amount=>smoothZoom.step(amount),
   focus:select3D
