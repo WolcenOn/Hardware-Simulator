@@ -1,7 +1,7 @@
 // Cableado procedural del laboratorio (1 unidad = 50 mm).
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
-import { PSU_CABLE_PORTS } from './partsRealScale.js?v=8-1-inventory-igpu';
+import { PSU_CABLE_PORTS } from './partsRealScale.js?v=8-3-2-io-shield';
 
 export function createCableHarness(THREE,scene){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
