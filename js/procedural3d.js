@@ -200,7 +200,7 @@ function sync(state,details={}){
 const raycaster=new THREE.Raycaster();
 const pointer=new THREE.Vector2();
 let press=null,highlight=null,selected='';
-function select3D(id){
+function select3D(id,clientX=null,clientY=null){
   selected=id;
   if(highlight){
     scene.remove(highlight);
@@ -209,10 +209,13 @@ function select3D(id){
     highlight=null;
   }
   const obj=partGroups[id];
-  if(!obj?.visible)return;
-  highlight=new THREE.BoxHelper(obj,0x68e5c0);
-  scene.add(highlight);
-  window.dispatchEvent(new CustomEvent('pc3d-select',{detail:{part:id}}));
+  if(obj?.visible){
+    highlight=new THREE.BoxHelper(obj,0x68e5c0);
+    scene.add(highlight);
+  }
+  window.dispatchEvent(new CustomEvent('pc3d-select',{
+    detail:{part:id,clientX,clientY}
+  }));
 }
 view.addEventListener('pointerdown',e=>{
   press={x:e.clientX,y:e.clientY};
@@ -239,13 +242,41 @@ view.addEventListener('pointerup',e=>{
   const stageHits=raycaster.intersectObject(staging.root,true);
   const stageKey=stageHits.map(h=>staging.identify(h.object)).find(Boolean);
   if(stageKey){
-    window.dispatchEvent(new CustomEvent('pc3d-stage-select',{detail:{key:stageKey}}));
+    window.dispatchEvent(new CustomEvent('pc3d-stage-select',{
+      detail:{key:stageKey,clientX:e.clientX,clientY:e.clientY}
+    }));
     return;
+  }
+  // El chasis transparente no debe impedir seleccionar conectores y piezas
+  // visibles en su interior. Los ventiladores tienen puntos propios.
+  const fanHits=raycaster.intersectObjects(
+    assembly.caseFanMounts.filter(x=>x.visible),true);
+  if(fanHits.length){
+    let obj=fanHits[0].object;
+    while(obj&&!Number.isInteger(obj.userData?.caseFanSlot)&&obj.parent)obj=obj.parent;
+    if(Number.isInteger(obj.userData?.caseFanSlot)){
+      select3D('fan'+obj.userData.caseFanSlot,e.clientX,e.clientY);
+      return;
+    }
   }
   if(hits.length){
     let obj=hits[0].object;
     while(obj&&!obj.userData.partId)obj=obj.parent;
-    if(obj?.userData.partId)select3D(obj.userData.partId);
+    if(obj?.userData.partId){
+      select3D(obj.userData.partId,e.clientX,e.clientY);
+      return;
+    }
+  }
+  const peripherals=[
+    [workbench.keyboard,'keyboard'],[workbench.mouseGroup,'mouse'],
+    [workbench.screen,'monitor']];
+  for(const [obj,id] of peripherals){
+    if(raycaster.intersectObject(obj,true).length){
+      select3D(id,e.clientX,e.clientY);return;
+    }
+  }
+  if(current?.installed?.case&&raycaster.intersectObject(tower.root,true).length){
+    select3D('case',e.clientX,e.clientY);return;
   }
 });
 function resize(){
