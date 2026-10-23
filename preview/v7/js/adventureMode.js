@@ -211,7 +211,16 @@ function createAdventureGame(api){
     if(!game)return;
     const g=game,st=api.state(),verb=override||g.verb,k=g.selected;
     if(verb==='boot'){api.power();return;}
-    if(verb==='route'){api.action('route_psu');return;}
+    if(verb==='route'){
+      const before=st.log?.[0];
+      api.action('route_psu');
+      const reason=st.log?.[0]!==before?st.log?.[0]?.m:null;
+      message(st.psuAccessRouted?
+        'Mazos PSU apartados y asegurados. Ya puedes encajar la placa base.':
+        'No se pudieron ordenar los cables: '+(reason||'comprueba que la fuente esté instalada y la caja abierta.'),
+        st.psuAccessRouted?'ok':'warn');
+      return;
+    }
     if(verb==='bios'){api.bios();return;}
     if(verb==='inspect'){inspect();return;}
     if(verb==='os'){installOS();return;}
@@ -229,9 +238,22 @@ function createAdventureGame(api){
         api.action('seat_ram');message('DIMM encajado en ambas pestañas.','ok');return;
       }
       if(k==='item:ioShield'){
-        if(!has(k)){message('Necesitas la chapa I/O.');return;}
-        api.installIOShield();
-        if(st.ioShield){expend(k);message('Chapa I/O colocada antes de la placa.','ok');}
+        if(st.ioShield){
+          message('La chapa I/O ya está encajada en los puertos traseros de la caja.','ok');
+          return;
+        }
+        if(!has(k)){message('Necesitas comprar una chapa I/O.');return;}
+        const beforeLog=st.log?.[0];
+        try{api.installIOShield();}catch(err){
+          message('No se pudo colocar la chapa I/O: '+(err?.message||String(err)));return;
+        }
+        if(st.ioShield){
+          expend(k);
+          message('Chapa I/O colocada en la abertura trasera USB/HDMI. Ya puedes montar la placa.','ok');
+        }else{
+          const reason=st.log?.[0]!==beforeLog?st.log?.[0]?.m:null;
+          message('Chapa I/O no instalada: '+(reason||'revisa que la caja esté abierta, colocada y sin corriente.'));
+        }
         return;
       }
       if(!has(k)){message('Ya has usado esa pieza o no está en el inventario.');return;}
@@ -253,7 +275,13 @@ function createAdventureGame(api){
         st.selected[cat]=id;
       }
       const previous=!!st.installed[part];
-      api.install(part);
+      const previousLog=st.log?.[0];
+      // El motor puede rechazar una instalación por seguridad u orden de
+      // montaje. Antes el rechazo quedaba oculto en el historial técnico.
+      try{api.install(part);}catch(err){
+        message('Error instalando '+label(cat,id)+': '+(err?.message||String(err)));
+        return;
+      }
       if(st.installed[part]&&!previous){
         expend(k);
         if(part==='case'){
@@ -264,6 +292,13 @@ function createAdventureGame(api){
         if(part==='ram')message('Módulos colocados, pero hay que presionar hasta encajar el DIMM.','ok');
         else message(label(cat,id)+' encajado. Comprueba tornillos y conexiones.','ok');
       }else if(previous)message('La pieza ya está instalada: prueba atornillar o conectar.');
+      else{
+        const reason=st.log?.[0]!==previousLog?st.log?.[0]?.m:null;
+        const detail=reason||st.lastRenderError||
+          'La pieza no quedó instalada. Comprueba que el chasis esté abierto, sin alimentación y que los separadores estén accesibles.';
+        message('No se puede montar '+label(cat,id)+': '+detail);
+        g.openSections=['actions','mission'];
+      }
       return;
     }
     if(verb==='screw'){
@@ -528,6 +563,11 @@ function createAdventureGame(api){
       if(id==='fan')add('Encajar ventilador','Colócalo en una ranura del chasis','fit',has(k));
       else add('Material de taller','Se utiliza con Atornillar, Conectar o Instalar SO','inspect');
     }else if(cat!=='undefined'){
+      if(cat==='motherboard'&&!st.installed.motherboard&&
+         st.installed.psu&&!st.psuAccessRouted)
+        add('Apartar y asegurar mazos PSU',
+          'La fuente se colocó antes que la placa y sus cables impiden el encaje.',
+          'route',true);
       if(!st.installed[cat])
         add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
       else if(cat==='ram'&&!st.ramSeated)
@@ -547,8 +587,11 @@ function createAdventureGame(api){
       return '1 · Compra una CAJA en la tienda. Selecciónala en la mesa auxiliar y pulsa «Colocar caja en mesa de montaje».';
     if(!st.ioShield)
       return '2 · La caja ya está colocada. Compra y encaja la chapa I/O antes de poner la placa.';
-    if(!st.installed.motherboard)
+    if(!st.installed.motherboard){
+      if(st.installed.psu&&!st.psuAccessRouted)
+        return '3 · La fuente se instaló antes. Selecciona la placa y usa «Apartar y asegurar mazos PSU»; después encájala.';
       return '3 · Coloca la placa base dentro de la caja y fíjala con tornillos.';
+    }
     if(!st.installed.cpu||!st.installed.ram)
       return '4 · Instala CPU y RAM. Encaja las pestañas de memoria; compra pasta térmica.';
     if(!st.installed.cooler||!st.cpuFan)
