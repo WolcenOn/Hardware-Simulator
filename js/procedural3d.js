@@ -306,7 +306,15 @@ function animate(now){
 window.PC3D={
   ready:true,
   update:sync,
-  updateStaging:(items,selected)=>staging.update(items,selected),
+  updateStaging:(items,selected)=>{
+    staging.update(items,selected);
+    window.dispatchEvent(new CustomEvent('pc3d-stage-page',{detail:staging.getPageInfo()}));
+  },
+  turnStagingPage:delta=>{
+    staging.turnPage(delta);
+    const detail=staging.getPageInfo();
+    window.dispatchEvent(new CustomEvent('pc3d-stage-page',{detail}));
+  },
   dragPart,cancelDrag,viewIso:viewHardware,
   viewWorkbench:resetView,
   viewStaging,
