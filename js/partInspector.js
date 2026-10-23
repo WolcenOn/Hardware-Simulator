@@ -28,7 +28,7 @@ function createPartInspector(api){
   const mount=api.document.getElementById('viewportWrap');
   const pop=api.document.getElementById('partContextMenu');
   const sheet=api.document.getElementById('partSpecSheet');
-  let target=null,detailsOpen=false;
+  let target=null,detailsOpen=false,feedback=null;
   const good=(label,on,description='')=>({label,level:on?'ok':'warn',value:on?'Correcto':'Pendiente',description});
   const info=(label,value,description='')=>({label,level:'info',value,description});
   function parse(ref){
@@ -219,6 +219,17 @@ function createPartInspector(api){
       }).join('');
     return rows||'<p class="muted">Todavía no hay piezas instaladas. Compra una caja y colócala en el banco.</p>';
   }
+  function contextButtons(t){
+    return '<div class="part-context-actions">'+actionList(t).map(a=>
+      '<button type="button" data-part-verb="'+escape(a.verb)+'"'+
+      (a.target?' data-part-target="'+escape(a.target)+'"':'')+
+      (!a.enabled?' disabled':'')+'>'+escape(a.label)+'</button>').join('')+'</div>';
+  }
+  function feedbackHTML(){
+    return feedback?'<p class="part-action-feedback '+
+      (feedback.level==='ok'?'ok':'warn')+'" role="status">'+
+      escape(feedback.text)+'</p>':'';
+  }
   function showSheet(){
     const t=getInfo(target?.ref);if(!t)return;
     const props=details(t);
@@ -229,6 +240,7 @@ function createPartInspector(api){
       '<h3>Ficha técnica · '+escape(t.name)+'</h3>'+
       '<button type="button" data-part-close-sheet title="Cerrar ficha">✕</button></div>'+
       '<p class="muted">'+escape(t.model.desc||'Modelo procedural educativo del simulador.')+'</p>'+
+      '<h4>Acciones disponibles</h4>'+contextButtons(t)+feedbackHTML()+
       '<h4>Características</h4>'+
       (props.length?'<dl class="part-specs">'+props.map(row=>'<div><dt>'+
         escape(row.label)+'</dt><dd>'+escape(row.value)+'</dd></div>').join('')+'</dl>':
@@ -247,10 +259,7 @@ function createPartInspector(api){
       '</strong><button type="button" data-part-close title="Cerrar menú">✕</button></div>'+
       '<p class="part-context-sub">'+(mounted?'● Montado':'● Sin instalar')+
       (target?.source==='table'?' · Mesa auxiliar':' · Vista 3D')+'</p>'+
-      '<div class="part-context-actions">'+actionList(t).map(a=>
-        '<button type="button" data-part-verb="'+escape(a.verb)+'"'+
-        (a.target?' data-part-target="'+escape(a.target)+'"':'')+
-        (!a.enabled?' disabled':'')+'>'+escape(a.label)+'</button>').join('')+'</div>'+
+      contextButtons(t)+feedbackHTML()+
       '<div class="part-status-preview">'+
       formatRows(status.filter(x=>x.level!=='info').slice(0,5))+
       '</div>';
@@ -260,7 +269,7 @@ function createPartInspector(api){
   function open(ref,source='tower',x=null,y=null){
     const t=getInfo(ref);if(!t)return false;
     target={ref:t.key,source};
-    detailsOpen=false;sheet.hidden=true;
+    feedback=null;detailsOpen=false;sheet.hidden=true;
     const box=mount.getBoundingClientRect();
     const w=Math.max(230,Math.min(325,box.width-18));
     const h=Math.min(415,Math.max(250,box.height-15));
@@ -271,30 +280,48 @@ function createPartInspector(api){
     return true;
   }
   function close(){
-    target=null;detailsOpen=false;pop.hidden=true;sheet.hidden=true;
+    target=null;detailsOpen=false;feedback=null;pop.hidden=true;sheet.hidden=true;
   }
   function refresh(){if(target)draw();}
   function perform(verb,connector){
     if(!target)return;
     if(verb==='sheet'){showSheet();return;}
     const t=getInfo(target.ref),ad=api.adventure?.();
-    if(!ad?.active){
-      showSheet();return;
-    }
+    if(!ad?.active){showSheet();return;}
+    const prev=ad.game?.lastFeedback;
     if(verb==='connect'||verb==='disconnect'){
-      if(!connector)return;
+      if(!connector){
+        feedback={text:'No se ha seleccionado ningún conector.',level:'warn'};
+        refresh();return;
+      }
       if(/^fan[0-2]$/.test(t.category)){
         const i=Number(t.category.slice(-1));
-        api.fan?.(i,api.state().caseFans?.[i]?.connected?'disconnect':'connect');
+        const connected=!!api.state().caseFans?.[i]?.connected;
+        if(verb==='connect'&&connected||verb==='disconnect'&&!connected)
+          feedback={text:'El SYS_FAN ya está en ese estado.',level:'warn'};
+        else{
+          api.fan?.(i,verb);
+          feedback={text:'SYS_FAN '+(i+1)+(verb==='connect'?' conectado.':' desconectado.'),
+            level:'ok'};
+        }
       }else if(verb==='connect')ad.connect(connector);
       else ad.disconnect(connector);
     }else{
       if(!ad.game?.stock?.[t.key]&&!ad.game?.used?.[t.key]&&t.category!=='item'){
-        api.notice?.('La pieza debe comprarse antes de poder usar herramientas.');
-        return;
+        feedback={text:'Debes comprar la pieza antes de realizar la operación.',level:'warn'};
+        refresh();return;
       }
-      if(ad.game?.stock?.[t.key]||ad.game?.used?.[t.key])ad.select(t.key);
+      if(ad.game?.stock?.[t.key]||ad.game?.used?.[t.key]){
+        ad.select(t.key);
+      }
+      // Ejecutamos el verbo explícito de este botón, nunca el elegido
+      // previamente en el acordeón del lateral.
       ad.perform(verb);
+    }
+    if(ad.game?.lastFeedback&&ad.game.lastFeedback!==prev){
+      feedback={...ad.game.lastFeedback};
+    }else if(!feedback){
+      feedback={text:'Operación procesada. Comprueba el estado del componente.',level:'ok'};
     }
     refresh();
   }
@@ -304,7 +331,14 @@ function createPartInspector(api){
     if(b.dataset.partVerb)perform(b.dataset.partVerb,b.dataset.partTarget);
   });
   sheet.addEventListener('click',e=>{
-    if(e.target.closest('[data-part-close-sheet]')){detailsOpen=false;sheet.hidden=true;}
+    const button=e.target.closest('button');
+    if(!button)return;
+    if(button.hasAttribute('data-part-close-sheet')){
+      detailsOpen=false;sheet.hidden=true;return;
+    }
+    if(button.dataset.partVerb){
+      perform(button.dataset.partVerb,button.dataset.partTarget);
+    }
   });
   api.document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&target)close();
