@@ -9,7 +9,7 @@ import { createCableHarness } from './cablesProcedural.js?v=8-3-2-io-shield';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=7-3-upright-4000d';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
-import { createStagingTable } from './stagingTable3d.js?v=8-2-prep-bench';
+import { createStagingTable } from './stagingTable3d.js?v=8-4-workshop-tooltips';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
