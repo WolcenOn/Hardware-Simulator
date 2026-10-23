@@ -5,11 +5,11 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale } from './partsRealScale.js?v=8-4-1-gameplay-e2e';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-3-2-io-shield';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-1-gameplay-e2e';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=7-4-desk-monitor';
 import { createATXTower } from './towerATX.js?v=8-4-1-gameplay-e2e';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
-import { createStagingTable } from './stagingTable3d.js?v=8-4-workshop-tooltips';
+import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
