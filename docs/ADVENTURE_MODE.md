@@ -327,3 +327,48 @@ Vista previa: `/preview/v7/?v=8-3-part-inspection`.
 - [ ] Revisión visual del lateral a 320–1440 px con WebGL real.
 
 Vista previa: `/preview/v7/?v=8-3-1-action-layout`.
+
+
+## Corrección 8.3.2 — Chapa I/O y bloqueo de placa base (23-10-2026)
+
+### Posición y forma 3D
+- La chapa I/O pasa de un rectángulo independiente en una orientación
+  incorrecta a un **marco real de plano YZ**, en el **borde trasero -X**
+  de la placa base y de la caja torre. Los conectores USB se sitúan
+  en la misma hilera Z de los puertos de la motherboard.
+- Se reubican HDMI y DisplayPort dentro de esa misma abertura,
+  en una fila superior independiente.
+- La chapa tiene abertura interior visible y no bloquea la visión de
+  los puertos cuando la placa está instalada.
+- Para cada variante de placa (B650, A520, Z790, B650M, B550, H610,
+  B760), la posición se calcula en `configure()` a partir de
+  `cfg.x - cfg.w / 2` y `cfg.z - cfg.d / 2`: el marco se adapta
+  a las distintas longitudes ATX/mATX.
+- Es visible una vez colocada la caja y comprada/encajada la chapa
+  **incluso antes** de insertar la placa; se puede seleccionar con clic
+  3D para inspeccionar su ficha.
+
+### Fallo de montaje y recuperación
+- Si el motor no permite instalar la placa, el modo aventura muestra
+  inmediatamente **el motivo exacto** en el acordeón de acciones;
+  antes quedaba únicamente en el registro general.
+- El rechazo no consume la placa adquirida.
+- Si se ha instalado la PSU primero y los cables estorban, se ofrece
+  la operación contextual **«Apartar y asegurar mazos PSU»**, en el
+  lateral y en el menú 3D de la placa. Después se puede colocar.
+- La chapa I/O ya instalada no se consume por segunda vez.
+- Si el renderizador falla, su mensaje se conserva en
+  `state.lastRenderError` para poder informar del problema.
+
+### Pruebas
+- [x] Siete familias de placa: marco trasero alineado y puertos
+      HDMI/DP contenidos dentro de su abertura.
+- [x] Chapa oculta cuando no está instalada.
+- [x] Secuencia caja → chapa I/O → placa, sin errores de ejecución.
+- [x] Secuencia caja → chapa I/O → PSU → placa:
+      rechazo por cables, mensaje concreto, sugerencia «Apartar
+      mazos» y montaje correcto tras asegurar los cables.
+- [x] Inventario no pierde la placa ante una instalación bloqueada.
+- [ ] Confirmación visual WebGL de la chapa sobre cada placa.
+
+Vista previa: `/preview/v7/?v=8-3-2-io-shield`.
