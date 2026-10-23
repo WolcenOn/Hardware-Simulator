@@ -110,16 +110,31 @@ export function buildRealScale(p) {
   const CASE_CLOSE_ANGLE=0,CASE_OPEN_ANGLE=1.32;
   doorHinge.rotation.z=CASE_OPEN_ANGLE;
 
-  // Chapa I/O trasera: se encaja antes de presentar la motherboard.
-  const ioShield=new THREE.Group();scene.add(ioShield);
+  // La chapa I/O tiene que coincidir con el REAR I/O de la motherboard:
+  // la abertura trasera del chasis está en -X y los cinco puertos se
+  // distribuyen sobre Z, no a lo ancho de la bandeja.
+  // Bastidor abierto: el hueco central deja visibles USB, HDMI y DP.
+  const ioShield=new THREE.Group();ioShield.name='Chapa I/O ATX trasera';
+  ioShield.userData.partId='ioShield';
+  scene.add(ioShield);
   const portsPanel=new THREE.MeshStandardMaterial({
-    color:0x8ba1ac,roughness:.40,metalness:.85,side:THREE.DoubleSide
+    color:0x9bb3bf,roughness:.36,metalness:.84,side:THREE.DoubleSide
   });
-  rounded(1.10,1.55,.07,.024,portsPanel,ioShield,-3.40,1.23,-3.68);
-  for(let row=0;row<4;row++)for(let col=0;col<2;col++){
-    rounded(.24,.135,.026,.015,dark,ioShield,-3.63+col*.40,.73+row*.31,-3.615);
-    rounded(.15,.07,.015,.01,col%2?materials.blue:alu,ioShield,
-      -3.63+col*.40,.73+row*.31,-3.59);
+  // Marco en plano YZ: espesor X 0.09, alto Y 0.98 y largo Z 2.90.
+  for(const y of [.10,1.04])
+    rounded(.09,.10,2.90,.025,portsPanel,ioShield,0,y,0);
+  for(const z of [-1.40,1.40])
+    rounded(.09,.96,.12,.024,portsPanel,ioShield,0,.57,z);
+  // Travesaños de chapa entre grupos de puertos, sin tapar sus contactos.
+  for(const z of [-.70,.71])
+    rounded(.10,.055,.11,.015,portsPanel,ioShield,0,.59,z);
+  // Conectores USB (centro y=0.51) con marco azul, a la altura real
+  // de los puertos ya dibujados sobre cada variante de placa.
+  for(let i=0;i<5;i++){
+    const z=-1.03+i*.50;
+    rounded(.13,.31,.35,.021,dark,ioShield,.10,.51,z);
+    rounded(.10,.16,.24,.014,i%2?materials.blue:alu,ioShield,
+      .19,.51,z);
   }
   // Dos bahías separadas para HDD 3.5" y SSD 2.5", frontales en el chasis.
   const storageBays=new THREE.Group();chassis.add(storageBays);
@@ -412,7 +427,12 @@ export function buildRealScale(p) {
     m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=false; // las bandejas correctas las crea towerATX.js
-    ioShield.visible=!!s?.ioShield;
+    // Mismo borde izquierdo y misma cota Z que la hilera I/O de
+    // la PCB elegida. La placa se inserta en este marco por detrás.
+    const rearX=cfg.x-cfg.w/2-.20;
+    const ioZ=cfg.z-cfg.d/2+1.58;
+    ioShield.position.set(rearX,0,ioZ);
+    ioShield.visible=!!s?.installed?.case&&!!s?.ioShield;
     caseFanMounts.forEach((mount,i)=>{
       mount.visible=!!s?.caseFans?.[i]?.installed;
     });
