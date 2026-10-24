@@ -414,6 +414,7 @@ test('HDD de 3,5 pulgadas encajado en la jaula del chasis, no en el lateral',asy
 });
 
 test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos',async ({page})=>{
+  test.setTimeout(120_000); // dos montajes 3D WebGL y cambio de cámara en CI
   await openGame(page);
   await page.waitForFunction(()=>window.PC3D?.ready===true);
   await page.locator('#autoBuild').click(); // SSD SATA por defecto
