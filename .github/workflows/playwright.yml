@@ -8,9 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  e2e:
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install test dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run regression smoke tests
+        run: npm run test:smoke
+
+  hdd:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,16 +34,43 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run regression smoke tests
-        run: npm run test:smoke
-      - name: Run browser scenarios
-        run: npm run test:e2e
-      - name: Upload Playwright report and traces
-        if: always()
+      - name: Diagnose HDD installation specifically
+        run: npx playwright test --project=chromium-desktop --grep "HDD de 3,5" --workers=1 --retries=0 --reporter=list
+      - name: Upload HDD diagnosis and trace
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-e2e-${{ github.run_number }}
+          name: hdd-diagnosis-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  e2e:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium-desktop, chromium-mobile]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser tests
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser scenarios (one browser per runner)
+        run: npx playwright test --project=${{ matrix.project }} --workers=1 --retries=0 --reporter=list
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-${{ matrix.project }}-${{ github.run_number }}
           path: |
             playwright-report/
             test-results/
-          retention-days: 14
+          retention-days: 7
