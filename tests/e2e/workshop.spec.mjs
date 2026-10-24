@@ -587,7 +587,7 @@ test('profesor importa caso JSON con presupuesto y exporta montaje',async ({page
     name:'caso-cad.json',mimeType:'application/json',buffer:Buffer.from(json)});
   await expect(page.locator('#teacherStatus')).toContainText('PC aula CAD');
   await expect(page.locator('#advClient option:checked')).toContainText('PC aula CAD');
-  await expect(page.locator('#adventurePanel')).toContainText('1.200');
+  await expect(page.locator('#adventurePanel')).toContainText(/(?:1\.?200)\s*€/);
   const downloaded=page.waitForEvent('download');
   await page.locator('#exportPcJson').click();
   const file=await downloaded;
