@@ -339,6 +339,17 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const verb=override||game.verb;
+    if(verb==='route'){
+      const st=api.state(),was=!!st.psuAccessRouted;
+      return tracked('route','psu-cables',()=>performLegacy(override),
+        ()=>!was&&!!st.psuAccessRouted);
+    }
+    if(verb==='remove'){
+      const st=api.state(),item=game.selected||'',cat=String(item).split(':')[0];
+      const was=!!st.installed[cat];
+      return tracked('remove',item||'sin-seleccion',()=>performLegacy(override),
+        ()=>was&&!st.installed[cat]);
+    }
     if(verb!=='fit'&&verb!=='screw')return performLegacy(override);
     const st=api.state(),k=game.selected,[cat,id]=String(k||'').split(':');
     const part=cat;
@@ -542,6 +553,12 @@ function createAdventureGame(api){
     message('Esa acción no es válida para el objeto seleccionado.');
   }
   function apply(k){
+    if(!game)return;
+    const prior=game.used[k]||0;
+    return tracked('apply',k||'sin-seleccion',()=>applyLegacy(k),
+      ()=>(game.used[k]||0)>prior);
+  }
+  function applyLegacy(k){
     const st=api.state();
     if(k==='item:rgbStrip'){
       if(!has(k)){message('Compra una tira LED ARGB antes de aplicarla.');return;}
@@ -630,6 +647,21 @@ function createAdventureGame(api){
     else message('No se ha podido completar la conexión. Comprueba fuente y cableado.');
   }
   function disconnect(target){
+    if(!game)return false;
+    const st=api.state(),index=target.startsWith('sysfan')?
+      Number(target.slice(-1)):-1;
+    const flags={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',
+      frontusb3:'frontUsb3',frontusbc:'frontUsbC',
+      gpupower:'gpuPower',sataData:'sataData',sataPower:'sataPower',
+      cpufan:'cpuFan',monitor:'monitorCable',
+      keyboard:'keyboardConnected',mouse:'mouseConnected'};
+    const flag=flags[target];
+    const active=()=>index>=0?!!st.caseFans[index]?.connected:!!st[flag];
+    const was=active();
+    return tracked('disconnect',target,()=>disconnectLegacy(target),
+      ()=>was&&!active());
+  }
+  function disconnectLegacy(target){
     const st=api.state();
     const internal=!['monitor','keyboard','mouse'].includes(target);
     if(internal&&(st.power||st.caseClosed)){
@@ -850,7 +882,12 @@ function createAdventureGame(api){
         '<option value="'+id+'"'+(clock?.getSpeed()===id?' selected':'')+'>'+opt.label+'</option>').join('')+
       '</select><p id="advVirtualClock" aria-live="polite">Tiempo virtual: '+
       (clock?.getSummary().total||0)+' min · '+
-      (operationEngine?.getHistory().length||0)+' operaciones registradas</p></div>';
+      (operationEngine?.getHistory().length||0)+' operaciones registradas</p>'+
+      '<p id="advWorkSummary" aria-live="polite">'+
+      'Necesarias: '+(operationEngine?.getSummary().counts.necessary||0)+
+      ' · Retrabajos: '+(operationEngine?.getSummary().counts.rework||0)+
+      ' · Rechazos: '+(operationEngine?.getSummary().counts.rejected||0)+
+      '</p></div>';
     const inventory=
       '<p class="muted">Comprado → mesa auxiliar → instalado. Pulsa una pieza para seleccionarla. Devuelve o cambia las no utilizadas.</p>'+
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+

@@ -66,3 +66,55 @@ test('un segundo intento sobre una conexión ya completada cuenta como repetido 
   assert.equal(result.reason,'Ya estaba conectado.');
   assert.equal(clock.getSummary().total,before);
 });
+
+test('deshacer un montaje del mismo encargo se registra como retrabajo',()=>{
+  const clock=PC_TIME.createClock(),engine=PC_OPERATIONS.createEngine({clock});
+  let fitted=false;
+  const fit=()=>engine.attempt({kind:'fit',target:'case:tower',
+    execute:()=>{fitted=true},wasSuccessful:()=>fitted});
+  const remove=()=>engine.attempt({kind:'remove',target:'case:tower',
+    execute:()=>{fitted=false},wasSuccessful:()=>!fitted});
+  assert.equal(fit().category,'necessary');
+  assert.equal(remove().category,'rework');
+  assert.equal(fit().category,'rework');
+  assert.equal(engine.getSummary().counts.rework,2);
+  assert.equal(engine.getSummary().counts.necessary,1);
+  assert(engine.getSummary().technical>8.8);
+});
+test('desconexión de cable preexistente es necesaria; reconexión tras desmontaje es retrabajo',()=>{
+  const clock=PC_TIME.createClock(),engine=PC_OPERATIONS.createEngine({clock});
+  let connected=true;
+  let r=engine.attempt({kind:'disconnect',target:'frontpanel',
+    execute:()=>{connected=false},wasSuccessful:()=>!connected});
+  assert.equal(r.category,'necessary','Desmontar equipo inicial puede ser un objetivo');
+  r=engine.attempt({kind:'connect',target:'frontpanel',
+    execute:()=>{connected=true},wasSuccessful:()=>connected});
+  assert.equal(r.category,'necessary','Sin conexión previa registrada, no es retrabajo');
+  r=engine.attempt({kind:'disconnect',target:'frontpanel',
+    execute:()=>{connected=false},wasSuccessful:()=>!connected});
+  assert.equal(r.category,'rework');
+  r=engine.attempt({kind:'connect',target:'frontpanel',
+    execute:()=>{connected=true},wasSuccessful:()=>connected});
+  assert.equal(r.category,'rework');
+  assert.equal(engine.getSummary().counts.rework,2);
+});
+test('fallos, trabajos repetidos y consumibles no alteran reglas técnicas',()=>{
+  const clock=PC_TIME.createClock(),engine=PC_OPERATIONS.createEngine({clock});
+  const defs=engine.getDefinitions();
+  for(const kind of ['fit','screw','connect','inspect','remove','disconnect','apply','route'])
+    assert(defs[kind]?.id===kind);
+  let routed=false;
+  const first=engine.attempt({kind:'route',target:'psu-cables',
+    execute:()=>{routed=true},wasSuccessful:()=>routed});
+  assert.equal(first.category,'necessary');
+  const minutes=clock.getSummary().total;
+  const again=engine.attempt({kind:'route',target:'psu-cables',
+    execute:()=>{},wasSuccessful:()=>false,getReason:()=> 'Mazos ya asegurados.'});
+  assert.equal(again.category,'repeated');
+  assert.equal(again.minutes,0);
+  assert.equal(clock.getSummary().total,minutes);
+  const badApply=engine.attempt({kind:'apply',target:'item:paste',
+    execute:()=>{},wasSuccessful:()=>false});
+  assert.equal(badApply.category,'rejected');
+  assert.equal(clock.getSummary().total,minutes);
+});

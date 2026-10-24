@@ -646,6 +646,27 @@ test('Fase 1: velocidad y reloj virtual registran montaje e inspección sin tiem
   await expect(page.locator('#advWorkSpeed')).toHaveValue('normal');
 });
 
+test('Fase 1.1: desmontaje válido, retrabajo y rechazos conservan el reloj',async ({page})=>{
+  test.setTimeout(175_000);
+  await openGame(page);
+  await openSection(page,'actions');
+  await page.locator('[data-verb="route"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(page.locator('#advWorkSummary')).toContainText('Rechazos: 1');
+  await expect(page.locator('#advVirtualClock')).toContainText('0 min');
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','screwdriver');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="case:tower"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-verb="remove"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(page.locator('#advWorkSummary')).toContainText('Retrabajos: 1');
+  await fit(page,'case:tower');
+  await expect(page.locator('#advWorkSummary')).toContainText('Retrabajos: 2');
+  await expect(page.locator('#advVirtualClock')).not.toContainText('0 min');
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

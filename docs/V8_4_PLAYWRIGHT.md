@@ -301,3 +301,14 @@ El proyecto de escritorio conserva una ventana CSS de **1440×900 px**, y se con
 - Exportación **aditiva** al montaje `pc-lab.build.v1` durante modo aventura con `operationHistory` y `simulatedTime`; no se cambia el esquema ni se elimina información anterior. En modo técnico la exportación mantiene el comportamiento previo.
 - Pruebas de Node `tests/operations.test.mjs` y `tests/time.test.mjs`, smoke y escenario E2E específico. Los motores de fallos y misiones quedan fuera del alcance deliberadamente.
 - Vínculo del preview: `/preview/v7/?v=8-7-0-operation-time`. Mantener inmutable `main/index.html` estable.
+
+## 8.7.1-alpha — ampliación incremental de operaciones y retrabajos
+
+- Base de referencia: ejecución Playwright `40131083935` del commit `6364ef2`, **todos los trabajos correctos**, incluidos navegador escritorio y móvil. Solo después de verificarla se inició este incremento.
+- Se amplía el registro de operaciones de cuatro a ocho: `fit`, `screw`, `connect`, `inspect`, **`remove`**, **`disconnect`**, **`apply`** y **`route`**. No hay nuevos prerrequisitos duplicados: los handlers de `adventureMode.js` siguen validando compras, herramientas, alimentación, piezas instaladas y acceso.
+- `operationEngine.js` mantiene los conjuntos de operaciones completadas, vigentes y revertidas. Desconectar algo conectado o retirar algo montado durante el encargo se registra `rework`; reinstalarlo/reconectarlo tras deshacerlo también es retrabajo. Retirar hardware preexistente sin instalación previa registrada puede ser operación necesaria; es el punto de partida para futuras misiones de reparación.
+- Los intentos inválidos (sin PSU, sin material, montaje bloqueado, retirada prohibida) quedan en `rejected` y consumen cero minutos simulados. Repetir una operación ya completada sin cambio de estado cuenta como `repeated`. Las acciones válidas consumen minutos virtuales según velocidad y dificultad, sin generador aleatorio.
+- La interfaz del modo aventura presenta recuentos de operaciones necesarias, retrabajos y rechazos junto al reloj. La exportación `pc-lab.build.v1` continúa incorporando `operationHistory` y `simulatedTime` de forma aditiva.
+- Pruebas nuevas en `tests/operations.test.mjs`, smoke de flujo completo desmontar→reinstalar, ruta PSU, conectar→desconectar→reconectar y aplicar pasta, y un E2E del contador de retrabajos.
+- No se ha creado un motor de pifias, reloj de pared ni evaluación por medallas. Se preserva `main/index.html` y solo se actualizan archivos `preview/v7`.
+- Vista previa: `/preview/v7/?v=8-7-1-operation-lifecycle`.
