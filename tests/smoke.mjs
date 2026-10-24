@@ -263,7 +263,8 @@ assert(html.includes('id="viewDriveBays"'));
 const os=window.PC_OS;
 assert.equal(Object.keys(os.CATALOG).length,3);
 assert.equal(os.storageCapacityGb('hdd','HDD SATA 2 TB'),2000);
-const machine={power:true,bios:false,installed:{storage:true},
+const machine={power:true,bios:false,monitorCable:true,keyboardConnected:true,
+ installed:{storage:true},
  selected:{storage:'sataSSD'},sataData:true,sataPower:true,
  usbConnected:false,usbImage:'none',installedOs:null,osInstalled:false,
  biosCfg:{boot:'ssd',bootOrder:['ssd','usb','pxe'],secure:'on',uefi:'on',sata:'AHCI'}};
