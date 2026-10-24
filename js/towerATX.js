@@ -1,8 +1,9 @@
+import {createInternalHeader3d} from './connectors3d.js?v=8-4-9-routed-cables';
 // Torre ATX procedural basada en el reparto interno del Corsair 4000D Airflow.
 // Sistema local de montaje: X=trasera→frontal, Z=superior→inferior, Y=fondo→cristal.
 // Se transforma a vertical en procedural3d.js con rotation.x=Math.PI/2.
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
-import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT } from './partsRealScale.js?v=8-4-4-front-io';
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT } from './partsRealScale.js?v=8-4-9-routed-cables';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);
@@ -106,6 +107,21 @@ export function createATXTower(THREE,parent,materials){
     ...FRONT_IO_LAYOUT.usbA.map(pos=>({id:'frontUsb3',object:usbPort(pos,'frontUsb3')})),
     {id:'frontUsbC',object:usbPort(FRONT_IO_LAYOUT.usbC,'frontUsbC')}
   ];
+  // Cabeceras REALES del panel frontal. El origen de cada manguera es
+  // la toma posterior del módulo POWER / USB, nunca un punto flotante.
+  const frontIOHeaders={};
+  for(const [kind,xyz] of [
+    ['frontPanel',FRONT_IO_LAYOUT.powerLead],
+    ['frontUsb3',FRONT_IO_LAYOUT.usbALead],
+    ['frontUsbC',FRONT_IO_LAYOUT.usbCLead]
+  ]){
+    const socket=createInternalHeader3d(THREE,kind);
+    socket.name='Panel frontal '+kind+' · toma trasera';
+    socket.position.set(...xyz);
+    socket.rotation.x=Math.PI/2; // Y local sale hacia +Z dentro de la caja
+    frontIO.add(socket);
+    frontIOHeaders[kind]=socket;
+  }
   let powerStroke=0;
   function pressPowerButton(){powerStroke=.16;}
   function updateFrontIO(dt){
@@ -182,7 +198,8 @@ export function createATXTower(THREE,parent,materials){
   function setRgb(enabled){rgbGroup.visible=!!enabled;}
   setRgb(false);
   return {root:tower,sync,setFinish,getFinish,setRgb,setPower,pressPowerButton,updateFrontIO,
-    powerControl,powerButton,powerLed,frontUsbPorts,frontIO,setMotherboardLayout,mountPosts,
+    powerControl,powerButton,powerLed,frontUsbPorts,frontIO,frontIOHeaders,
+    setMotherboardLayout,mountPosts,
     hinge,rearSSD,hddCage,psuSeat,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }

@@ -2,10 +2,12 @@
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
 import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
-  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
-import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
+  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-4-9-routed-cables';
+import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-9-routed-cables';
+import {planCableRoute,createSafeCableCurve,routeCollisions}
+  from './cableRouting3d.js?v=8-4-9-routed-cables';
 
-export function createCableHarness(THREE,scene,assembly){
+export function createCableHarness(THREE,scene,assembly,tower){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);
   const palette={
     sataData:new THREE.MeshStandardMaterial({color:0x358bd0,roughness:.79}),
@@ -24,12 +26,12 @@ export function createCableHarness(THREE,scene,assembly){
   const strands={atx24:6,eps:4,gpu:4,sataPower:3};
   const wires={};
   let layoutKey='';
+  let activeConfig,activeGpu,activeStorage,activeBoardId='b650';
 
-  function tube(parent,positions,radius,material){
-    const points=positions.map(([x,y,z])=>new THREE.Vector3(x,y,z));
-    const curve=new THREE.CatmullRomCurve3(points,false,'centripetal',.40);
+  function tube(parent,positions,radius,material,obstacles=[]){
+    const curve=createSafeCableCurve(THREE,positions,obstacles);
     const mesh=new THREE.Mesh(
-      new THREE.TubeGeometry(curve,Math.max(40,points.length*12),radius,7,false),
+      new THREE.TubeGeometry(curve,Math.max(40,positions.length*12),radius,7,false),
       material||palette.fan
     );
     mesh.castShadow=false;
@@ -46,22 +48,35 @@ export function createCableHarness(THREE,scene,assembly){
       if(['atx24','eps','gpu','sataPower'].includes(id))
         return assembly.psuCableSockets[id];
       if(['sataData','fan'].includes(id))return boardHeaders[id];
+      if(['frontPanel','frontUsb3','frontUsbC'].includes(id))
+        return tower.frontIOHeaders[id];
+      if(id.startsWith('caseFan'))
+        return assembly.caseFanSourcePorts[Number(id.slice(-1))];
       return null;
     }
     if(id==='gpu')return assembly.gpuPowerHeader;
-    if(['atx24','eps','frontPanel','frontUsb3','frontUsbC'].includes(id))
-      return boardHeaders[id];
+    if(id==='fan')return assembly.coolerFanPort;
+    if(['sataData','sataPower'].includes(id)){
+      const ports=['hdd','hdd4'].includes(activeStorage)?
+        assembly.sataHddPorts:assembly.sataSsdPorts;
+      return ports[id];
+    }
+    if(['atx24','eps','frontPanel','frontUsb3','frontUsbC'].includes(id)
+      ||id.startsWith('caseFan'))return boardHeaders[id];
     return null;
   }
-  function fallbackNormal(id,side){
-    // Sólo extremos aún sin receptáculo 3D (ventiladores, SATA del disco,
-    // y nacimiento de los mazos frontales). Resto: del modelo real.
-    if(side===0&&['frontPanel','frontUsb3','frontUsbC'].includes(id))
-      return new THREE.Vector3(0,0,1); // salida hacia el interior del frontal
-    if(side===0&&id==='caseFan0')return new THREE.Vector3(-1,0,0);
-    if(side===0&&id==='caseFan1')return new THREE.Vector3(-1,0,0);
-    if(side===0&&id==='caseFan2')return new THREE.Vector3(1,0,0);
-    return up.clone();
+  function fallbackNormal(){return up.clone();}
+  function endpointRole(id,side){
+    if(side===0){
+      if(['atx24','eps','gpu','sataPower'].includes(id))return 'psu';
+      if(['frontPanel','frontUsb3','frontUsbC'].includes(id))return 'front';
+      if(id==='caseFan2')return 'caseRear';
+      if(id.startsWith('caseFan'))return 'front';
+      return 'board';
+    }
+    if(['sataData','sataPower'].includes(id))return 'drive';
+    if(id==='fan')return 'cooler';
+    return 'board';
   }
   function getEndPose(id,side,point,boardId){
     const port=physicalHeader(id,side,boardId);
@@ -94,13 +109,19 @@ export function createCableHarness(THREE,scene,assembly){
     }
     root.updateMatrixWorld(true);
     const exits=plugs.map(plug=>getCableExit(THREE,plug,root));
-    const straightLength=['atx24','gpu','eps'].includes(id)? .37 : .27;
+    // El conector GPU queda próximo al cristal: su cuello recto es más
+    // corto para no salir del volumen útil del chasis.
+    const straightLength=id==='gpu'?.16:['atx24','eps'].includes(id)?.30:.23;
+    const leadLength=id==='gpu'?.10:.17;
     const knees=exits.map((v,i)=>v.clone().addScaledVector(poses[i].normal,straightLength));
-    const leads=knees.map((v,i)=>v.clone().addScaledVector(poses[i].normal,.23));
-    // Dos TRAMOS RECTOS con su propio tubo: la curvatura empieza después,
-    // nunca dentro del conector. Catmull-Rom conecta sólo las rodillas.
-    const center=[knees[0].toArray(),leads[0].toArray(),
-      ...waypoints.slice(1,-1),leads[1].toArray(),knees[1].toArray()];
+    const leads=knees.map((v,i)=>v.clone().addScaledVector(poses[i].normal,leadLength));
+    // El planificador utiliza las tomas REALES y pasillos protegidos,
+    // sin seguir los waypoints heredados que cruzaban el PCB y la GPU.
+    const plan=planCableRoute({id,cfg:activeConfig,
+      start:leads[0].toArray(),end:leads[1].toArray(),
+      startRole:endpointRole(id,0),endRole:endpointRole(id,1),
+      gpuChoice:activeGpu,storageChoice:activeStorage});
+    const center=[knees[0].toArray(),...plan.points,knees[1].toArray()];
     const mainMaterial=palette[id]||palette.fan;
     if(isPower){
       const count=strands[id]||3;
@@ -112,14 +133,14 @@ export function createCableHarness(THREE,scene,assembly){
           return [p[0]+dx*taper,p[1]+Math.sin(angle)*.021*taper,
             p[2]+dz*taper];
         });
-        tube(g,displaced,radius*.38,mainMaterial);
+        tube(g,displaced,radius*.38,mainMaterial,plan.obstacles);
       }
       for(const index of [2,Math.max(3,center.length-3)]){
         const tie=new THREE.Mesh(new THREE.CylinderGeometry(.067,.067,.10,10),connectorMaterial);
         tie.position.set(...center[index]);g.add(tie);
       }
     }else{
-      tube(g,center,radius,mainMaterial);
+      tube(g,center,radius,mainMaterial,plan.obstacles);
     }
     for(let side=0;side<2;side++)
       tube(g,[exits[side].toArray(),knees[side].toArray()],
@@ -129,6 +150,11 @@ export function createCableHarness(THREE,scene,assembly){
     g.userData.normals=poses.map(p=>p.normal.toArray());
     g.userData.straightLength=straightLength;
     g.userData.knees=knees.map(v=>v.toArray());
+    g.userData.routePoints=center;
+    g.userData.routeStrategy=plan.strategy;
+    g.userData.routeCollisions=plan.collisions;
+    g.userData.routeLengthMm=center.slice(1).reduce((total,p,i)=>
+      total+new THREE.Vector3(...p).distanceTo(new THREE.Vector3(...center[i]))*50,0);
     wires[id]=g;
   }
   function clear(){
@@ -143,14 +169,16 @@ export function createCableHarness(THREE,scene,assembly){
   const boardY=MOTHERBOARD_MOUNT.offsetY;
   function rebuild(cfg,gpuChoice,storageChoice,secured,boardId){
     clear();
+    activeConfig=cfg;activeGpu=gpuChoice;activeStorage=storageChoice;
+    activeBoardId=boardId;
     const len=gpuChoice==='rtx4070'?267.01/50:245/50;
     const height=gpuChoice==='rtx4070'?133.94/50:134/50;
     const hdd=['hdd','hdd4'].includes(storageChoice);
     const drive=hdd?[1.57,.85,4.70]:[-1.23,-.48,.65];
     // Cables fijados: recorren la cámara trasera Y<0 y atraviesan
     // los pasacables del borde derecho, antes de llegar al conector.
-    const channelY=secured?-.49:1.73;
-    const crossY=secured?-.36:1.22;
+    const channelY=-.665;
+    const crossY=1.22;
     const routeRight=(end)=>[
       [1.76,channelY,4.38],[1.71,channelY,end[2]],
       [1.53,crossY,end[2]],[...end]
@@ -269,6 +297,35 @@ export function createCableHarness(THREE,scene,assembly){
     wires.video.visible=false;
     wires.videoIGPU.visible=false;
   }
+  function getSocketAlignment(){
+    scene.updateMatrixWorld(true);
+    const report=[];
+    for(const id of Object.keys(wires)){
+      if(['video','videoIGPU'].includes(id))continue;
+      const plugs=wires[id].children.filter(o=>o.userData?.connectorType);
+      for(let side=0;side<2;side++){
+        const port=physicalHeader(id,side,activeBoardId);
+        const plug=plugs[side];
+        if(!port||!plug)continue;
+        const actual=port.getWorldPosition(new THREE.Vector3());
+        const atPlug=plug.getWorldPosition(new THREE.Vector3());
+        const normal=port.localToWorld(new THREE.Vector3(0,1,0)).sub(actual).normalize();
+        const axis=plug.localToWorld(new THREE.Vector3(0,1,0)).sub(atPlug).normalize();
+        report.push({id,side,visible:wires[id].visible,
+          gapMm:actual.distanceTo(atPlug)*50,
+          angleDegrees:axis.angleTo(normal)*180/Math.PI,
+          header:port.name});
+      }
+    }
+    return report;
+  }
+  function getRoutingReport(){
+    return Object.entries(wires).filter(([id])=>!['video','videoIGPU'].includes(id))
+      .map(([id,g])=>({id,visible:g.visible,strategy:g.userData.routeStrategy,
+        collisions:g.userData.routeCollisions||[],
+        lengthMm:g.userData.routeLengthMm,
+        points:g.userData.routePoints?.map(p=>[...p])||[]}));
+  }
   function getFlexAlignment(){
     root.updateMatrixWorld(true);
     return Object.entries(wires).filter(([id])=>!['video','videoIGPU'].includes(id))
@@ -292,7 +349,9 @@ export function createCableHarness(THREE,scene,assembly){
   function getPlugWorld(id,index=1){
     return getPlugMesh(id,index)?.getWorldPosition(new THREE.Vector3())||null;
   }
-  return {update,root,ports:PSU_CABLE_PORTS,getFlexAlignment,getPlugWorld,getPlugMesh,
+  return {update,root,ports:PSU_CABLE_PORTS,getFlexAlignment,
+    getRoutingReport,getSocketAlignment,
+    getPlugWorld,getPlugMesh,
     isVisible:id=>!!wires[id]?.visible,
     connectorTypes:id=>wires[id]?.children?.filter(o=>o.userData?.connectorType)
       .map(o=>o.userData.connectorType)||[]};

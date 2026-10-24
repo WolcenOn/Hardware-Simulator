@@ -196,3 +196,14 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - `PC3D.getCableExitAlignment()` ahora devuelve `angleDegrees` (ambos extremos) y `straightMm`, además de `gapsMm`. `getInternalPlugAlignment()` y `getPsuPlugAlignment()` miden ángulos contra **las tomas 3D reales**, no contra el siguiente punto del cable. SATA/PWM utilizan el extremo correcto de la manguera.
 - Pruebas smoke comprueban que ya no exista `next.sub(plug.position)`; Playwright comprueba perpendicularidad, encaje y tramo recto, incluso cambiando B650/A520/Z790.
 - Publicación de previsualización: `/preview/v7/?v=8-4-8-orthogonal-connections`. No modificar `main/index.html` estable.
+
+## 8.4.9 — tomas de placa y canalización de cables
+
+- Cabeceras montadas con la cara inferior al ras de la PCB, no flotando. Los DIMM se separan del ATX24 y el disipador VRM se despeja del EPS. CPU_FAN se sitúa en el borde superior, evitando el disipador; aparecen tres headers SYS_FAN independientes (uno por ventilador de chasis).
+- Se añaden tomas SATA de datos/alimentación reales en SSD 2.5 y HDD 3.5, y el cable llega al receptáculo de la unidad seleccionada. El disipador también lleva un conector PWM propio. El panel frontal superior tiene tomas internas POWER SW, USB3 de 19 pines y Type-E; los ventiladores de caja incorporan sus salidas PWM.
+- `createCableHarness` recibe el ensamblaje y la torre, y obtiene ambos extremos directamente de los objetos 3D (headers de placa, GPU, PSU, SSD/HDD, panel frontal y ventiladores); los puntos fijos heredados dejan de determinar el anclaje.
+- Nuevo `cableRouting3d.js`: planificador de vías con bandas por cable en la cámara trasera, entrada perpendicular, salida recta, corredor por el borde derecho/izquierdo y selección de trayectoria por longitud, número de giros y colisiones con envolventes AABB de PCB, bandeja, disipador, RAM, GPU, PSU, shroud y unidades SATA.
+- La curva completa Catmull-Rom se sustituye por líneas y redondeos cuadráticos locales; cada redondeo se comprueba contra los volúmenes ocupados antes de generarlo. Se acorta la salida recta de la GPU para mantenerla dentro del volumen lateral del chasis.
+- `PC3D.getCableSocketAlignment()` informa de distancia y perpendicularidad entre los dos extremos y los sockets visibles. `PC3D.getCableRoutingReport()` informa de estrategia, longitud, puntos y choques detectados por el planificador. Se añaden comprobaciones smoke y E2E para varios tamaños de placa.
+- Las rutas siguen siendo aproximaciones didácticas en una torre procedural, no una simulación CAD completa de cables flexibles; las envolventes AABB conservadoras y los pasillos evitan los volúmenes principales, pero piezas pequeñas pueden requerir refinamiento visual.
+- Vista previa `/preview/v7/?v=8-4-9-routed-cables`, sin modificar `main/index.html`.

@@ -6,7 +6,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-8-orthogonal-connections';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-9-routed-cables';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
@@ -71,7 +71,7 @@ function fan(parent,x,y,z,r=.27,options={}){
 
 const assembly=buildRealScale({THREE,scene:root,group,rounded,box,cylinder,trace,label,fan,materials});
 const tower=createATXTower(THREE,root,materials);
-const cables=createCableHarness(THREE,root,assembly);
+const cables=createCableHarness(THREE,root,assembly,tower);
 const workbench=createWorkbench(THREE,scene,materials);
 const staging=createStagingTable(THREE,scene);
 
@@ -596,6 +596,8 @@ window.PC3D={
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getRearVideoAlignment:getVideoReceptacleAlignment,
   getCableExitAlignment:()=>cables.getFlexAlignment(),
+  getCableRoutingReport:()=>cables.getRoutingReport(),
+  getCableSocketAlignment:()=>cables.getSocketAlignment(),
   getInternalPlugAlignment:()=>{
     const id=current?.selected?.motherboard||'b650';
     const boardHeaders=assembly.internalHeaderModels[id]||{};

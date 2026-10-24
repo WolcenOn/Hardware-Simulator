@@ -344,6 +344,47 @@ test('la orientación interna permanece perpendicular al cambiar de motherboard'
   }
 });
 
+test('las conexiones internas llegan a las tomas 3D y no a zonas vacías',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(()=>window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click();
+  const sockets=await page.evaluate(()=>window.PC3D.getCableSocketAlignment());
+  expect(sockets.length).toBeGreaterThan(18);
+  for(const socket of sockets){
+    expect(socket.header,socket.id+' sin receptáculo').toBeTruthy();
+    expect(socket.gapMm,socket.id+' '+socket.header).toBeLessThan(.25);
+    expect(socket.angleDegrees,socket.id+' normal').toBeLessThan(.15);
+  }
+  const route=await page.evaluate(()=>window.PC3D.getCableRoutingReport());
+  for(const id of ['atx24','eps','gpu','frontPanel','frontUsb3','frontUsbC']){
+    const cable=route.find(x=>x.id===id);
+    expect(cable,id).toBeTruthy();
+    expect(cable.points.length,id).toBeGreaterThan(5);
+    expect(cable.points.some(p=>p[1]<-.65),id+' no usa canaleta posterior').toBe(true);
+    expect(cable.collisions,id+' entra en '+JSON.stringify(cable.collisions)).toHaveLength(0);
+  }
+});
+
+test('las placas ATX y mATX mantienen rutas y conexiones de ventiladores',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(()=>window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click();
+  for(const id of ['b650','a520','z790']){
+    await page.locator('select[data-cat="motherboard"]').selectOption(id);
+    const result=await page.evaluate(()=>({
+      ports:window.PC3D.getCableSocketAlignment(),
+      routes:window.PC3D.getCableRoutingReport()
+    }));
+    for(const port of result.ports){
+      expect(port.gapMm,id+' '+port.id).toBeLessThan(.25);
+      expect(port.angleDegrees,id+' '+port.id).toBeLessThan(.15);
+    }
+    for(const kind of ['caseFan0','caseFan1','caseFan2','fan']){
+      expect(result.ports.some(p=>p.id===kind&&p.header),id+' '+kind).toBe(true);
+    }
+  }
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

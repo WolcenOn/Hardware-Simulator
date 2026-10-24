@@ -3,6 +3,8 @@ import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, MM_PER_UNI
   REAR_USB_COUNT, getRearUsbAnchor, getRearVideoAnchor } from '../js/partsRealScale.js';
 import {REAR_PORT_SPECS,portOutline} from '../js/portProfiles.js';
 import {getPlugExitDistance,INTERNAL_HEADER_SPECS} from '../js/connectors3d.js';
+import {planCableRoute,routeCollisions,cableObstacles}
+  from '../js/cableRouting3d.js';
 import {getInternalHeaderAnchor,getGpuPowerAnchor} from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -181,4 +183,39 @@ assert(harness.includes('tube(g,[exits[side].toArray(),knees[side].toArray()]'))
 assert(harness.includes('straightMm'));
 assert(read('js/procedural3d.js').includes('createCableHarness(THREE,root,assembly)'));
 assert(read('js/procedural3d.js').includes('angleDegrees:axis?axis.angleTo(expected)'));
+// 8.4.9: las diez cabeceras existen en la PCB y llegan justo a su
+// superficie. Los conectores SYS_FAN no terminan en la pista vacía.
+for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
+  const kinds=['atx24','eps','frontPanel','frontUsb3','frontUsbC','sataData',
+    'fan','caseFan0','caseFan1','caseFan2'];
+  const points=kinds.map(kind=>{
+    const xyz=getInternalHeaderAnchor(cfg,kind);
+    const model=kind.startsWith('caseFan')?'fan':kind;
+    assert(Math.abs(xyz[1]-MOTHERBOARD_MOUNT.offsetY-.355-
+      INTERNAL_HEADER_SPECS[model].depth)<1e-7,id+' '+kind+' flota sobre PCB');
+    return [kind,xyz];
+  });
+  assert.equal(new Set(points.map(([kind,p])=>p[0]+':'+p[2])).size,kinds.length,id);
+  // El DIMM más cercano al borde no debe atravesar el ATX24.
+  const ramMax=Math.max(...cfg.dimmXs);
+  assert(ramMax+.09<cfg.atxX-INTERNAL_HEADER_SPECS.atx24.w/2,
+    id+' RAM invadiendo header de 24p');
+  const source=[.40,1.60,4.27];
+  const atx=getInternalHeaderAnchor(cfg,'atx24');
+  const routed=planCableRoute({id:'atx24',cfg,start:source,
+    end:[atx[0],1.55,atx[2]],startRole:'psu',endRole:'board'});
+  assert(routed.points.length>=5,id+' mazo ATX sin pasillo trasero');
+  assert(routed.points.some(p=>p[1]<-.65),id+' ATX no pasa detrás de bandeja');
+  assert.equal(routed.collisions.length,0,id+' ATX atraviesa objetos: '+JSON.stringify(routed.collisions));
+  const eps=getInternalHeaderAnchor(cfg,'eps');
+  const power=planCableRoute({id:'eps',cfg,start:[.40,1.60,4.87],
+    end:[eps[0],1.55,eps[2]],startRole:'psu',endRole:'board'});
+  assert.equal(power.collisions.length,0,id+' EPS atraviesa objetos: '+JSON.stringify(power.collisions));
+}
+assert(read('js/partsRealScale.js').includes('sataSsdPorts'));
+assert(read('js/partsRealScale.js').includes('caseFanSourcePorts'));
+assert(read('js/towerATX.js').includes('frontIOHeaders'));
+assert(read('js/cablesProcedural.js').includes('planCableRoute({id,cfg:activeConfig'));
+assert(read('js/cablesProcedural.js').includes('physicalHeader(id,side,boardId)'));
+assert(read('js/procedural3d.js').includes('getCableRoutingReport'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');
