@@ -222,9 +222,9 @@ test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
   await page.locator('#autoBuild').click();
-  // AutoBuild no garantiza periféricos encendidos; activar ambos de modo explícito.
-  await page.locator('#keyboardToggle').click();
-  await page.locator('#mouseToggle').click();
+  // AutoBuild ya conecta teclado y ratón; esperar sincronización WebGL.
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getRearUsbAlignment().every(p=>p.visible)),
+    {timeout:15000}).toBe(true);
   const before=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
   expect(before).toHaveLength(2);
   expect(before.map(p=>p.portIndex)).toEqual([2,3]);
