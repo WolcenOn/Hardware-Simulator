@@ -27,7 +27,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -427,7 +427,8 @@ assert(html.includes('id="advWorkSpeed"')===false,
  'El selector se genera dinámicamente dentro de adventureMode.js');
 assert(read('js/adventureMode.js').includes('id="advWorkSpeed"'));
 assert(html.includes('timeEngine.js?v=8-7-1-operation-lifecycle'));
-assert(html.includes('operationEngine.js?v=8-7-1-operation-lifecycle'));
+assert(html.includes('mishapEngine.js?v=8-8-0-seeded-mishaps'));
+assert(html.includes('operationEngine.js?v=8-8-0-seeded-mishaps'));
 // 8.7.1 — las cuatro operaciones adicionales conservan validaciones existentes.
 g.start('office');
 const failedRoute=g.perform('route');
@@ -471,4 +472,35 @@ assert(g.operationSummary().counts.repeated>=2);
 assert.equal(g.getExport().operationHistory.length,
   g.operationSummary().history.length);
 assert(g.getExport().simulatedTime.technical>0);
+// 8.8: incidencias educativas opcionales, pulsera ESD y exportación.
+const risk=window.PC_MISHAPS;
+assert(risk.createSeededRandom('aula')()===risk.createSeededRandom('aula')());
+const noRisk=window.PC_OPERATIONS.createEngine({clock:window.PC_TIME.createClock()});
+const refused=noRisk.attempt({kind:'screw',target:'gpu',execute:()=>{},
+ wasSuccessful:()=>false});
+assert.equal(refused.incident,null);
+const forcedRisk=risk.createEngine({random:()=>0,seed:'test'});
+const riskClock=window.PC_TIME.createClock();
+const riskOps=window.PC_OPERATIONS.createEngine({clock:riskClock});
+const incident=riskOps.attempt({kind:'fit',target:'case:tower',execute:()=>{},
+ wasSuccessful:()=>true,incidentEvaluator:o=>forcedRisk.assess(o)});
+assert.equal(incident.incident.category,'mechanical');
+assert.equal(incident.incident.delayMinutes,1.5);
+assert.equal(riskOps.getSummary().counts.incidents,1);
+g.start('office');
+assert.equal(g.game.riskEnabled,false);
+assert.equal(g.toggleEsd(),false);
+buy('item','esdStrap');
+assert.equal(g.toggleEsd(),false,'Chasis obligatorio para conectar pulsera');
+buy('case','tower');fit('case:tower');
+assert.equal(g.toggleEsd(),true);
+assert.equal(g.game.esdConnected,true);
+assert.equal(g.returnItem('item:esdStrap'),false,
+ 'La pulsera conectada no debe devolverse');
+assert.equal(g.setRiskSeed('semilla-uno'),true);
+assert.equal(g.setRiskEnabled(true),true);
+assert.equal(g.getExport().incidentSimulation.enabled,true);
+assert.equal(g.getExport().incidentSimulation.seed,'semilla-uno');
+assert.equal(g.toggleEsd(),true);
+assert(!g.game.esdConnected);
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

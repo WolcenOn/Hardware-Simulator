@@ -35,12 +35,15 @@ const DEFINITIONS=Object.freeze({
    baseMinutes:4,difficulty:1,tools:[],safety:['No tocar piezas energizadas'],
    risks:['procedimiento'],reversible:true,success:'Informe de síntomas'})
 });
-function createEngine({clock}={}){
+function createEngine({clock,assessIncident=null}={}){
+  if(assessIncident!==null&&typeof assessIncident!=='function')
+    throw new TypeError('Evaluador de incidencias inválido.');
   if(!clock||typeof clock.calculate!=='function'||typeof clock.add!=='function')
     throw new TypeError('Reloj simulado obligatorio.');
   const history=[],successful=new Set(),active=new Set(),undone=new Set();
   let sequence=0,experience=0;
-  function attempt({kind,target='',execute,wasSuccessful,context='',getReason=null}){
+  function attempt({kind,target='',execute,wasSuccessful,context='',getReason=null,
+    incidentEvaluator=null}){
     const def=DEFINITIONS[kind];
     if(!def)throw new RangeError('Operación desconocida: '+kind);
     if(typeof execute!=='function'||typeof wasSuccessful!=='function')
@@ -61,9 +64,22 @@ function createEngine({clock}={}){
     const category=!passed?(repeated?'repeated':'rejected'):
       rework?'rework':repeated?'repeated':
       kind==='inspect'?'useful_inspection':'necessary';
-    const minutes=passed?clock.calculate(def.baseMinutes,def.difficulty,experience):0;
+    const baseMinutes=passed?clock.calculate(def.baseMinutes,def.difficulty,experience):0;
+    // Evaluar solamente DESPUÉS del éxito técnico comprobado. Nunca generar
+    // una pifia en una instalación rechazada ni alterar el estado 3D aquí.
+    const evaluateIncident=incidentEvaluator||assessIncident;
+    if(evaluateIncident!==null&&typeof evaluateIncident!=='function')
+      throw new TypeError('Evaluador de incidencias inválido.');
+    const incident=passed&&evaluateIncident?
+      evaluateIncident({kind,target:ref,speed:clock.getSpeed(),difficulty:def.difficulty,
+        experience,definition:def})||null:null;
+    const delay=incident?.delayMinutes||0;
+    if(!Number.isFinite(delay)||delay<0||delay>60)
+      throw new RangeError('Retraso de incidencia no válido.');
+    const minutes=Math.round((baseMinutes+delay)*10)/10;
     if(passed){
-      clock.add('technical',minutes,key);
+      clock.add('technical',baseMinutes,key);
+      if(delay)clock.add('technical',delay,'incident:'+key);
       successful.add(key);
       active.add(key);
       undone.delete(key);
@@ -78,7 +94,8 @@ function createEngine({clock}={}){
     }
     const record=Object.freeze({
       seq:++sequence,operation:def.id,target:ref,context:String(context),
-      status:passed?'success':'rejected',category,minutes,
+      status:passed?'success':'rejected',category,minutes,baseMinutes,
+      incident:incident?Object.freeze({...incident}):null,
       speed:clock.getSpeed(),reason:error?.message||
         (!passed?(typeof getReason==='function'&&getReason()||
           'Prerrequisitos o resultado técnico no satisfechos.'):
@@ -91,12 +108,12 @@ function createEngine({clock}={}){
   return Object.freeze({
     attempt,
     getDefinitions:()=>DEFINITIONS,
-    getHistory:()=>history.map(r=>({...r})),
+    getHistory:()=>history.map(r=>({...r,incident:r.incident?{...r.incident}:null})),
     getSummary:()=>{
       const counts={necessary:0,useful_inspection:0,repeated:0,
-        rejected:0,errors:0,rework:0};
-      history.forEach(r=>{counts[r.category]++;});
-      return {counts,history:history.map(r=>({...r})),
+        rejected:0,errors:0,rework:0,incidents:0};
+      history.forEach(r=>{counts[r.category]++;if(r.incident)counts.incidents++;});
+      return {counts,history:history.map(r=>({...r,incident:r.incident?{...r.incident}:null})),
         ...clock.getSummary()};
     },
     setExperience:value=>{

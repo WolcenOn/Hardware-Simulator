@@ -312,3 +312,14 @@ El proyecto de escritorio conserva una ventana CSS de **1440×900 px**, y se con
 - Pruebas nuevas en `tests/operations.test.mjs`, smoke de flujo completo desmontar→reinstalar, ruta PSU, conectar→desconectar→reconectar y aplicar pasta, y un E2E del contador de retrabajos.
 - No se ha creado un motor de pifias, reloj de pared ni evaluación por medallas. Se preserva `main/index.html` y solo se actualizan archivos `preview/v7`.
 - Vista previa: `/preview/v7/?v=8-7-1-operation-lifecycle`.
+
+## 8.8.0-alpha — Fase 2a: motor de pifias reproducibles optativo
+
+- Base verificada: run Playwright `40133008042` del commit `c5b5103`, **éxito completo**. El código técnico y visual existente no se sustituye.
+- `js/mishapEngine.js` nuevo módulo sin dependencias. Generador pseudoaleatorio Mulberry32 sembrado mediante FNV-1a, inyectable en tests. Categorías separadas mecánica, ESD, eléctrica y de procedimiento, con velocidades, dificultad, experiencia, herramientas, alimentación y condiciones ambientales opcionales.
+- Probabilidades totalmente **ficticias**; ESD con pulsera correctamente conectada a masa reduce solo ESD y no lleva el riesgo a cero. Pulsera educativa añadida al inventario por **16 € ficticios**, conectable únicamente tras colocar el chasis y con el equipo apagado. La pulsera puesta no puede devolverse.
+- Activación/desactivación y semilla en el panel de encargo; por defecto **desactivado** para no modificar ejercicios ni pruebas preexistentes. El selector de velocidad y el tiempo simulado se conservan. Al comenzar nuevo encargo se reinician semilla, estado y generador.
+- `operationEngine.js` evalúa incidencias **solo tras la validación técnica positiva**. Un intento rechazado no consume RNG y no puede generar una pifia. Por ahora solo se aplican dos consecuencias seguras y reversibles: retraso (1,5 minutos simulados) o revisión de seguridad (3 minutos y bloqueo de entrega hasta pasar una inspección). La evaluación registra su tipo, resultado, semilla y minutos extra; nunca muta el hardware, no inventa daños físicos ni sustituye herramientas.
+- Se conserva `pc-lab.build.v1`: se agregan opcionalmente `operationHistory[].incident` e `incidentSimulation` con semilla, habilitación, incidencias y revisiones pendientes. No se modifica `pc-lab.teacher-case.v1`.
+- Pruebas de Node `tests/mishaps.test.mjs`, smoke y Playwright de la interfaz. Riesgos de daños y sustitución quedan pendientes de la siguiente fase específica de reparaciones, para no introducir estados sin arreglo.
+- Preview: `/preview/v7/?v=8-8-0-seeded-mishaps`; nunca modificar `main/index.html`.

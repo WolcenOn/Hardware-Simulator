@@ -667,6 +667,28 @@ test('Fase 1.1: desmontaje válido, retrabajo y rechazos conservan el reloj',asy
   await expect(page.locator('#advVirtualClock')).not.toContainText('0 min');
 });
 
+test('Fase 2a: incidencias reproducibles desactivadas por defecto y pulsera ESD real',async ({page})=>{
+  test.setTimeout(110_000);
+  await openGame(page);
+  await expect(page.locator('#advRiskMode')).toHaveValue('off');
+  await expect(page.locator('#advRiskStatus')).toContainText('0');
+  await page.locator('#advRiskMode').selectOption('on');
+  await expect(page.locator('#advRiskMode')).toHaveValue('on');
+  await page.locator('#advRiskSeed').fill('aula-reproducible-42');
+  await page.locator('[data-risk-seed]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskSeed')).toHaveValue('aula-reproducible-42');
+  await buy(page,'item','esdStrap');
+  await page.locator('[data-esd-toggle]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('desconectada');
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await page.locator('[data-esd-toggle]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('conectada');
+  const state=await page.evaluate(()=>window.PC_MISHAPS.calculateRisks({
+    kind:'fit',speed:'normal',esd:{worn:true,grounded:true}}));
+  expect(state.esd).toBeGreaterThan(0);
+  await expect(page.locator('#advWorkSpeed')).toHaveValue('normal');
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
