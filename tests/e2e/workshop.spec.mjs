@@ -189,7 +189,7 @@ test('el ventilador trasero, los USB y el botón POWER están integrados en la t
 });
 
 test('los conectores USB frontales se conectan por separado y muestran sus cables', async ({page}) => {
-  test.setTimeout(105_000); // compras y WebGL en CI
+  test.setTimeout(180_000); // tres montajes y tres cambios 3D en Chromium software
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready===true);
   await buy(page,'case','tower');await fit(page,'case:tower');
@@ -299,8 +299,12 @@ test('la manguera termina al final del sobremolde, nunca en los contactos', asyn
     for(const angle of route.angleDegrees)
       expect(angle,route.id+' inclinación').toBeLessThan(.1);
     for(const mm of route.straightMm)
-      // La GPU tiene solo 8 mm de holgura frente al lateral de la caja.
-      expect(mm,route.id+' tramo recto').toBeGreaterThan(route.id==='gpu'?7.5:12);
+      // Salidas medidas del cableado real: GPU .16 u=8 mm,
+      // ATX/EPS .30 u=15 mm y el resto .23 u=11.5 mm.
+      // No alargar artificialmente los manguitos: podrían cruzar el chasis.
+      const minimum=route.id==='gpu'?7.5:
+        ['atx24','eps'].includes(route.id)?14.5:11;
+      expect(mm,route.id+' tramo recto').toBeGreaterThan(minimum);
   }
   const internal=await page.evaluate(() => window.PC3D.getInternalPlugAlignment());
   for(const target of internal.filter(x=>x.gapMm!==null)){

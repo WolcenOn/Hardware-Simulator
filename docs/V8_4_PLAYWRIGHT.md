@@ -271,3 +271,10 @@ Diagnóstico sobre la ejecución `40115023215` (8.6.0): smoke, HDD, OS, USB, aul
 - **Tiempo total CI y cancelación móvil**: dividir cada proyecto de escritorio/móvil en tres shards independientes (10 escenarios por runner) evita el bloqueo global por una prueba lenta. El timeout de test en CI pasa de 45 a 75 s, manteniéndose 45 s en local; las pruebas con varias compras tienen 105 s específicos. Se conservan los proyectos, las capturas y las trazas, y los nombres de artefactos incluyen el shard para evitar colisiones.
 
 No se modifican los motores de tiempo, operaciones, misiones, puntuación ni el `main/index.html` estable. La vista previa recibe únicamente el ajuste funcional del controlador de aventura cuando se valide. Verificar tras cada push el estado **final**, no solo la ejecución inicial, de smoke y ambas matrices E2E.
+
+### Segunda pasada CI de estabilización (40123204489)
+
+- Los seis escenarios generales originalmente fallidos han cambiado de estado: el grupo 1 de escritorio y móvil pasa por completo, incluyendo compras repetidas y el pulsador físico de la caja. Los grupos de USB y cableado han confirmado alineamientos; dos expectativas han requerido ajuste final.
+- El mínimo recto de `sataPower` es **11,5 mm**, ya que `cablesProcedural.js` define `.23` unidades en la toma (50 mm/unidad). Umbrales geométricos por familia: GPU >7,5 mm (8 mm nominal), EPS/ATX >14,5 mm (15 nominal), demás >11 mm (11,5 nominal). El chasis no se cambia por un límite de test incorrecto.
+- El recorrido de USB frontales con tres compras, tres operaciones y render WebGL requiere un límite **específico de 180 s** en runners de software; en móvil acabó correctamente en 46,7 s, en escritorio la ejecución previa agotó los 105 s. No se oculta el resultado, se sigue exigiendo conexión, visualización y desconexión reales.
+- El test general conserva tres shards por escritorio y tres por móvil, con diagnósticos individuales en caso de fallo. La prueba de funcionamiento de los motores existentes permanece sin cambios.
