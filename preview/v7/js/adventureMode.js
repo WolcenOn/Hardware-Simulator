@@ -26,7 +26,7 @@ const OFFERS={
   case:[['tower',89],['towerWhite',94],['towerGraphite',94]],
   cooler:[['air',39],['stock',15],['twinTower',69],['aio240',109],['aio360',155]],
   item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
-    ['hdmi',10],['keyboard',22],['mouse',14],['osusb',12],
+    ['hdmi',10],['keyboard',22],['mouse',14],['esdStrap',16],['osusb',12],
     ['usbNova',39],['usbLibre',24],['usbTerminal',19],['fan',15],['rgbStrip',18]]
 };
 const LABELS={
@@ -40,6 +40,7 @@ const LABELS={
   'item:rgbStrip':'Tira LED ARGB 5V',
   'cooler:air':'Disipador de CPU (aire)',
   'item:screwdriver':'Destornillador de estrella',
+  'item:esdStrap':'Pulsera ESD con cable a masa',
   'item:screws':'Juego de tornillos (10)',
   'item:paste':'Pasta térmica (1 aplicación)',
   'item:ioShield':'Chapa I/O trasera ATX',
@@ -80,8 +81,40 @@ const format=amount=>amount.toLocaleString('es-ES',{style:'currency',currency:'E
 const key=(cat,id)=>cat+':'+id;
 const safe=val=>String(val).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function createAdventureGame(api){
-  let game=null,importedSerial=0,clock=null,operationEngine=null;
+  let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
   function operationSummary(){return operationEngine?.getSummary()||null;}
+  function setRiskEnabled(enabled){
+    if(!game)return false;
+    game.riskEnabled=!!enabled;
+    message(game.riskEnabled?
+      'Incidencias educativas activas (semilla '+game.riskSeed+').':
+      'Incidencias educativas desactivadas.','ok');
+    return true;
+  }
+  function setRiskSeed(seed){
+    if(!game)return false;
+    try{
+      const value=String(seed||'').trim();
+      const next=root.PC_MISHAPS.createEngine({seed:value});
+      game.riskSeed=value;mishaps=next;
+      message('Semilla guardada: '+value+'. Secuencia reiniciada.','ok');
+      return true;
+    }catch(err){message('Semilla inválida: '+err.message);return false;}
+  }
+  function toggleEsd(){
+    if(!game)return false;
+    if(game.esdConnected){
+      game.esdConnected=false;
+      message('Pulsera ESD desconectada de la masa del chasis.','ok');return true;
+    }
+    const st=api.state();
+    if(!owned('item:esdStrap')||!st.installed.case||st.power){
+      message('Compra pulsera ESD, monta el chasis y apaga el PC para conectarla a masa.');
+      return false;
+    }
+    game.esdConnected=true;
+    message('Pulsera ESD colocada y conectada a masa del chasis.','ok');return true;
+  }
   function setSpeed(speed){
     if(!clock||!game)return;
     try{
@@ -101,11 +134,28 @@ function createAdventureGame(api){
     // Delegar prerrequisitos al handler técnico existente; no introducir
     // aleatoriedad ni una validación de montaje duplicada.
     const beforeFeedback=game.lastFeedback;
+    // Capturar condiciones ANTES de ejecutar. Una acción rechazada jamás
+    // consume números aleatorios, ni puede generar una incidencia.
+    const st=api.state(),powered=!!st.power;
+    const esd={worn:!!game.esdConnected,
+      grounded:!!game.esdConnected&&owned('item:esdStrap')&&!!st.installed.case&&!powered};
     const record=operationEngine.attempt({kind,target,execute,wasSuccessful:verify,
       context:game.caseId,getReason:()=>game.lastFeedback!==beforeFeedback?
-        game.lastFeedback?.text:null});
-    paint();
-    return record;
+        game.lastFeedback?.text:null,
+      incidentEvaluator:game.riskEnabled?({kind,speed,difficulty,experience})=>
+        mishaps.assess({kind,speed,difficulty,experience,esd,powered,
+          tools:{adequate:true}}):null});
+    if(record.status==='success'&&kind==='inspect'&&game.pendingReview){
+      game.pendingReview=0;
+      message('Inspección de seguridad completada: incidencias pendientes revisadas.','ok');
+    }
+    if(record.incident){
+      game.incidents.push({operation:kind,target,...record.incident,sequence:record.seq});
+      if(record.incident.outcome==='review')game.pendingReview++;
+      message(record.incident.code+' · '+record.incident.description+
+        ' (+'+record.incident.delayMinutes+' min simulados).');
+    }
+    paint();return record;
   }
   function importCases(raw){
     const incoming=Array.isArray(raw)?raw:[raw];
@@ -123,7 +173,10 @@ function createAdventureGame(api){
     case:getCase(),spent:game.spent,caseReport:game.report,
     purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
     operationHistory:operationEngine?.getHistory()||[],
-    simulatedTime:clock?.getSummary()||null};}
+    simulatedTime:clock?.getSummary()||null,
+    incidentSimulation:{enabled:game.riskEnabled,seed:game.riskSeed,
+      incidents:game.incidents.map(item=>({...item})),
+      pendingReview:game.pendingReview}};}
 
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
@@ -162,11 +215,13 @@ function createAdventureGame(api){
     state.selected.gpu=which==='office'?'none':'rx7600';
     clock=root.PC_TIME.createClock();
     operationEngine=root.PC_OPERATIONS.createEngine({clock});
+    mishaps=root.PC_MISHAPS.createEngine({seed:which+'-aula-1'});
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
-      purchases:[],osUSB:false,pendingDemo:false
+      purchases:[],osUSB:false,pendingDemo:false,
+      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],pendingReview:0
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -217,6 +272,7 @@ function createAdventureGame(api){
     // No se puede devolver un cable, teclado o ratón todavía en uso.
     if(connected[k]&&stock(k)<=1)return false;
     if(api.state().usbConnected&&api.state().usbMediaKey===k)return false;
+    if(k==='item:esdStrap'&&game?.esdConnected)return false;
     return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
   }
   function returnItem(k){
@@ -712,6 +768,10 @@ function createAdventureGame(api){
     message('Inspección: '+game.inspection,'ok');
   }
   function checkDelivery(){
+    if(game?.pendingReview){
+      message('Completa una inspección para revisar las '+game.pendingReview+
+        ' incidencias pendientes antes de entregar el equipo.');return;
+    }
     const st=api.state(),ev=api.evaluate(),job=CASES[game.caseId];
     const size=parseInt(api.part('ram').name,10)||0;
     const drive=api.part('storage').interface;
@@ -887,7 +947,20 @@ function createAdventureGame(api){
       'Necesarias: '+(operationEngine?.getSummary().counts.necessary||0)+
       ' · Retrabajos: '+(operationEngine?.getSummary().counts.rework||0)+
       ' · Rechazos: '+(operationEngine?.getSummary().counts.rejected||0)+
-      '</p></div>';
+      '</p>'+
+      '<div class="adv-risk-panel"><label for="advRiskMode">Incidencias ficticias</label>'+
+      '<select id="advRiskMode"><option value="off"'+(!game.riskEnabled?' selected':'')+
+      '>Desactivadas (laboratorio seguro)</option><option value="on"'+
+      (game.riskEnabled?' selected':'')+'>Activadas con semilla</option></select>'+
+      '<label for="advRiskSeed">Semilla reproducible</label>'+
+      '<div class="tools"><input id="advRiskSeed" maxlength="80" value="'+safe(game.riskSeed)+'">'+
+      '<button type="button" data-risk-seed>Aplicar semilla</button></div>'+
+      '<button type="button" data-esd-toggle>'+ (game.esdConnected?
+        'Desconectar pulsera ESD':'Conectar pulsera ESD al chasis')+'</button>'+
+      '<p id="advRiskStatus" role="status">Incidencias: '+game.incidents.length+
+        ' · revisiones pendientes: '+game.pendingReview+
+        ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
+        ' · probabilidades educativas configurables</p></div></div>';
     const inventory=
       '<p class="muted">Comprado → mesa auxiliar → instalado. Pulsa una pieza para seleccionarla. Devuelve o cambia las no utilizadas.</p>'+
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
@@ -1028,6 +1101,8 @@ function createAdventureGame(api){
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
     if(button.hasAttribute('data-confirm-demo')){runTechnicalDemo();return;}
     if(button.hasAttribute('data-cancel-demo')){cancelDemo();return;}
+    if(button.hasAttribute('data-risk-seed')){setRiskSeed(query('#advRiskSeed')?.value);return;}
+    if(button.hasAttribute('data-esd-toggle')){toggleEsd();return;}
     if(button.hasAttribute('data-prepare-usb')){prepareUsb(query('#advPrepareOS')?.value);return;}
     if(button.hasAttribute('data-connect-usb')){connectInstallerUsb(query('#advUsbSelection')?.value);return;}
     if(button.hasAttribute('data-eject-usb')){disconnectInstallerUsb();return;}
@@ -1075,6 +1150,14 @@ function createAdventureGame(api){
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
     else if(event.target.id==='advWorkSpeed')setSpeed(event.target.value);
+    else if(event.target.id==='advRiskMode'){
+      // No reconstruir el select durante su evento change.
+      game.riskEnabled=event.target.value==='on';
+      const status=panel.querySelector('#advRiskStatus');
+      if(status)status.textContent='Incidencias: '+game.incidents.length+
+        ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
+        ' · '+(game.riskEnabled?'activas':'desactivadas');
+    }
     else if(event.target.id==='advUsbSelection')game.selected=event.target.value;
     else if(event.target.id==='advVideoOutput'){
       game.videoOutput=event.target.value;
@@ -1088,6 +1171,7 @@ function createAdventureGame(api){
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
     importCases,getCase,getExport,operationSummary,setSpeed,
+    setRiskEnabled,setRiskSeed,toggleEsd,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

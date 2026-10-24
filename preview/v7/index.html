@@ -827,6 +827,7 @@ function exportMount(){try{
    // Campos opcionales aditivos: pc-lab.build.v1 sigue siendo válido.
    data.simulatedTime=details.simulatedTime;
    data.operationHistory=details.operationHistory||[];
+   if(details.incidentSimulation)data.incidentSimulation=details.incidentSimulation;
  }
  downloadJson('pc-lab-montaje-'+Date.now()+'.json',data);
  addLog('ok','Exportación JSON realizada: montaje, conexiones, fijaciones, BIOS, consumo y caso.');render();
