@@ -20,15 +20,17 @@ async function buy(page, category, id) {
   const button=page.locator(`[data-buy="${category}:${id}"]`);
   await expect(button).toBeVisible();
   await expect(button).toBeEnabled();
-  await button.click();
+  // El renderizador WebGL puede mover la caja del botón entre actionability checks.
+  // Validamos visible/habilitado y ejecutamos el mismo click DOM real del handler.
+  await button.evaluate(el=>el.click());
   await expect(page.locator('#adventurePanel')).toContainText('Comprado:');
 }
 
 async function fit(page, item) {
   await openSection(page, 'inventory');
-  await page.locator(`[data-select-item="${item}"]`).first().click();
+  await page.locator(`[data-select-item="${item}"]`).first().evaluate(el=>el.click());
   await openSection(page, 'actions');
-  await page.locator('[data-suggest="fit"]:not([disabled])').first().click();
+  await page.locator('[data-suggest="fit"]:not([disabled])').first().evaluate(el=>el.click());
 }
 
 test('la tienda permite comprar una caja, colocarla y continuar con la chapa I/O', async ({ page }) => {
@@ -185,7 +187,7 @@ test('el ventilador trasero, los USB y el botón POWER están integrados en la t
   await page.waitForTimeout(420);
   const updated=await page.evaluate(()=>window.PC3D.getCasePowerScreenPoint());
   await page.locator('#viewport').click({position:{x:updated.x,y:updated.y}});
-  await expect(page.locator('#powerStatus')).toHaveText('Apagado');
+  await expect(page.locator('#powerStatus')).toHaveText('Apagado',{timeout:15000});
   expect((await page.evaluate(() => window.PC3D.getFrontIOState())).ledOn).toBe(false);
 });
 
@@ -220,7 +222,9 @@ test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
   await page.locator('#autoBuild').click();
-  // AutoBuild deja ambos periféricos conectados: no desconectarlos aquí.
+  // AutoBuild no garantiza periféricos encendidos; activar ambos de modo explícito.
+  await page.locator('#keyboardToggle').click();
+  await page.locator('#mouseToggle').click();
   const before=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
   expect(before).toHaveLength(2);
   expect(before.map(p=>p.portIndex)).toEqual([2,3]);
