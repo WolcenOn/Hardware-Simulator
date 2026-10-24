@@ -27,7 +27,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -378,4 +378,54 @@ assert(read('index.html').includes('id="exportPcJson"'));
 assert(read('index.html').includes('id="importCaseJson"'));
 assert(read('index.html').includes('id="powerBreakdown"'));
 assert(read('js/procedural3d.js').includes('mechanicalFault'));
+// 8.7: motor de tiempo determinista, resultados y acoplamiento aventura.
+const simulated=window.PC_TIME.createClock();
+assert.equal(window.PC_TIME.duration(10,'careful',1,0),14);
+assert.equal(window.PC_TIME.duration(10,'normal',1,0),10);
+assert.equal(window.PC_TIME.duration(10,'fast',1,0),7);
+simulated.setSpeed('fast');
+assert.equal(simulated.calculate(10),7);
+assert.equal(simulated.add('customer',2.2,'briefing'),2.2);
+assert.equal(simulated.getSummary().total,2.2);
+assert.throws(()=>simulated.setSpeed('turbo'),/Velocidad/);
+const operationTest=window.PC_OPERATIONS.createEngine({clock:simulated});
+let mounted=false;
+let track=operationTest.attempt({kind:'fit',target:'motherboard:b650',
+ execute:()=>{mounted=true},wasSuccessful:()=>mounted});
+assert.equal(track.category,'necessary');
+assert.equal(track.minutes,6.2); // 8 min, dificultad 2, velocidad rápida
+track=operationTest.attempt({kind:'fit',target:'motherboard:b650',
+ execute:()=>{},wasSuccessful:()=>mounted});
+assert.equal(track.category,'repeated');
+const minutesBeforeReject=simulated.getSummary().technical;
+track=operationTest.attempt({kind:'screw',target:'gpu:rx7600',
+ execute:()=>{},wasSuccessful:()=>false});
+assert.equal(track.status,'rejected');
+assert.equal(simulated.getSummary().technical,minutesBeforeReject);
+track=operationTest.attempt({kind:'inspect',target:'machine',
+ execute:()=>{},wasSuccessful:()=>true});
+assert.equal(track.category,'useful_inspection');
+assert.equal(operationTest.getSummary().counts.rejected,1);
+assert.equal(operationTest.getSummary().counts.repeated,1);
+assert.equal(operationTest.getHistory().length,4);
+g.start('office');
+assert.equal(g.operationSummary().total,0);
+g.perform('fit'); // sin seleccionar: rechazo explícito, sin tiempo
+assert.equal(g.operationSummary().counts.rejected,1);
+assert.equal(g.operationSummary().total,0);
+g.setSpeed('careful');
+buy('case','tower');fit('case:tower');
+assert.equal(g.operationSummary().counts.necessary,1);
+assert(g.operationSummary().technical>=12);
+g.perform('inspect');
+assert.equal(g.operationSummary().counts.useful_inspection,1);
+g.perform('inspect');
+assert.equal(g.operationSummary().counts.repeated,1);
+assert(g.getExport().operationHistory.length>=4);
+assert.equal(g.getExport().simulatedTime.speed,'careful');
+assert(html.includes('id="advWorkSpeed"')===false,
+ 'El selector se genera dinámicamente dentro de adventureMode.js');
+assert(read('js/adventureMode.js').includes('id="advWorkSpeed"'));
+assert(html.includes('timeEngine.js?v=8-7-0-operation-time'));
+assert(html.includes('operationEngine.js?v=8-7-0-operation-time'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

@@ -291,3 +291,13 @@ El proyecto de escritorio conserva una ventana CSS de **1440×900 px**, y se con
 - Hotfix `58f841f`: `autoBuild()` ya marca teclado y ratón conectados. Nunca llamar al toggle como precondición: la prueba espera a la visibilidad 3D de los dos enchufes sin modificar estado.
 - Los tiempos del workflow están separados de los del simulador. No se incorpora un motor de reloj virtual ni operaciones en esta estabilización; no se altera el código de la aplicación, las validaciones eléctricas, las reglas de cableado ni el esquema JSON.
 - Antes de dar por validado un commit concreto de esta nueva iteración, comprobar el resultado de la ejecución E2E para ese mismo SHA, no reutilizar el éxito de `40125264116` como prueba del commit posterior.
+
+## 8.7.0-alpha — Fase 1: registro de operaciones y tiempo virtual
+
+- Nuevos `js/operationEngine.js` y `js/timeEngine.js` clásicos, sin dependencias. El reloj computa minutos simulados sin leer el tiempo de pared ni contar frames. Velocidades **Cuidadosa 1.4x**, **Normal 1x**, **Rápida 0.7x**, dificultad 1–5 y bonificación acotada de experiencia (por defecto 0).
+- Motor adaptador con catálogo de cuatro operaciones piloto `fit`, `screw`, `connect`, `inspect`. Conserva validaciones y transformaciones técnicas del código existente. La operación se registra como `necessary`, `useful_inspection`, `repeated` o `rejected`, con secuencia, contexto, resultado, velocidad y minutos. Un rechazo no consume minutos ni genera daño aleatorio.
+- En `adventureMode.js`: wrappers alrededor de `perform` para encajar y atornillar, `connect` y `inspect` para ambas rutas (botones rápidos o acciones); comparte el mismo registro para clic/arrastre 3D. Reset del reloj y del historial con cada nuevo encargo.
+- Panel «Velocidad del técnico / Tiempo virtual» en la descripción del encargo. Los tiempos son educativos, no tiempos medidos de montaje físico. Los periodos de atención al cliente y aprovisionamiento están representados en el motor, pero aún no cobran tiempo: se completarán en otras fases.
+- Exportación **aditiva** al montaje `pc-lab.build.v1` durante modo aventura con `operationHistory` y `simulatedTime`; no se cambia el esquema ni se elimina información anterior. En modo técnico la exportación mantiene el comportamiento previo.
+- Pruebas de Node `tests/operations.test.mjs` y `tests/time.test.mjs`, smoke y escenario E2E específico. Los motores de fallos y misiones quedan fuera del alcance deliberadamente.
+- Vínculo del preview: `/preview/v7/?v=8-7-0-operation-time`. Mantener inmutable `main/index.html` estable.

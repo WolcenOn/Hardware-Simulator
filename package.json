@@ -1,12 +1,13 @@
 {
   "name": "hardware-simulator-e2e",
   "private": true,
-  "version": "8.6.0",
+  "version": "8.7.0",
   "description": "Pruebas end-to-end del simulador Hardware Simulator",
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
     "test:smoke": "node tests/smoke.mjs",
+    "test:operations": "node --test tests/operations.test.mjs tests/time.test.mjs",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui"
   },

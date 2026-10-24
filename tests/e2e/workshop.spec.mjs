@@ -626,6 +626,26 @@ test('fallo térmico provoca apagado protector y diagnóstico al volver a encend
   await expect(page.locator('#powerBreakdown')).toContainText('CPU');
 });
 
+test('Fase 1: velocidad y reloj virtual registran montaje e inspección sin tiempo real',async ({page})=>{
+  test.setTimeout(95_000);
+  await openGame(page);
+  await expect(page.locator('#advVirtualClock')).toContainText('0 min');
+  await page.locator('#advWorkSpeed').selectOption('fast');
+  await expect(page.locator('#advWorkSpeed')).toHaveValue('fast');
+  await buy(page,'case','tower');
+  await fit(page,'case:tower');
+  await expect(page.locator('#advVirtualClock')).toContainText('operaciones registradas');
+  const first=await page.locator('#advVirtualClock').textContent();
+  expect(Number(first.match(/Tiempo virtual:\s*(\d+(?:\.\d+)?)/)?.[1])).toBeGreaterThan(0);
+  await openSection(page,'actions');
+  await page.locator('[data-verb="inspect"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(page.locator('#advVirtualClock')).toContainText('operaciones registradas');
+  await page.locator('#adventureBtn').click();
+  await expect(page.locator('#advVirtualClock')).toContainText('0 min');
+  await expect(page.locator('#advWorkSpeed')).toHaveValue('normal');
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

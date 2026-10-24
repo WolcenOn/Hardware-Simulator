@@ -80,7 +80,22 @@ const format=amount=>amount.toLocaleString('es-ES',{style:'currency',currency:'E
 const key=(cat,id)=>cat+':'+id;
 const safe=val=>String(val).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function createAdventureGame(api){
-  let game=null,importedSerial=0;
+  let game=null,importedSerial=0,clock=null,operationEngine=null;
+  function operationSummary(){return operationEngine?.getSummary()||null;}
+  function setSpeed(speed){
+    if(!clock||!game)return;
+    try{clock.setSpeed(speed);message('Ritmo de trabajo: '+root.PC_TIME.SPEEDS[speed].label+'.','ok');}
+    catch(e){message(e.message);}
+  }
+  function tracked(kind,target,execute,verify){
+    if(!operationEngine)return execute();
+    // Delegar prerrequisitos al handler técnico existente; no introducir
+    // aleatoriedad ni una validación de montaje duplicada.
+    const record=operationEngine.attempt({kind,target,execute,wasSuccessful:verify,
+      context:game.caseId});
+    paint();
+    return record;
+  }
   function importCases(raw){
     const incoming=Array.isArray(raw)?raw:[raw];
     if(!incoming.length||incoming.length>20)throw new Error('Máximo 20 casos por archivo.');
@@ -95,7 +110,9 @@ function createAdventureGame(api){
   function getCase(){return game?{id:game.caseId,...CASES[game.caseId]}:null;}
   function getExport(){if(!game)return null;return {
     case:getCase(),spent:game.spent,caseReport:game.report,
-    purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed}};}
+    purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
+    operationHistory:operationEngine?.getHistory()||[],
+    simulatedTime:clock?.getSummary()||null};}
 
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
@@ -132,6 +149,8 @@ function createAdventureGame(api){
     state.adventureMode=true;state.fixings={};state.osInstalled=false;state.installedOs=null;
     state.usbImage='none';state.usbConnected=false;state.usbMediaKey=null;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
+    clock=root.PC_TIME.createClock();
+    operationEngine=root.PC_OPERATIONS.createEngine({clock});
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
@@ -307,6 +326,24 @@ function createAdventureGame(api){
   }
   function selectVerb(verb){game.verb=verb;paint();}
   function perform(override=null){
+    if(!game)return;
+    const verb=override||game.verb;
+    if(verb!=='fit'&&verb!=='screw')return performLegacy(override);
+    const st=api.state(),k=game.selected,[cat,id]=String(k||'').split(':');
+    const part=cat;
+    const readResult=()=>verb==='screw'?!!st.fixings?.[part]:
+      k==='item:ioShield'?!!st.ioShield:
+      cat==='item'&&id==='fan'?st.caseFans.filter(x=>x.installed).length:
+      cat==='ram'&&st.installed.ram&&!st.ramSeated?false:
+      !!st.installed[part];
+    const old=readResult();
+    return tracked(verb,k||'sin-seleccion',()=>performLegacy(override),()=>{
+      const now=verb==='fit'&&cat==='ram'&&old===true?
+        !!st.ramSeated:readResult();
+      return typeof old==='number'?now>old:!old&&!!now;
+    });
+  }
+  function performLegacy(override=null){
     if(!game)return;
     const g=game,st=api.state(),verb=override||g.verb,k=g.selected;
     if(verb==='boot'){
@@ -516,6 +553,17 @@ function createAdventureGame(api){
     api.render();
   }
   function connect(target){
+    if(!game)return;
+    const st=api.state(),flag={atx24:'atx24',eps:'eps',frontpanel:'frontPanel',
+      frontusb3:'frontUsb3',frontusbc:'frontUsbC',gpupower:'gpuPower',
+      sataData:'sataData',sataPower:'sataPower',cpufan:'cpuFan',
+      monitor:'monitorCable',keyboard:'keyboardConnected',mouse:'mouseConnected'}[target];
+    const index=target.startsWith('sysfan')?Number(target.slice(-1)):-1;
+    const was=index>=0?!!st.caseFans[index]?.connected:!!st[flag];
+    return tracked('connect',target,()=>connectLegacy(target),()=>
+      !was&&(index>=0?!!st.caseFans[index]?.connected:!!st[flag]));
+  }
+  function connectLegacy(target){
     const st=api.state();
     const internal=!['monitor','keyboard','mouse'].includes(target);
     if(internal&&(st.power||st.caseClosed)){
@@ -601,6 +649,10 @@ function createAdventureGame(api){
     api.osInstall(); // Misma comprobación y animación que el taller técnico.
   }
   function inspect(){
+    if(!game)return;
+    return tracked('inspect','machine',()=>inspectLegacy(),()=>!!game.inspection);
+  }
+  function inspectLegacy(){
     const st=api.state(),e=api.evaluate();
     const symptoms=[];
     if(!st.power)symptoms.push('Equipo apagado. Prueba encenderlo para observar POST y pitidos.');
@@ -781,7 +833,13 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<p class="adv-guide">'+safe(progressText())+'</p>';
+      '<p class="adv-guide">'+safe(progressText())+'</p>'+
+      '<div class="adv-operation-clock"><label for="advWorkSpeed">Velocidad del técnico</label>'+
+      '<select id="advWorkSpeed">'+Object.entries(root.PC_TIME.SPEEDS).map(([id,opt])=>
+        '<option value="'+id+'"'+(clock?.getSpeed()===id?' selected':'')+'>'+opt.label+'</option>').join('')+
+      '</select><p id="advVirtualClock" aria-live="polite">Tiempo virtual: '+
+      (clock?.getSummary().total||0)+' min · '+
+      (operationEngine?.getHistory().length||0)+' operaciones registradas</p></div>';
     const inventory=
       '<p class="muted">Comprado → mesa auxiliar → instalado. Pulsa una pieza para seleccionarla. Devuelve o cambia las no utilizadas.</p>'+
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
@@ -968,6 +1026,7 @@ function createAdventureGame(api){
     }
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
+    else if(event.target.id==='advWorkSpeed')setSpeed(event.target.value);
     else if(event.target.id==='advUsbSelection')game.selected=event.target.value;
     else if(event.target.id==='advVideoOutput'){
       game.videoOutput=event.target.value;
@@ -980,7 +1039,7 @@ function createAdventureGame(api){
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
-    importCases,getCase,getExport,
+    importCases,getCase,getExport,operationSummary,setSpeed,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

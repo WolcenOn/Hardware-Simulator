@@ -24,6 +24,12 @@ jobs:
           node --check tests/smoke.mjs
           node --check playwright.config.mjs
           node --check js/adventureMode.js
+          node --check js/timeEngine.js
+          node --check js/operationEngine.js
+          node --check tests/operations.test.mjs
+          node --check tests/time.test.mjs
+      - name: Run operation and time unit tests
+        run: npm run test:operations
       - name: Run regression smoke tests
         run: npm run test:smoke
 
