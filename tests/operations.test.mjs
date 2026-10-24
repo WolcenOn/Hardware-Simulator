@@ -52,3 +52,17 @@ test('el adaptador conserva errores explícitos de la lógica técnica',()=>{
     wasSuccessful:()=>true}),/Socket incompatible/);
   assert.equal(engine.getSummary().counts.rejected,1);
 });
+
+test('un segundo intento sobre una conexión ya completada cuenta como repetido sin duplicar crédito',()=>{
+  const clock=PC_TIME.createClock(),engine=PC_OPERATIONS.createEngine({clock});
+  let connected=false;
+  engine.attempt({kind:'connect',target:'atx24',execute:()=>{connected=true},
+    wasSuccessful:()=>connected});
+  const before=clock.getSummary().total;
+  const result=engine.attempt({kind:'connect',target:'atx24',execute:()=>{},
+    wasSuccessful:()=>false,getReason:()=> 'Ya estaba conectado.'});
+  assert.equal(result.status,'rejected');
+  assert.equal(result.category,'repeated');
+  assert.equal(result.reason,'Ya estaba conectado.');
+  assert.equal(clock.getSummary().total,before);
+});

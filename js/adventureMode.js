@@ -84,15 +84,26 @@ function createAdventureGame(api){
   function operationSummary(){return operationEngine?.getSummary()||null;}
   function setSpeed(speed){
     if(!clock||!game)return;
-    try{clock.setSpeed(speed);message('Ritmo de trabajo: '+root.PC_TIME.SPEEDS[speed].label+'.','ok');}
-    catch(e){message(e.message);}
+    try{
+      clock.setSpeed(speed);
+      // Evitar reconstruir el <select> durante su evento change: Playwright y
+      // navegadores táctiles pueden perder la selección si se reemplaza el nodo.
+      const indicator=panel.querySelector('#advVirtualClock');
+      if(indicator){
+        const summary=clock.getSummary();
+        indicator.textContent='Tiempo virtual: '+summary.total+' min · '+
+          operationEngine.getHistory().length+' operaciones registradas';
+      }
+    }catch(e){message(e.message);}
   }
   function tracked(kind,target,execute,verify){
     if(!operationEngine)return execute();
     // Delegar prerrequisitos al handler técnico existente; no introducir
     // aleatoriedad ni una validación de montaje duplicada.
+    const beforeFeedback=game.lastFeedback;
     const record=operationEngine.attempt({kind,target,execute,wasSuccessful:verify,
-      context:game.caseId});
+      context:game.caseId,getReason:()=>game.lastFeedback!==beforeFeedback?
+        game.lastFeedback?.text:null});
     paint();
     return record;
   }
