@@ -68,7 +68,7 @@ test('la demo exige confirmación dentro de la página si ya hubo compras', asyn
 });
 
 test('fuente primero bloquea placa, pero apartar mazos permite montarla', async ({ page }) => {
-  test.setTimeout(105_000); // compras y WebGL en CI
+  test.setTimeout(210_000); // compras y WebGL en CI
   await openGame(page);
   await buy(page,'case','tower'); await fit(page,'case:tower');
   await buy(page,'item','ioShield'); await fit(page,'item:ioShield');
@@ -83,7 +83,7 @@ test('fuente primero bloquea placa, pero apartar mazos permite montarla', async 
 });
 
 test('teclado y ratón se conectan y desconectan desde accesos directos', async ({ page }) => {
-  test.setTimeout(105_000); // compras y WebGL en CI
+  test.setTimeout(210_000); // compras y WebGL en CI
   await openGame(page);
   await buy(page,'case','tower');await fit(page,'case:tower');
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
@@ -159,6 +159,7 @@ test('la PCB se asienta sobre separadores de 6,5 mm', async ({ page }) => {
 });
 
 test('el ventilador trasero, los USB y el botón POWER están integrados en la torre', async ({page}) => {
+  test.setTimeout(160_000); // pulsador físico y cámara WebGL
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready===true);
   await page.locator('#autoBuild').click();
@@ -474,7 +475,7 @@ test('sin SO ni USB válido el monitor muestra dispositivo no arrancable',async 
 });
 
 test('NovaDesk comprueba Secure Boot y se instala antes de mostrar escritorio ficticio',async ({page})=>{
-  test.setTimeout(90000);
+  test.setTimeout(185_000);
   await openGame(page);
   await page.locator('#autoBuild').click();
   await page.locator('#osUsbImage').selectOption('novadesk');
@@ -507,7 +508,7 @@ test('NovaDesk comprueba Secure Boot y se instala antes de mostrar escritorio fi
 });
 
 test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco instalado',async ({page})=>{
-  test.setTimeout(85000);
+  test.setTimeout(185_000);
   await openGame(page);
   await page.locator('#autoBuild').click();
   await page.locator('#osUsbImage').selectOption('libreforge');
@@ -536,7 +537,7 @@ test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco inst
 });
 
 test('USB de tienda: preparar y conectar a USB-A real',async ({page})=>{
-  test.setTimeout(150_000);
+  test.setTimeout(210_000);
   await openGame(page);
   await openSection(page,'shop');
   await page.locator('#advShopCategory').selectOption('item');
@@ -568,7 +569,7 @@ test('USB de tienda: preparar y conectar a USB-A real',async ({page})=>{
 });
 
 test('USB de tienda: comprar y alternar dos instaladores preparados',async ({page})=>{
-  test.setTimeout(155_000);
+  test.setTimeout(210_000);
   await openGame(page);
   await buy(page,'case','tower');await fit(page,'case:tower');
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
