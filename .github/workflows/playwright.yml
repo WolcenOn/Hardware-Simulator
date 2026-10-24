@@ -85,7 +85,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Test USB preparation, purchase and physical connection
-        run: npx playwright test --project=chromium-desktop --grep "USB de tienda: preparar" --workers=1 --retries=0 --reporter=list
+        run: 'npx playwright test --project=chromium-desktop --grep "USB de tienda: preparar" --workers=1 --retries=0 --reporter=list'
       - name: Upload USB market diagnosis
         if: failure()
         uses: actions/upload-artifact@v4
