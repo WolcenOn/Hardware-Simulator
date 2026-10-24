@@ -18,6 +18,12 @@ jobs:
           node-version: 22
       - name: Install test dependencies
         run: npm install --no-audit --no-fund
+      - name: Validate JavaScript test syntax before browser matrix
+        run: |
+          node --check tests/e2e/workshop.spec.mjs
+          node --check tests/smoke.mjs
+          node --check playwright.config.mjs
+          node --check js/adventureMode.js
       - name: Run regression smoke tests
         run: npm run test:smoke
 

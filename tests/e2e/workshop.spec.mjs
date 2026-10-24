@@ -298,13 +298,12 @@ test('la manguera termina al final del sobremolde, nunca en los contactos', asyn
     for(const mm of route.gapsMm)expect(mm,route.id).toBeLessThan(.05);
     for(const angle of route.angleDegrees)
       expect(angle,route.id+' inclinación').toBeLessThan(.1);
-    for(const mm of route.straightMm)
-      // Salidas medidas del cableado real: GPU .16 u=8 mm,
-      // ATX/EPS .30 u=15 mm y el resto .23 u=11.5 mm.
-      // No alargar artificialmente los manguitos: podrían cruzar el chasis.
+    for(const mm of route.straightMm){
+      // Salidas del cableado: GPU 8 mm, ATX/EPS 15 mm, otros 11.5 mm.
       const minimum=route.id==='gpu'?7.5:
         ['atx24','eps'].includes(route.id)?14.5:11;
       expect(mm,route.id+' tramo recto').toBeGreaterThan(minimum);
+    }
   }
   const internal=await page.evaluate(() => window.PC3D.getInternalPlugAlignment());
   for(const target of internal.filter(x=>x.gapMm!==null)){
