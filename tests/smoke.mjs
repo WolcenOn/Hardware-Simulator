@@ -181,7 +181,7 @@ assert(harness.includes('getCableExit(THREE,plug,root)'));
 assert(harness.includes('const straightLength='));
 assert(harness.includes('tube(g,[exits[side].toArray(),knees[side].toArray()]'));
 assert(harness.includes('straightMm'));
-assert(read('js/procedural3d.js').includes('createCableHarness(THREE,root,assembly)'));
+assert(read('js/procedural3d.js').includes('createCableHarness(THREE,root,assembly,tower)'));
 assert(read('js/procedural3d.js').includes('angleDegrees:axis?axis.angleTo(expected)'));
 // 8.4.9: las diez cabeceras existen en la PCB y llegan justo a su
 // superficie. Los conectores SYS_FAN no terminan en la pista vacía.
