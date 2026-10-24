@@ -1,4 +1,4 @@
-import {createInternalHeader3d} from './connectors3d.js?v=8-4-7-cable-exits';
+import {createInternalHeader3d} from './connectors3d.js?v=8-4-9-routed-cables';
 import {createRearReceptacle3d} from './rearPorts3d.js?v=8-4-6-port-geometry';
 // Escenario 7.0: proporciones derivadas de tamaños físicos (1 unidad = 50 mm).
 // Referencias: ATX 305x244; ASUS A520M-K 226x221; GPU ASUS Dual RX7600 245x134x49,
@@ -76,14 +76,23 @@ export function getInternalHeaderAnchor(cfg,kind){
   const usb=getFrontUsbHeaders(cfg);
   const fp=[cfg.x+cfg.w/2-.42,cfg.z+cfg.d/2-.32];
   const yz=(x,y,z)=>[x,MOTHERBOARD_MOUNT.offsetY+y,z];
+  // Cara inferior de las tomas situada en el mismo plano superior de PCB.
+  // Un header que flota en Y se ve como una clavija conectada al aire.
+  const top=cfg.z-cfg.d/2,bottom=cfg.z+cfg.d/2,
+    left=cfg.x-cfg.w/2,right=cfg.x+cfg.w/2;
   const ports={
-    atx24:yz(cfg.atxX,.83,cfg.atxZ),
-    eps:yz(cfg.epsX,.75,cfg.epsZ),
-    sataData:yz(cfg.sataX,.59,cfg.sataZ),
-    frontPanel:yz(fp[0],.56,fp[1]),
-    frontUsb3:yz(usb.usb3[0],.665,usb.usb3[1]),
-    frontUsbC:yz(usb.usbC[0],.635,usb.usbC[1]),
-    fan:yz(cfg.cpuX+.93,.58,cfg.cpuZ+.88)
+    atx24:yz(cfg.atxX,.355+.40,cfg.atxZ),
+    eps:yz(cfg.epsX,.355+.34,cfg.epsZ),
+    sataData:yz(cfg.sataX,.355+.21,cfg.sataZ),
+    frontPanel:yz(fp[0],.355+.17,fp[1]),
+    frontUsb3:yz(usb.usb3[0],.355+.27,usb.usb3[1]),
+    frontUsbC:yz(usb.usbC[0],.355+.28,usb.usbC[1]),
+    // CPU_FAN cerca del borde superior y a la derecha, fuera del disipador
+    // y de la huella longitudinal de los módulos de memoria.
+    fan:yz(right-.30,.355+.26,top+.13),
+    caseFan0:yz(right-.90,.355+.26,bottom-.40),
+    caseFan1:yz(right-.30,.355+.26,top+.62),
+    caseFan2:yz(left+.28,.355+.26,top+2.55)
   };
   if(!ports[kind])throw new RangeError('Puerto interno desconocido: '+kind);
   return ports[kind];
@@ -98,13 +107,13 @@ export function getGpuPowerAnchor(cfg,choice='rx7600'){
 export const BOARD_LAYOUTS = {
   b650: {name:'B650 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:2,m2:2,
     cpuX:-1.55,cpuZ:-1.48,epsX:-3.31,epsZ:-2.73,atxX:1.11,atxZ:-1.25,
-    pcieX:-1.22,pcieZ:.65,dimmXs:[.14,.43,.72,1.01],sataX:1.05,sataZ:2.02,colors:'silver'},
+    pcieX:-1.22,pcieZ:.65,dimmXs:[-.15,.14,.43,.72],sataX:1.05,sataZ:2.02,colors:'silver'},
   a520: {name:'A520 mATX',w:mm(221),d:mm(226),x:-1.43,z:-.79,dimms:2,slots:2,m2:1,
     cpuX:-1.62,cpuZ:-1.64,epsX:-3.39,epsZ:-2.82,atxX:.65,atxZ:-1.28,
-    pcieX:-1.55,pcieZ:.13,dimmXs:[.26,.57],sataX:.54,sataZ:1.07,colors:'white'},
+    pcieX:-1.55,pcieZ:.13,dimmXs:[.05,.30],sataX:.54,sataZ:1.07,colors:'white'},
   z790: {name:'Z790 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:3,m2:4,
     cpuX:-1.55,cpuZ:-1.50,epsX:-3.24,epsZ:-2.74,atxX:1.11,atxZ:-1.26,
-    pcieX:-1.22,pcieZ:.60,dimmXs:[.14,.43,.72,1.01],sataX:1.02,sataZ:2.10,colors:'black'}
+    pcieX:-1.22,pcieZ:.60,dimmXs:[-.15,.14,.43,.72],sataX:1.02,sataZ:2.10,colors:'black'}
 };
 
 // Variantes 8.1 reutilizan posiciones de tornillos, DIMM y PCIe de
@@ -226,6 +235,7 @@ export function buildRealScale(p) {
   fanMountGroup.name='Bastidores ventiladores torre';
   scene.add(fanMountGroup);
   const caseFanMounts=[];
+  const caseFanSourcePorts=[];
   // X positivo = frontal de la torre, X negativo = salida trasera.
   for(const [index,pos,rot] of [
     [0,[4.78,1.61,-2.00],-Math.PI/2],
@@ -238,7 +248,13 @@ export function buildRealScale(p) {
     axial.userData.caseFanSlot=index;
     const fLabels=label(index===2?'OUT':'IN',.37,.13);
     fLabels.position.set(0,.12,1.08);holder.add(fLabels);
-    caseFanMounts.push(holder);
+    // Conector PWM en el propio bastidor: el mazo nace de la toma física.
+    const pwm=createInternalHeader3d(THREE,'fan');
+    pwm.name='PWM ventilador de caja '+index;
+    pwm.position.set(.18,-.18,.79);
+    pwm.rotation.z=index===2?-Math.PI:Math.PI;
+    holder.add(pwm);
+    caseFanMounts.push(holder);caseFanSourcePorts.push(pwm);
   }
   // Placas base con cuerpo físico diferente y distribución de cada familia.
   const motherboardModels={};
@@ -288,10 +304,10 @@ export function buildRealScale(p) {
     }
     // Disipadores VRM, más grandes en Z790.
     const tall=id==='z790'?.48:(id==='b650'?.37:.15);
-    rounded(.46,tall,2.18,.05,id==='a520'?dark:alu,b,left+.48,.40+tall/2,top+1.30);
+    rounded(.46,tall,1.90,.05,id==='a520'?dark:alu,b,left+.48,.40+tall/2,top+1.65);
     rounded(1.68,tall,.35,.04,id==='a520'?dark:alu,b,cfg.cpuX,.40+tall/2,top+.26);
     if(id==='z790')for(let i=0;i<7;i++){
-      box(.018,.015,1.84,dark,b,left+.29+i*.06,.40+tall,top+1.30);
+      box(.018,.015,1.74,dark,b,left+.29+i*.06,.40+tall,top+1.65);
     }
     // DIMM: cada ranura es el largo de un módulo de 133 mm.
     for(let i=0;i<cfg.dimms;i++){
@@ -305,8 +321,9 @@ export function buildRealScale(p) {
     // ATX24, EPS8, USB 19-pin, USB-C Type-E, F_PANEL, SATA y PWM.
     internalHeaderModels[id]={};
     for(const kind of ['atx24','eps','frontUsb3','frontUsbC',
-      'frontPanel','sataData','fan']){
-      const header=createInternalHeader3d(THREE,kind);
+      'frontPanel','sataData','fan','caseFan0','caseFan1','caseFan2']){
+      const header=createInternalHeader3d(THREE,
+        kind.startsWith('caseFan')?'fan':kind);
       const [x,y,z]=getInternalHeaderAnchor(cfg,kind);
       header.position.set(x,y-MOTHERBOARD_MOUNT.offsetY,z);
       b.add(header);
@@ -421,6 +438,10 @@ export function buildRealScale(p) {
     }
     return aio;
   }
+  const coolerFanPort=createInternalHeader3d(THREE,'fan');
+  coolerFanPort.name='Toma PWM del disipador';
+  coolerFanPort.position.set(.47,1.63,.63);
+  cooler.add(coolerFanPort);
   const coolerAIO240=buildAIO(2),coolerAIO360=buildAIO(3);
   const coolerVariants={air:coolerAir,stock:coolerStock,twinTower:coolerTwin,
     aio240:coolerAIO240,aio360:coolerAIO360};
@@ -524,8 +545,15 @@ export function buildRealScale(p) {
   sataDrive.position.set(-.30,-.67,.65);
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
-  rounded(.12,.10,.30,.012,dark,sataDrive,-1.05,.13,-.23);
-  rounded(.12,.10,.48,.012,dark,sataDrive,-1.05,.13,.30);
+  // Conectores en el borde físico de la unidad. Su normal apunta hacia
+  // -X, perpendicular al extremo SATA de 2.5 pulgadas.
+  const sataSsdPorts={};
+  for(const [kind,z] of [['sataData',-.23],['sataPower',.30]]){
+    const port=createInternalHeader3d(THREE,kind);
+    port.rotation.z=Math.PI/2;
+    port.position.set(-1.035,.13,z);
+    sataDrive.add(port);sataSsdPorts[kind]=port;
+  }
   const ssdText=label('SATA SSD',.75,.15);
   ssdText.position.set(0,.18,0);sataDrive.add(ssdText);
 
@@ -535,7 +563,13 @@ export function buildRealScale(p) {
   hddDrive.position.set(3.03,.31,4.70);
   rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
   rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
-  rounded(.13,.13,.39,.018,dark,hddDrive,-1.52,.23,0);
+  const sataHddPorts={};
+  for(const [kind,z] of [['sataData',-.29],['sataPower',.29]]){
+    const port=createInternalHeader3d(THREE,kind);
+    port.rotation.z=Math.PI/2;
+    port.position.set(-1.50,.23,z);
+    hddDrive.add(port);sataHddPorts[kind]=port;
+  }
   const hddText=label('HDD 3.5',.79,.17);
   hddText.position.set(0,mm(26.1)+.025,0);hddDrive.add(hddText);
 
@@ -624,5 +658,7 @@ export function buildRealScale(p) {
   return {chassis,board,cpu,ram,cooler,gpu,psu,storage,doorHinge,caseFrame,
     configure,anchors,motherboardModels,internalHeaderModels,gpuPowerHeader,
     rearUsbSockets,rearVideoSockets,
-    gpuBracketPorts,psuCableSockets,videoCards,sataDrive,hddDrive,m2Drive,tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
+    gpuBracketPorts,psuCableSockets,videoCards,sataDrive,hddDrive,m2Drive,
+    sataSsdPorts,sataHddPorts,coolerFanPort,caseFanSourcePorts,
+    tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
 }
