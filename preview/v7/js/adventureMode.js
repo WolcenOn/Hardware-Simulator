@@ -928,7 +928,9 @@ function createAdventureGame(api){
     if(button.dataset.quickConnector){
       const c=button.dataset.quickConnector;
       const st=api.state();
-      const active=c==='monitor'?st.monitorCable:st[c+'Connected'];
+      const key={monitor:'monitorCable',keyboard:'keyboardConnected',
+        mouse:'mouseConnected',frontusb3:'frontUsb3',frontusbc:'frontUsbC'}[c];
+      const active=!!st[key];
       if(active)disconnect(c);else connect(c);
       return;
     }
@@ -950,7 +952,20 @@ function createAdventureGame(api){
   });
   panel.addEventListener('change',event=>{
     if(!game)return;
-    if(event.target.id==='advShopCategory'){game.shopCategory=event.target.value;paint();}
+    if(event.target.id==='advShopCategory'){
+      // Conservar el <select> durante su propio evento change. Pintar de nuevo
+      // todo el panel lo destruía antes de que Playwright terminase selectOption,
+      // dejando categorías antiguas o botones de compra desaparecidos.
+      game.shopCategory=event.target.value;
+      const body=panel.querySelector('[data-section="shop"] .adv-accordion-body');
+      const previous=body?.querySelector('.adv-list');
+      if(previous){
+        const scratch=api.document.createElement('div');
+        scratch.innerHTML=shopMarkup();
+        const updated=scratch.querySelector('.adv-list');
+        if(updated)previous.replaceWith(updated);
+      }
+    }
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
     else if(event.target.id==='advUsbSelection')game.selected=event.target.value;
