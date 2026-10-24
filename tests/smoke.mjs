@@ -359,16 +359,16 @@ assert.equal(classroom.caseDocument(parsed[0]).schema,classroom.CASE_SCHEMA);
 assert.throws(()=>classroom.parseCases(JSON.stringify({case:{title:'X',story:'Y',budget:20}})),
  /presupuesto/i);
 assert.throws(()=>classroom.parseCases('not-json'),/JSON/);
-const hardware={installed:{psu:true,case:true,motherboard:true,cpu:true,
+const powerFixture={installed:{psu:true,case:true,motherboard:true,cpu:true,
  cooler:true,gpu:true,storage:true},fixings:{motherboard:true,psu:true,
  cooler:true,storage:true,gpu:true},paste:1,cpuFan:true};
-assert.equal(classroom.diagnose(hardware,510,450).trip.code,'PSU_OVERLOAD');
-assert.equal(classroom.diagnose(hardware,350,450).trip,null);
-assert(classroom.diagnose(hardware,390,450).issues.some(i=>i.code==='PSU_LOW_MARGIN'));
-hardware.paste=.1;
-assert.equal(classroom.diagnose(hardware,310,650).trip.code,'THERMAL_PASTE');
-hardware.paste=1;hardware.fixings.motherboard=false;
-assert.equal(classroom.diagnose(hardware,310,650).mechanical.code,'LOOSE_MOTHERBOARD');
+assert.equal(classroom.diagnose(powerFixture,510,450).trip.code,'PSU_OVERLOAD');
+assert.equal(classroom.diagnose(powerFixture,350,450).trip,null);
+assert(classroom.diagnose(powerFixture,390,450).issues.some(i=>i.code==='PSU_LOW_MARGIN'));
+powerFixture.paste=.1;
+assert.equal(classroom.diagnose(powerFixture,310,650).trip.code,'THERMAL_PASTE');
+powerFixture.paste=1;powerFixture.fixings.motherboard=false;
+assert.equal(classroom.diagnose(powerFixture,310,650).mechanical.code,'LOOSE_MOTHERBOARD');
 const report=classroom.buildDocument(l.s,{power:{peak:200,rated:450}});
 assert.equal(report.schema,classroom.BUILD_SCHEMA);
 assert(report.components.selected.motherboard);
