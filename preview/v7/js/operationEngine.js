@@ -15,6 +15,21 @@ const DEFINITIONS=Object.freeze({
    baseMinutes:3,difficulty:2,tools:[],
    safety:['Desconectar alimentación en conexiones internas'],
    risks:['eléctrico','procedimiento'],reversible:true,success:'Conexión comprobada'}),
+ disconnect:Object.freeze({id:'disconnect',name:'Desconectar',description:'Retirar cable',
+   baseMinutes:2,difficulty:2,tools:[],safety:['Apagar equipo para cables internos'],
+   risks:['eléctrico','procedimiento'],reversible:true,success:'Cable desconectado'}),
+ remove:Object.freeze({id:'remove',name:'Retirar',description:'Desmontar una pieza',
+   baseMinutes:6,difficulty:2,tools:['destornillador salvo RAM'],
+   safety:['Equipo apagado','Caja abierta'],risks:['mecánico','ESD'],
+   reversible:true,success:'Pieza retirada del equipo'}),
+ apply:Object.freeze({id:'apply',name:'Aplicar',description:'Usar consumible de montaje',
+   baseMinutes:2,difficulty:1,tools:['consumible apropiado'],
+   safety:['Equipo apagado','No tocar circuitos energizados'],
+   risks:['procedimiento'],reversible:false,success:'Consumible aplicado'}),
+ route:Object.freeze({id:'route',name:'Ordenar cables',description:'Apartar mazos PSU',
+   baseMinutes:4,difficulty:2,tools:[],
+   safety:['Equipo apagado','Caja abierta'],risks:['mecánico','procedimiento'],
+   reversible:true,success:'Acceso interior despejado'}),
  inspect:Object.freeze({id:'inspect',name:'Inspeccionar',
    description:'Observar síntomas y condiciones',
    baseMinutes:4,difficulty:1,tools:[],safety:['No tocar piezas energizadas'],
@@ -23,7 +38,7 @@ const DEFINITIONS=Object.freeze({
 function createEngine({clock}={}){
   if(!clock||typeof clock.calculate!=='function'||typeof clock.add!=='function')
     throw new TypeError('Reloj simulado obligatorio.');
-  const history=[],successful=new Set();
+  const history=[],successful=new Set(),active=new Set(),undone=new Set();
   let sequence=0,experience=0;
   function attempt({kind,target='',execute,wasSuccessful,context='',getReason=null}){
     const def=DEFINITIONS[kind];
@@ -35,11 +50,32 @@ function createEngine({clock}={}){
     try{result=execute()}catch(e){error=e;}
     let passed=false;
     if(!error){try{passed=!!wasSuccessful(result)}catch(e){error=e;}}
+    // Deshacer algo realizado durante el encargo es retrabajo;
+    // retirar hardware preexistente por primera vez puede ser necesario.
+    const reverse=kind==='remove'?'fit':kind==='disconnect'?'connect':null;
+    const counterpart=reverse?reverse+':'+ref:null;
     const repeated=successful.has(key);
-    const category=!passed?(repeated?'repeated':'rejected'):repeated?'repeated':
+    const rework=passed&&(
+      (counterpart&&active.has(counterpart))||
+      undone.has(key));
+    const category=!passed?(repeated?'repeated':'rejected'):
+      rework?'rework':repeated?'repeated':
       kind==='inspect'?'useful_inspection':'necessary';
     const minutes=passed?clock.calculate(def.baseMinutes,def.difficulty,experience):0;
-    if(passed){clock.add('technical',minutes,key);successful.add(key);}
+    if(passed){
+      clock.add('technical',minutes,key);
+      successful.add(key);
+      active.add(key);
+      undone.delete(key);
+      if(counterpart&&active.has(counterpart)){
+        active.delete(counterpart);
+        undone.add(counterpart);
+      }
+      if(kind==='remove'){
+        const screwKey='screw:'+ref;
+        if(active.has(screwKey)){active.delete(screwKey);undone.add(screwKey);}
+      }
+    }
     const record=Object.freeze({
       seq:++sequence,operation:def.id,target:ref,context:String(context),
       status:passed?'success':'rejected',category,minutes,
