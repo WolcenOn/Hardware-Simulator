@@ -26,7 +26,8 @@ const OFFERS={
   case:[['tower',89],['towerWhite',94],['towerGraphite',94]],
   cooler:[['air',39],['stock',15],['twinTower',69],['aio240',109],['aio360',155]],
   item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
-    ['hdmi',10],['keyboard',22],['mouse',14],['osusb',18],['fan',15],['rgbStrip',18]]
+    ['hdmi',10],['keyboard',22],['mouse',14],['osusb',12],
+    ['usbNova',39],['usbLibre',24],['usbTerminal',19],['fan',15],['rgbStrip',18]]
 };
 const LABELS={
   'case:tower':'Caja ATX negra',
@@ -46,7 +47,10 @@ const LABELS={
   'item:hdmi':'Cable HDMI/DisplayPort',
   'item:keyboard':'Teclado USB',
   'item:mouse':'Ratón USB',
-  'item:osusb':'Memoria USB con instalador del SO',
+  'item:osusb':'Memoria USB de 32 GB vacía',
+  'item:usbNova':'USB preparado · NovaDesk 11',
+  'item:usbLibre':'USB preparado · LibreForge',
+  'item:usbTerminal':'USB preparado · Terminalis',
   'item:fan':'Ventilador PWM de caja de 120 mm'
 };
 const CATEGORIES={case:'Caja',motherboard:'Placa',cpu:'CPU',ram:'RAM',
@@ -63,6 +67,11 @@ const CONNECTIONS=[
   ['sysfan0','Caja · SYS_FAN 1'],['sysfan1','Caja · SYS_FAN 2'],
   ['sysfan2','Caja · SYS_FAN 3']
 ];
+const USB_PREPARED=Object.freeze({
+  usbNova:{os:'novadesk',fee:27,label:'NovaDesk 11'},
+  usbLibre:{os:'libreforge',fee:12,label:'LibreForge'},
+  usbTerminal:{os:'terminalis',fee:7,label:'Terminalis'}
+});
 const VERBS=[['fit','Encajar'],['screw','Atornillar'],['connect','Conectar'],['disconnect','Desconectar'],
   ['apply','Aplicar'],['route','Ordenar cables'],['remove','Retirar'],['boot','Encender / apagar'],
   ['bios','BIOS'],['os','Instalar SO'],['inspect','Inspeccionar']];
@@ -105,7 +114,7 @@ function createAdventureGame(api){
     api.reset();
     const state=api.state();
     state.adventureMode=true;state.osInstalled=false;state.installedOs=null;
-    state.usbImage='none';state.usbConnected=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
+    state.usbImage='none';state.usbConnected=false;state.usbMediaKey=null;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
@@ -161,6 +170,7 @@ function createAdventureGame(api){
     };
     // No se puede devolver un cable, teclado o ratón todavía en uso.
     if(connected[k]&&stock(k)<=1)return false;
+    if(api.state().usbConnected&&api.state().usbMediaKey===k)return false;
     return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
   }
   function returnItem(k){
@@ -232,6 +242,45 @@ function createAdventureGame(api){
     if(cat==='case')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
   }
+  function prepareUsb(osId){
+    if(!game)return false;
+    const entry=Object.entries(USB_PREPARED).find(([,p])=>p.os===osId);
+    if(!entry){message('Selecciona un sistema válido para preparar el USB.');return false;}
+    const [id,p]=entry;
+    if(!has('item:osusb')){message('Compra antes un USB vacío de 32 GB.');return false;}
+    if(game.spent+p.fee>game.budget){message('No hay saldo para preparar '+p.label+' por '+format(p.fee)+'.');return false;}
+    const index=game.purchases.findLastIndex(p=>p.k==='item:osusb');
+    if(index<0){message('No hay una memoria USB vacía disponible.');return false;}
+    const item='item:'+id,old=game.purchases[index];
+    game.purchases[index]={k:item,price:old.price+p.fee};
+    game.stock['item:osusb']--;game.stock[item]=(game.stock[item]||0)+1;
+    game.spent+=p.fee;game.selected=item;game.openSections=['inventory','actions'];
+    message('USB de 32 GB preparado con '+p.label+' por '+format(p.fee)+
+      '. Ya puedes conectarlo al PC.','ok');return true;
+  }
+  function connectInstallerUsb(item=game?.selected){
+    if(!game)return false;
+    const profile=USB_PREPARED[String(item).split(':')[1]],st=api.state();
+    if(!profile||!has(item)){message('Selecciona un USB preparado que tengas comprado. El USB vacío no arranca.');return false;}
+    if(!st.installed.motherboard){message('Instala la placa base para usar su puerto USB-A trasero.');return false;}
+    if(st.osInstalling){message('No cambies de memoria durante la instalación.');return false;}
+    if(st.usbConnected){message('Expulsa primero la memoria conectada.');return false;}
+    st.usbConnected=true;st.usbImage=profile.os;st.usbMediaKey=item;
+    game.selected=item;
+    message('Memoria USB '+profile.label+' conectada a la placa base.','ok');
+    api.render();return true;
+  }
+  function disconnectInstallerUsb(){
+    if(!game)return false;
+    const st=api.state();
+    if(!st.usbConnected){message('No hay un USB conectado.');return false;}
+    if(st.osInstalling){message('No se puede expulsar durante la instalación.');return false;}
+    st.usbConnected=false;st.usbImage='none';st.usbMediaKey=null;
+    message('USB expulsado: ahora puedes conectar otro instalador.','ok');
+    api.render();return true;
+  }
+  function toggleInstallerUsb(){return api.state().usbConnected?
+    disconnectInstallerUsb():connectInstallerUsb();}
   function select(k){
     if(!owned(k)){message('No tienes ese objeto en el inventario.');return;}
     game.selected=k;
@@ -528,7 +577,9 @@ function createAdventureGame(api){
     return true;
   }
   function installOS(){
-    if(!owned('item:osusb')){message('Compra antes un USB instalador en la tienda.');return;}
+    if(!api.state().usbConnected||!has(api.state().usbMediaKey)){
+      message('Compra o prepara un USB y conéctalo antes de instalar.');return;
+    }
     api.osInstall(); // Misma comprobación y animación que el taller técnico.
   }
   function inspect(){
@@ -639,6 +690,9 @@ function createAdventureGame(api){
         has(k)&&!!st.installed.cpu&&!st.installed.cooler);
     }else if(cat==='item'){
       if(id==='fan')add('Encajar ventilador','Colócalo en una ranura del chasis','fit',has(k));
+      else if(id==='osusb')add('Preparar USB','Elige el sistema en el panel USB y paga su preparación','inspect',has(k));
+      else if(USB_PREPARED[id])add('Conectar USB '+USB_PREPARED[id].label,
+        'Utiliza el botón de conexión del panel de memorias','inspect',has(k));
       else add('Material de taller','Se utiliza con Atornillar, Conectar o Instalar SO','inspect');
     }else if(cat!=='undefined'){
       if(cat==='motherboard'&&!st.installed.motherboard&&
@@ -680,7 +734,7 @@ function createAdventureGame(api){
       return '7 · Instala una unidad SATA o NVMe y asegúrala.';
     if(!st.power)
       return '8 · Comprueba conexiones, conecta periféricos y enciende el equipo.';
-    if(!st.osInstalled)return '9 · Compra el USB, selecciona imagen, ajusta UEFI/Secure Boot, arranca desde USB e instala el sistema ficticio.';
+    if(!st.osInstalled)return '9 · Compra y prepara una memoria USB, conéctala a la placa, configura UEFI/Secure Boot y arranca desde USB.';
     return '10 · Verifica temperaturas y tornillos. Entrega el PC al cliente.';
   }
   function section(name,title,content,count=''){
@@ -733,6 +787,28 @@ function createAdventureGame(api){
        stActions.psuAccessRouted?
        '<p class="muted">✓ Mazos PSU asegurados</p>':'')+
       '</div>';
+    const availableUsbs=Object.entries(USB_PREPARED)
+      .map(([id,p])=>({key:'item:'+id,...p,qty:stock('item:'+id)}))
+      .filter(x=>x.qty>0);
+    const usbTools='<div class="adv-usb-tools" id="advUsbTools">'+
+      '<div class="title"><h2>Preparar y conectar USB</h2><span>USB-A trasero</span></div>'+
+      '<p class="muted">Compra una memoria vacía (12 €) y graba un sistema, o compra un USB preparado. Precios ficticios.</p>'+
+      '<label class="adventure-label" for="advPrepareOS">Sistema que grabar</label>'+
+      '<select id="advPrepareOS">'+Object.entries(USB_PREPARED).map(([id,p])=>
+        '<option value="'+p.os+'">'+p.label+' · preparación '+format(p.fee)+'</option>').join('')+
+      '</select><button type="button" data-prepare-usb'+(!has('item:osusb')?' disabled':'')+
+      '>Preparar memoria USB vacía</button>'+
+      '<label class="adventure-label" for="advUsbSelection">Memorias preparadas en inventario</label>'+
+      '<select id="advUsbSelection"'+(!availableUsbs.length?' disabled':'')+'>'+
+      availableUsbs.map(x=>'<option value="'+x.key+'"'+
+        (game.selected===x.key?' selected':'')+'>'+x.label+' · '+x.qty+' unidad(es)</option>').join('')+
+      '</select><div class="tools"><button type="button" data-connect-usb'+
+      (!availableUsbs.length||stActions.usbConnected?' disabled':'')+'>Conectar USB al PC</button>'+
+      '<button type="button" data-eject-usb'+(!stActions.usbConnected?' disabled':'')+
+      '>Expulsar USB</button></div>'+
+      '<div class="issue" id="advUsbStatus" role="status">'+
+      (stActions.usbConnected?'Conectado: '+safe(root.PC_OS.CATALOG[stActions.usbImage]?.name||'USB'):
+       'Puerto USB-A libre · sin instalador conectado')+'</div></div>';
     const actions=
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       '<div class="adv-quick-actions">'+
@@ -772,6 +848,7 @@ function createAdventureGame(api){
       '<div class="title"><h2>Taller de montaje</h2><span>Modo aventura</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
       section('mission','Encargo y progreso',mission)+
+      usbTools+
       section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
       section('shop','Tienda de informática',shop)+
       section('actions','Acciones y herramientas',actions,game.selected?'●':'')+
@@ -826,6 +903,9 @@ function createAdventureGame(api){
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
     if(button.hasAttribute('data-confirm-demo')){runTechnicalDemo();return;}
     if(button.hasAttribute('data-cancel-demo')){cancelDemo();return;}
+    if(button.hasAttribute('data-prepare-usb')){prepareUsb(query('#advPrepareOS')?.value);return;}
+    if(button.hasAttribute('data-connect-usb')){connectInstallerUsb(query('#advUsbSelection')?.value);return;}
+    if(button.hasAttribute('data-eject-usb')){disconnectInstallerUsb();return;}
     if(button.dataset.quickConnector){
       const c=button.dataset.quickConnector;
       const st=api.state();
@@ -854,6 +934,7 @@ function createAdventureGame(api){
     if(event.target.id==='advShopCategory'){game.shopCategory=event.target.value;paint();}
     else if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
+    else if(event.target.id==='advUsbSelection')game.selected=event.target.value;
     else if(event.target.id==='advVideoOutput'){
       game.videoOutput=event.target.value;
       const st=api.state();
@@ -862,7 +943,9 @@ function createAdventureGame(api){
     }
   });
   return {start,exit,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
-    hasInstallerUSB:()=>owned('item:osusb'),
+    hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
+    prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
+    hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

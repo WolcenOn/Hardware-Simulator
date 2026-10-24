@@ -237,3 +237,14 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - Se conservaron la lógica del botón POWER físico, POST escalonado, BIOS e interacción del taller. En el monitor 3D se dibuja una interfaz original mediante Canvas2D; no se reproducen pantallas de Windows/Linux.
 - Pruebas smoke de arranque, medios y requisitos; E2E de instalación y cambio de disco. En modo aventura sigue habiendo una acción `Instalar SO`, ahora conectada a la misma emulación.
 - Vista previa: `/preview/v7/?v=8-5-0-os-emulator`. La raíz estable de `main/index.html` permanece intacta.
+
+## 8.5.1 — memorias USB de varios sistemas, preparación, compra y puerto físico
+
+- Tienda de modo aventura ofrece USB vacío 32 GB por 12 €, USB NovaDesk 11 preparado por 39 €, USB LibreForge por 24 € y USB Terminalis por 19 €. Importes ficticios de simulación, no licencias ni precios comerciales.
+- Un USB vacío puede convertirse en un USB preparado pagando sólo la diferencia (NovaDesk +27 €, LibreForge +12 €, Terminalis +7 €). La preparación convierte una unidad física existente en otro artículo del inventario sin duplicarla y contabiliza la tarifa adicional en el presupuesto.
+- El panel **Preparar y conectar USB** aparece directamente bajo el progreso del encargo, sin estar escondido dentro de un submenú. Lista las memorias preparadas disponibles, tiene botones para conectarlas y expulsarlas, e informa de cuál está insertada. Un USB vacío no es arrancable.
+- En modo aventura, el selector genérico de imagen del modo técnico queda bloqueado: únicamente un USB preparado poseído puede ocupar el puerto y determinar `state.usbImage`; la instalación exige una memoria preparada insertada. No se permite devolver el USB mientras está conectado ni conectar dos simultáneamente.
+- Se añade un modelo 3D de pendrive con conector USB-A, cuerpo y banda de color por instalador. Usa el puerto trasero libre índice 0 del conjunto real de placa y se ancla a sus coordenadas recalculadas al cambiar el formato; teclado y ratón conservan los índices 2 y 3. Clic sobre pendrive conectado lo expulsa mediante la misma acción que la interfaz.
+- `PC3D.getInstallerUsbPose()` permite comprobar índice, visibilidad, posición y error con la toma. Nuevas pruebas smoke de compra, preparación, cambio y expulsión, y E2E del panel, precios y posición de conexión.
+- La demo técnica conserva el acceso directo a los USB ficticios para prácticas sin presupuesto; la tienda restringe únicamente el modo aventura.
+- Vista previa: `/preview/v7/?v=8-5-1-usb-market`, sin tocar el `main/index.html` estable.

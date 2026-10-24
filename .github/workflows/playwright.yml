@@ -71,6 +71,31 @@ jobs:
             playwright-report/
           retention-days: 7
 
+  usb-market:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test USB preparation, purchase and physical connection
+        run: npx playwright test --project=chromium-desktop --grep "USB de tienda: preparar" --workers=1 --retries=0 --reporter=list
+      - name: Upload USB market diagnosis
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usb-market-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
   e2e:
     needs: smoke
     runs-on: ubuntu-latest

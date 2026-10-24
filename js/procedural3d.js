@@ -10,7 +10,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-0-os-emulator';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-1-usb-market';
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
@@ -395,6 +395,13 @@ view.addEventListener('pointerup',e=>{
       return;
     }
   }
+  // El pendrive montado sobre USB-A trasero es interactivo y se puede
+  // expulsar con un clic, no sólo mediante el panel de tienda.
+  if(workbench.installerUsb.visible&&
+     raycaster.intersectObject(workbench.installerUsb,true).length){
+    window.dispatchEvent(new CustomEvent('pc3d-usb-eject'));
+    return;
+  }
   const stageHits=raycaster.intersectObject(staging.root,true);
   const stageKey=stageHits.map(h=>staging.identify(h.object)).find(Boolean);
   if(stageKey){
@@ -605,6 +612,8 @@ window.PC3D={
   }),
   getCaseFinish:()=>tower.getFinish(),
   getOSMonitorKind:()=>workbench.getOSMonitorKind(),
+  getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,
+    assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getHddBayAlignment:()=>{
     root.updateMatrixWorld(true);
     const disk=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));

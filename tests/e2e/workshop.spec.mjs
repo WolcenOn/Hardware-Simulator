@@ -523,6 +523,41 @@ test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco inst
   await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE',{timeout:15000});
 });
 
+test('USB de tienda: preparar, conectar a USB-A real y alternar instaladores',async ({page})=>{
+  test.setTimeout(120_000);
+  await openGame(page);
+  await openSection(page,'shop');
+  await page.locator('#advShopCategory').selectOption('item');
+  for(const id of ['osusb','usbNova','usbLibre','usbTerminal'])
+    await expect(page.locator('[data-buy="item:'+id+'"]').first()).toBeVisible();
+  await expect(page.locator('[data-buy="item:usbNova"]').first().locator('..')).toContainText('39');
+  await expect(page.locator('[data-buy="item:usbLibre"]').first().locator('..')).toContainText('24');
+  await expect(page.locator('[data-buy="item:usbTerminal"]').first().locator('..')).toContainText('19');
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'item','osusb');
+  await page.locator('#advPrepareOS').selectOption('novadesk');
+  await page.locator('[data-prepare-usb]').click();
+  await expect(page.locator('#advUsbSelection')).toHaveValue('item:usbNova');
+  await expect(page.locator('#advUsbTools')).toContainText('NovaDesk 11');
+  await page.locator('[data-connect-usb]').click();
+  await expect(page.locator('#advUsbStatus')).toContainText('NovaDesk 11');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getInstallerUsbPose().visible)).toBe(true);
+  const pose=await page.evaluate(()=>window.PC3D.getInstallerUsbPose());
+  expect(pose.portIndex).toBe(0);
+  expect(pose.gapMm).toBeLessThan(.25);
+  expect(pose.receptacleGapMm).toBeLessThan(.25);
+  await page.locator('[data-eject-usb]').click();
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getInstallerUsbPose().visible)).toBe(false);
+  await buy(page,'item','usbLibre');
+  await page.locator('#advUsbSelection').selectOption('item:usbLibre');
+  await page.locator('[data-connect-usb]').click();
+  await expect(page.locator('#advUsbStatus')).toContainText('LibreForge');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getInstallerUsbPose().image)).toBe('libreforge');
+  await expect(page.locator('#osUsbImage')).toBeDisabled();
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

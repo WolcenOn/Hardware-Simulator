@@ -306,4 +306,38 @@ for(const id of ['osUsbImage','osUsbToggle','osInstallBtn','biosUefi'])
   assert(htmlOS.includes('id="'+id+'"'),'Falta control SO: '+id);
 assert(read('js/workbench3d.js').includes('window.PC_OS?.paint'));
 assert(read('js/procedural3d.js').includes('details.osVisual||null'));
+// 8.5.1: comprar/preparar memorias con costes independientes, conectarlas,
+// expulsarlas y no permitir que el USB vacío arranque.
+g.start('office');
+buy('item','osusb');
+assert.equal(g.game.spent,12,'Coste de una memoria USB sin preparar');
+assert.equal(g.connectInstallerUsb('item:osusb'),false);
+assert.equal(g.hasInstallerUSB(),false);
+assert.equal(g.prepareUsb('novadesk'),true);
+assert.equal(g.game.spent,39,'USB 12 € + preparación NovaDesk 27 €');
+assert.equal(g.game.stock['item:osusb'],0);
+assert.equal(g.game.stock['item:usbNova'],1);
+assert.equal(g.hasInstallerUSB(),true);
+assert.equal(g.connectInstallerUsb('item:usbNova'),false,'Sin placa base no hay USB-A');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+assert.equal(g.connectInstallerUsb('item:usbNova'),true);
+assert.equal(l.s.usbConnected,true);
+assert.equal(l.s.usbImage,'novadesk');
+assert.equal(l.s.usbMediaKey,'item:usbNova');
+assert.equal(g.returnItem('item:usbNova'),false,'No devolver un USB conectado');
+buy('item','usbLibre');
+assert.equal(g.game.stock['item:usbLibre'],1);
+assert.equal(g.connectInstallerUsb('item:usbLibre'),false,'Un solo puerto USB simulado');
+assert.equal(g.disconnectInstallerUsb(),true);
+assert.equal(g.connectInstallerUsb('item:usbLibre'),true);
+assert.equal(l.s.usbImage,'libreforge');
+assert.equal(g.disconnectInstallerUsb(),true);
+assert.equal(l.s.usbImage,'none');
+assert(!l.s.usbConnected);
+assert(read('js/adventureMode.js').includes('data-prepare-usb'));
+assert(read('js/adventureMode.js').includes('data-connect-usb'));
+assert(read('js/workbench3d.js').includes('getInstallerUsbPose'));
+assert(read('js/procedural3d.js').includes('getInstallerUsbPose:'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

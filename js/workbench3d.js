@@ -129,6 +129,28 @@ export function createWorkbench(THREE,scene,materials) {
   // Los puertos del ratón y del teclado son puntos de la propia placa base,
   // no coordenadas absolutas congeladas antes de ajustar sus separadores.
   const usbGroup=new THREE.Group();usbGroup.name='Conexiones USB externas';root.add(usbGroup);
+  // Memoria USB física en el primer conector USB-A libre de la placa.
+  // La punta queda en el plano real de la toma; el cuerpo sigue su normal.
+  const installerUsb=new THREE.Group();
+  installerUsb.name='Memoria USB de instalación · puerto trasero USB-A 1';
+  installerUsb.userData.usbInstaller=true;
+  usbGroup.add(installerUsb);
+  const usbMetal=new THREE.MeshStandardMaterial({color:0xb5c5cc,metalness:.85,roughness:.31});
+  const usbShell=new THREE.MeshStandardMaterial({color:0x283847,metalness:.18,roughness:.5});
+  const usbBand=new THREE.MeshStandardMaterial({color:0x43d4cc,emissive:0x10423e,metalness:.32,roughness:.38});
+  function thumbPart(size,at,material,name){
+    const part=new THREE.Mesh(new THREE.BoxGeometry(...size),material);
+    part.position.set(...at);part.name=name;installerUsb.add(part);return part;
+  }
+  thumbPart([.240,.32,.090],[0,-.055,0],usbMetal,'USB-A macho metálico');
+  thumbPart([.195,.035,.052],[0,-.195,0],new THREE.MeshStandardMaterial({color:0x0d202d}),
+    'Lengüeta de contactos USB-A');
+  thumbPart([.385,.79,.245],[0,.475,0],usbShell,'Carcasa de memoria USB 32 GB');
+  thumbPart([.39,.095,.248],[0,.40,0],usbBand,'Banda de identificación del instalador');
+  const thumbLed=thumbPart([.085,.024,.06],[0,.83,.126],usbBand,'LED USB');
+  installerUsb.visible=false;
+  let installerPortLocal=null;
+  let installerImage='none';
   const rearCables={};
   const USB_PORT_INDEX={keyboard:2,mouse:3};
   const cablePaths={
@@ -156,6 +178,11 @@ export function createWorkbench(THREE,scene,materials) {
     if(rearLayoutKey===key)return;
     assemblyRoot.updateMatrixWorld(true);
     clearRearCables();
+    // El índice 0 permanece libre (teclado y ratón usan 2 y 3).
+    installerPortLocal=getRearUsbAnchor(cfg,0);
+    installerUsb.position.copy(assemblyRoot.localToWorld(new THREE.Vector3(...installerPortLocal)));
+    alignRearPlug(THREE,installerUsb,assemblyRoot);
+    installerUsb.updateMatrixWorld(true);
     for(const id of ['keyboard','mouse']){
       const socketLocal=getRearUsbAnchor(cfg,USB_PORT_INDEX[id]);
       const socket=assemblyRoot.localToWorld(new THREE.Vector3(...socketLocal));
@@ -194,6 +221,27 @@ export function createWorkbench(THREE,scene,materials) {
       const row=rearCables[id];
       if(row)row.group.visible=!!s?.[id+'Connected']&&!!s?.installed?.motherboard;
     }
+    installerUsb.visible=!!s?.usbConnected&&!!s?.installed?.motherboard;
+    const id=s?.usbImage||'none';
+    if(id!==installerImage){
+      installerImage=id;
+      usbBand.color.setHex(({novadesk:0x55bafc,libreforge:0xb998f4,
+        terminalis:0x5fdba8})[id]||0x899ead);
+    }
+  }
+  function getInstallerUsbPose(assemblyRoot,receptacles=[]){
+    if(!installerPortLocal)return {visible:false,connected:false,portIndex:0};
+    assemblyRoot.updateMatrixWorld(true);
+    installerUsb.updateMatrixWorld(true);
+    const expected=assemblyRoot.localToWorld(new THREE.Vector3(...installerPortLocal));
+    const actual=installerUsb.getWorldPosition(new THREE.Vector3());
+    const female=receptacles[0];
+    const femaleWorld=female?.getWorldPosition(new THREE.Vector3())||expected;
+    return {visible:installerUsb.visible,connected:!!installerUsb.visible,
+      image:installerImage,portIndex:0,
+      gapMm:expected.distanceTo(actual)*50,
+      receptacleGapMm:femaleWorld.distanceTo(actual)*50,
+      position:actual.toArray(),socket:femaleWorld.toArray()};
   }
   function getRearUsbAlignment(assemblyRoot,receptacles=[]){
     if(!assemblyRoot)return [];
@@ -298,7 +346,8 @@ export function createWorkbench(THREE,scene,materials) {
   }
   updateScreen('Sistema apagado.',false,false,false);
   updateConnections({});
-  return {root,updateScreen,updateConnections,getRearUsbAlignment,hitBootOption,display,
+  return {root,updateScreen,updateConnections,getRearUsbAlignment,
+    installerUsb,getInstallerUsbPose,hitBootOption,display,
     getOSMonitorKind:()=>currentOsVisual,
     screen,keyboard,mouseGroup,texture:tex,layout:WORKBENCH_LAYOUT};
 }
