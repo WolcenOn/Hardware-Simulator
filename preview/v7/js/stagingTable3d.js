@@ -227,8 +227,15 @@ export function createStagingTable(THREE,scene){
           line(part,[[-.92,.36,0],[-.48,.42,.65],[.12,.45,.58],
             [.78,.38,.05]],.050,id==='hdmi'?graphite:blue);
           for(const x of [-.92,.78])m(.41,.19,.27,x,.42,0,steel);
-        }else if(id==='osusb'){
-          m(.65,.30,1.73,0,.39,0,blue);m(.44,.19,.41,0,.39,-1.05,steel);
+        }else if(id==='osusb'||['usbNova','usbLibre','usbTerminal'].includes(id)){
+          // Pendrive físico con conector USB-A y banda de color según imagen.
+          const ink={osusb:graphite,usbNova:blue,usbLibre:mat(0xa27be4,.20,.44),
+            usbTerminal:mat(0x4ba88f,.20,.44)}[id];
+          m(.64,.28,1.65,0,.41,0,graphite);
+          m(.68,.045,.60,0,.565,.12,ink);
+          m(.47,.16,.47,0,.40,-1.03,steel);
+          m(.29,.020,.20,0,.50,-1.25,plastic);
+          m(.18,.035,.12,0,.43,.66,ink);
         }else{
           m(1.48,.48,1.10,0,.52,0,plastic);
           m(1.12,.02,.60,0,.79,0,blue);
