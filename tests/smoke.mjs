@@ -426,8 +426,8 @@ assert.equal(g.getExport().simulatedTime.speed,'careful');
 assert(html.includes('id="advWorkSpeed"')===false,
  'El selector se genera dinámicamente dentro de adventureMode.js');
 assert(read('js/adventureMode.js').includes('id="advWorkSpeed"'));
-assert(html.includes('timeEngine.js?v=8-7-0-operation-time'));
-assert(html.includes('operationEngine.js?v=8-7-0-operation-time'));
+assert(html.includes('timeEngine.js?v=8-7-1-operation-lifecycle'));
+assert(html.includes('operationEngine.js?v=8-7-1-operation-lifecycle'));
 // 8.7.1 — las cuatro operaciones adicionales conservan validaciones existentes.
 g.start('office');
 const failedRoute=g.perform('route');
