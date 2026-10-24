@@ -14,8 +14,11 @@ async function openSection(page, name) {
 
 async function buy(page, category, id) {
   await openSection(page, 'shop');
-  await page.locator('#advShopCategory').selectOption(category);
+  const categoryControl=page.locator('#advShopCategory');
+  await categoryControl.selectOption(category);
+  await expect(categoryControl).toHaveValue(category);
   const button=page.locator(`[data-buy="${category}:${id}"]`);
+  await expect(button).toBeVisible();
   await expect(button).toBeEnabled();
   await button.click();
   await expect(page.locator('#adventurePanel')).toContainText('Comprado:');
@@ -65,6 +68,7 @@ test('la demo exige confirmación dentro de la página si ya hubo compras', asyn
 });
 
 test('fuente primero bloquea placa, pero apartar mazos permite montarla', async ({ page }) => {
+  test.setTimeout(105_000); // compras y WebGL en CI
   await openGame(page);
   await buy(page,'case','tower'); await fit(page,'case:tower');
   await buy(page,'item','ioShield'); await fit(page,'item:ioShield');
@@ -79,6 +83,7 @@ test('fuente primero bloquea placa, pero apartar mazos permite montarla', async 
 });
 
 test('teclado y ratón se conectan y desconectan desde accesos directos', async ({ page }) => {
+  test.setTimeout(105_000); // compras y WebGL en CI
   await openGame(page);
   await buy(page,'case','tower');await fit(page,'case:tower');
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
@@ -175,12 +180,16 @@ test('el ventilador trasero, los USB y el botón POWER están integrados en la t
   await page.locator('#viewport').click({position:{x:point.x,y:point.y}});
   await expect(page.locator('#powerStatus')).toHaveText('Encendido');
   expect((await page.evaluate(() => window.PC3D.getFrontIOState())).ledOn).toBe(true);
-  await page.locator('#viewport').click({position:{x:point.x,y:point.y}});
+  // Debounce físico de 350 ms y proyección actualizada tras el primer clic.
+  await page.waitForTimeout(420);
+  const updated=await page.evaluate(()=>window.PC3D.getCasePowerScreenPoint());
+  await page.locator('#viewport').click({position:{x:updated.x,y:updated.y}});
   await expect(page.locator('#powerStatus')).toHaveText('Apagado');
   expect((await page.evaluate(() => window.PC3D.getFrontIOState())).ledOn).toBe(false);
 });
 
 test('los conectores USB frontales se conectan por separado y muestran sus cables', async ({page}) => {
+  test.setTimeout(105_000); // compras y WebGL en CI
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready===true);
   await buy(page,'case','tower');await fit(page,'case:tower');
@@ -210,8 +219,7 @@ test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
   await page.locator('#autoBuild').click();
-  await page.locator('#keyboardToggle').click();
-  await page.locator('#mouseToggle').click();
+  // AutoBuild deja ambos periféricos conectados: no desconectarlos aquí.
   const before=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
   expect(before).toHaveLength(2);
   expect(before.map(p=>p.portIndex)).toEqual([2,3]);
@@ -291,7 +299,8 @@ test('la manguera termina al final del sobremolde, nunca en los contactos', asyn
     for(const angle of route.angleDegrees)
       expect(angle,route.id+' inclinación').toBeLessThan(.1);
     for(const mm of route.straightMm)
-      expect(mm,route.id+' tramo recto').toBeGreaterThan(12);
+      // La GPU tiene solo 8 mm de holgura frente al lateral de la caja.
+      expect(mm,route.id+' tramo recto').toBeGreaterThan(route.id==='gpu'?7.5:12);
   }
   const internal=await page.evaluate(() => window.PC3D.getInternalPlugAlignment());
   for(const target of internal.filter(x=>x.gapMm!==null)){

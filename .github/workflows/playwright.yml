@@ -129,6 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         project: [chromium-desktop, chromium-mobile]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -139,12 +140,12 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser scenarios (one browser per runner)
-        run: npx playwright test --project=${{ matrix.project }} --workers=1 --retries=0 --reporter=list
+        run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/3 --workers=1 --retries=0 --reporter=list
       - name: Upload Playwright report and traces
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-e2e-${{ matrix.project }}-${{ github.run_number }}
+          name: playwright-e2e-${{ matrix.project }}-shard-${{ matrix.shard }}-${{ github.run_number }}
           path: |
             playwright-report/
             test-results/

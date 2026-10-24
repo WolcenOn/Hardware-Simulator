@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 45_000,
+  // WebGL software rendering on hosted CI is substantially slower than local.
+  timeout: process.env.CI ? 75_000 : 45_000,
   expect: { timeout: 12_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

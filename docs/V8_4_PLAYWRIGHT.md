@@ -258,3 +258,16 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - En montaje técnico hay botones **Fijar tornillos** por pieza; en aventura se sigue exigiendo destornillador y tornillos del inventario. Una pieza suelta provoca una animación reversible de caída/inclinación y puede activar apagado preventivo. No se manipula hardware real.
 - `js/classroom.js`: validación/esquema de caso, exportación versionada y diagnóstico de potencia/mecánica. Smoke y E2E añadidos para JSON y apagado térmico.
 - Vista previa `/preview/v7/?v=8-6-0-classroom` en branch de desarrollo y Pages; `main/index.html` estable permanece intacto.
+
+## 8.6.1 — estabilización Playwright previa a la Fase 1 (sin motor nuevo)
+
+Diagnóstico sobre la ejecución `40115023215` (8.6.0): smoke, HDD, OS, USB, aula pasaron; de 30 E2E generales de escritorio, 24 pasaron y 6 fallaron. Los seis fallos no comparten una única causa:
+
+- **Compras repetidas** (PSU, placa) y pruebas de USB frontal: el listener `advShopCategory change` sustituía todo `#adventurePanel` mientras Playwright todavía interactuaba con su `select`. Ahora cambia **solo** las tarjetas `.adv-list`, conserva el control activo y no provoca desaparición de botones. El cambio es funcional, no un aumento de espera.
+- **USB frontales**: los botones rápidos resolvían incorrectamente el nombre de estado (`frontusb3Connected` y `frontusbcConnected`, inexistentes), por lo que podían conectar pero no desconectar. Ahora mapean a `frontUsb3` y `frontUsbC`.
+- **Botón POWER físico 3D**: el test de doble pulsación no respetaba el antirrebote de 350 ms y reusaba coordenadas desactualizadas. Espera 420 ms y vuelve a proyectar la posición en pantalla para el segundo clic, manteniendo el control real del chasis.
+- **Clavijas USB traseras**: la demo recomendada ya deja teclado y ratón conectados. El test los apagaba con sus toggles y luego esperaba que siguieran visibles. Corregido el planteamiento del test sin cambiar el comportamiento funcional.
+- **Tramo recto GPU**: el cable GPU emplea intencionadamente 8 mm de tramo recto en vez de los 12 mm de otros cables, por el lateral del chasis. El test distingue GPU (mínimo 7,5 mm) y el resto (>12 mm); evita cambiar una geometría que podría atravesar la caja.
+- **Tiempo total CI y cancelación móvil**: dividir cada proyecto de escritorio/móvil en tres shards independientes (10 escenarios por runner) evita el bloqueo global por una prueba lenta. El timeout de test en CI pasa de 45 a 75 s, manteniéndose 45 s en local; las pruebas con varias compras tienen 105 s específicos. Se conservan los proyectos, las capturas y las trazas, y los nombres de artefactos incluyen el shard para evitar colisiones.
+
+No se modifican los motores de tiempo, operaciones, misiones, puntuación ni el `main/index.html` estable. La vista previa recibe únicamente el ajuste funcional del controlador de aventura cuando se valide. Verificar tras cada push el estado **final**, no solo la ejecución inicial, de smoke y ambas matrices E2E.
