@@ -537,8 +537,15 @@ function animate(now){
     const delta=spreads[id];
     const expanded=current?.explode?1:0;
     const loose=(id==='ram'&&current?.installed?.ram&&!current?.ramSeated)? .18:0;
-    desired.set(base.x+delta[0]*expanded,
-      base.y+delta[1]*expanded+loose,base.z+delta[2]*expanded);
+    // Fallo mecánico educativo: la pieza sin fijar cede y se inclina,
+    // sin cambiar físicamente su anclaje ni las colisiones del cableado.
+    const actualPart=id==='board'?'motherboard':id;
+    const failing=current?.mechanicalFault===actualPart;
+    const sag=failing?.85:0;
+    const wiggle=failing?.10*Math.sin(now*.015):0;
+    desired.set(base.x+delta[0]*expanded+wiggle,
+      base.y+delta[1]*expanded+loose-sag,base.z+delta[2]*expanded);
+    part.rotation.z+=( (failing?-.24:0)-part.rotation.z)*Math.min(1,dt*5);
     part.position.lerp(desired,Math.min(1,dt*7));
   }
   // En rotación, los ventiladores de tarjeta y disipador miran de frente,
@@ -612,6 +619,7 @@ window.PC3D={
   }),
   getCaseFinish:()=>tower.getFinish(),
   getOSMonitorKind:()=>workbench.getOSMonitorKind(),
+  getMechanicalFault:()=>current?.mechanicalFault||null,
   getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getHddBayAlignment:()=>{
