@@ -207,3 +207,13 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - `PC3D.getCableSocketAlignment()` informa de distancia y perpendicularidad entre los dos extremos y los sockets visibles. `PC3D.getCableRoutingReport()` informa de estrategia, longitud, puntos y choques detectados por el planificador. Se añaden comprobaciones smoke y E2E para varios tamaños de placa.
 - Las rutas siguen siendo aproximaciones didácticas en una torre procedural, no una simulación CAD completa de cables flexibles; las envolventes AABB conservadoras y los pasillos evitan los volúmenes principales, pero piezas pequeñas pueden requerir refinamiento visual.
 - Vista previa `/preview/v7/?v=8-4-9-routed-cables`, sin modificar `main/index.html`.
+
+## 8.4.10 — HDD en bahía real de 3,5 pulgadas
+
+- Posición única de montaje `HDD_BAY_LAYOUT` compartida por geometría del HDD y jaula `towerATX.js`. El HDD de 3,5" ocupa la bandeja superior de la jaula frontal inferior (debajo del shroud de PSU); deja holguras reales respecto a paredes, suelo y techo de la bahía. Se añade `getHddBayPosition()` para que HDD y HDD4 usen idéntica posición.
+- La jaula de dos bahías ahora muestra tres plataformas horizontales y sus carriles, más costillas y acceso desde el frontal. El disco ya no flota por debajo de la bandeja ni se representa fuera de las guías.
+- Los soportes laterales de almacenamiento del chasis didáctico quedan ocultos para no confundirse con la jaula HDD real. SSD SATA 2,5" y NVMe mantienen sus ubicaciones independientes.
+- Se actualizan las dimensiones de colisión HDD a la posición real del disco. La trayectoria SATA abandona la jaula por el lado de los conectores (-X) antes de bajar a la cámara de cables, sin atravesar estantes o discos.
+- `PC3D.getHddBayAlignment()` informa sobre bahía seleccionada, centro, encaje, error de posición en mm y holgura respecto a estante/techo/laterales.
+- Smoke valida encaje para el formato de 3,5" y correspondencia con la jaula; Playwright verifica colocación de HDD/HDD4, holguras, conexiones SATA y retorno a SSD.
+- Previsualización `/preview/v7/?v=8-4-10-hdd-bay`. Se conserva intacto `main/index.html` estable.

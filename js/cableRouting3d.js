@@ -1,3 +1,4 @@
+import {HDD_BAY_LAYOUT} from './partsRealScale.js?v=8-4-10-hdd-bay';
 // Planificador de mazos 3D en coordenadas de la torre (1 u = 50 mm).
 // En vez de una curva libre que atraviesa el PC, utiliza pasillos:
 // salida normal -> borde de placa -> cámara trasera -> borde -> inserción.
@@ -22,8 +23,14 @@ export function cableObstacles(cfg,gpuChoice='rx7600',storageChoice='nvmeSSD'){
     {id:'psu',min:[-4.02,.27,3.66],max:[-1.01,3.20,5.46]},
     {id:'shroud',min:[-3.88,-.605,3.33],max:[4.92,3.74,3.47]}
   ];
-  if(['hdd','hdd4'].includes(storageChoice))
-    blocks.push({id:'hdd',min:[1.53,.28,3.65],max:[4.54,.87,5.75]});
+  if(['hdd','hdd4'].includes(storageChoice)){
+    // Volumen real del disco MONTADO en la jaula, no su ubicación antigua.
+    const [x,y,z]=[...HDD_BAY_LAYOUT.cageCenter];
+    const [w,h,d]=HDD_BAY_LAYOUT.driveSize;
+    const base=HDD_BAY_LAYOUT.driveBaseY;
+    blocks.push({id:'hdd',min:[x-w/2,base,z-d/2],
+      max:[x+w/2,base+h,z+d/2]});
+  }
   if(['sataSSD','sataSSD2'].includes(storageChoice))
     blocks.push({id:'ssd',min:[-1.31,-.69,-.07],max:[.72,-.49,1.37]});
   return blocks;
@@ -94,7 +101,12 @@ function sideAccess(point,normal,cfg,edge,lane,rearY,role,id){
     if(p[0]<0)return dedupe([p,v(p[0]-.16,p[1],p[2]),
       v(p[0]-.16,rearY,p[2]),v(p[0]-.16,rearY,1.62),
       v(outerRight,rearY,1.62)]);
-    return dedupe([p,v(p[0],rearY,p[2]),v(outerRight,rearY,p[2])]);
+    // HDD en jaula: extraer primero el conector por la cara izquierda
+    // (X < inicio de la jaula), luego bajar al corredor posterior.
+    // Esto evita pasar un cable SATA a través de las dos baldas.
+    const outside=Math.min(p[0],HDD_BAY_LAYOUT.insideX[0]-.17);
+    return dedupe([p,v(outside,p[1],p[2]),
+      v(outside,rearY,p[2]),v(outerRight,rearY,p[2])]);
   }
   if(role==='caseRear')
     return dedupe([p,v(outerLeft,p[1],p[2]),v(outerLeft,rearY,p[2])]);

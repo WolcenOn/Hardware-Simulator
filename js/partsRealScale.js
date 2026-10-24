@@ -104,6 +104,27 @@ export function getGpuPowerAnchor(cfg,choice='rx7600'){
     cfg.pcieZ+.12];
 }
 
+// La posición del HDD y las guías de la jaula deben venir de la MISMA
+// referencia geométrica. Dos bahías de 3,5" en cámara inferior del chasis.
+// Y local apunta desde bandeja de placa hacia el cristal lateral.
+export const HDD_BAY_LAYOUT=Object.freeze({
+  cageCenter:[3.04,1.02,4.72],
+  driveCenterX:3.04,driveCenterZ:4.72,
+  // Bahía superior elegida: base > bandeja central, tapa < guía superior.
+  driveBaseY:1.13,
+  shelfLevels:[.34,1.06,1.76],
+  sideWallZ:[-1.22,1.22],
+  insideX:[1.39,4.69],
+  driveSize:[mm(147),mm(26.1),mm(101.6)],
+  clearance:.06
+});
+export function getHddBayPosition(slot='upper'){
+  if(slot!=='upper'&&slot!=='lower')throw new RangeError('Bahía de disco incorrecta');
+  return [HDD_BAY_LAYOUT.driveCenterX,
+    slot==='upper'?HDD_BAY_LAYOUT.driveBaseY:.41,
+    HDD_BAY_LAYOUT.driveCenterZ];
+}
+
 export const BOARD_LAYOUTS = {
   b650: {name:'B650 ATX',w:mm(244),d:mm(305),x:-1.20,z:0,dimms:4,slots:2,m2:2,
     cpuX:-1.55,cpuZ:-1.48,epsX:-3.31,epsZ:-2.73,atxX:1.11,atxZ:-1.25,
@@ -224,7 +245,10 @@ export function buildRealScale(p) {
   // Los marcos metálicos visibles los crea la propia placa y atraviesan
   // este bastidor. Evitamos tapar la boca con los antiguos bloques macizos.
   // Dos bahías separadas para HDD 3.5" y SSD 2.5", frontales en el chasis.
+  // Las antiguas bandejas pedagógicas al costado no deben competir con
+  // la jaula REAL que construye towerATX. Conservamos el grupo por API.
   const storageBays=new THREE.Group();chassis.add(storageBays);
+  storageBays.visible=false;
   for(const z of [1.64,2.85]){
     for(const x of [1.65,5.15])
       rounded(.11,.60,1.09,.025,alu,storageBays,x,.43,z);
@@ -559,8 +583,9 @@ export function buildRealScale(p) {
 
   // HDD SATA 3.5": 147x101.6x26.1 mm, más grande y grueso.
   const hddDrive=new THREE.Group();storage.add(hddDrive);
-  // HDD de 3,5": jaula frontal bajo la cubierta de PSU.
-  hddDrive.position.set(3.03,.31,4.70);
+  // HDD de 3,5": dentro de la bandeja deslizante SUPERIOR de la jaula,
+  // bajo el shroud de la fuente. Montaje ligado al mismo layout del chasis.
+  hddDrive.position.set(...getHddBayPosition('upper'));
   rounded(mm(147),mm(26.1),mm(101.6),.055,metal,hddDrive,0,mm(26.1)/2,0);
   rounded(2.65,.012,1.67,.02,alu,hddDrive,0,mm(26.1)+.012,0);
   const sataHddPorts={};
@@ -630,9 +655,9 @@ export function buildRealScale(p) {
     anchors.atx.set(cfg.atxX,.82+MOTHERBOARD_MOUNT.offsetY,cfg.atxZ);
     anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59+MOTHERBOARD_MOUNT.offsetY,cfg.z+cfg.d/2-.32);
     anchors.ram.set(modules[0].position.x,1.50+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.05);
-    anchors.sata.set(needsSata?(hddDrive.visible?1.57:-1.23):cfg.x-.80,
-      needsSata?(hddDrive.visible?.85:-.48):.76+MOTHERBOARD_MOUNT.offsetY,
-      needsSata?(hddDrive.visible?4.70:.65):cfg.z+.08);
+    // Diagnóstico SATA fijado al conector real de la unidad instalada.
+    const chosenSata=hddDrive.visible?sataHddPorts.sataData:sataSsdPorts.sataData;
+    chosenSata.getWorldPosition(anchors.sata);
     anchors.gpu.set(cfg.pcieX+1.08,3.36+MOTHERBOARD_MOUNT.offsetY,cfg.pcieZ+.35);
     anchors.fan.set(cfg.cpuX,3.45+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.60);
     // Objetivos físicos en el espacio del chasis para el encaje asistido.
@@ -646,11 +671,11 @@ export function buildRealScale(p) {
       psu:new THREE.Vector3(-2.50,1.55,4.58),
       storage:new THREE.Vector3(
         ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.x-.80:
-          (['hdd','hdd4'].includes(s?.selected?.storage)?3.03:-.30),
+          (['hdd','hdd4'].includes(s?.selected?.storage)?getHddBayPosition()[0]:-.30),
         ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?.54+MOTHERBOARD_MOUNT.offsetY:
-          (['hdd','hdd4'].includes(s?.selected?.storage)?.66:-.45),
+          (['hdd','hdd4'].includes(s?.selected?.storage)?getHddBayPosition()[1]+mm(26.1)/2:-.45),
         ['nvmeSSD','nvme2'].includes(s?.selected?.storage)?cfg.z+.08:
-          (['hdd','hdd4'].includes(s?.selected?.storage)?4.70:.65)
+          (['hdd','hdd4'].includes(s?.selected?.storage)?getHddBayPosition()[2]:.65)
       )
     };
     return {cfg,anchors,snapTargets,sataDrive,hddDrive,m2Drive,tray,needsSata};

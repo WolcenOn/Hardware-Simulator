@@ -5,7 +5,8 @@ import {REAR_PORT_SPECS,portOutline} from '../js/portProfiles.js';
 import {getPlugExitDistance,INTERNAL_HEADER_SPECS} from '../js/connectors3d.js';
 import {planCableRoute,routeCollisions,cableObstacles}
   from '../js/cableRouting3d.js';
-import {getInternalHeaderAnchor,getGpuPowerAnchor} from '../js/partsRealScale.js';
+import {getInternalHeaderAnchor,getGpuPowerAnchor,
+  HDD_BAY_LAYOUT,getHddBayPosition} from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -218,4 +219,26 @@ assert(read('js/towerATX.js').includes('frontIOHeaders'));
 assert(read('js/cablesProcedural.js').includes('planCableRoute({id,cfg:activeConfig'));
 assert(read('js/cablesProcedural.js').includes('physicalHeader(id,side,boardId)'));
 assert(read('js/procedural3d.js').includes('getCableRoutingReport'));
+// 8.4.10: el HDD real, en ambas capacidades, ocupa una bahía de la jaula
+// inferior; no debe quedar por debajo de las guías como ocurría con Y=.31.
+const [hx,hy,hz]=getHddBayPosition('upper');
+const [cw,ch,cd]=HDD_BAY_LAYOUT.driveSize;
+assert.deepEqual([hx,hz],[HDD_BAY_LAYOUT.cageCenter[0],HDD_BAY_LAYOUT.cageCenter[2]]);
+assert(hy>HDD_BAY_LAYOUT.shelfLevels[1],'HDD bajo la plataforma superior');
+assert(hy+ch<HDD_BAY_LAYOUT.shelfLevels[2],'HDD atraviesa techo de bahía');
+assert(hx-cw/2>HDD_BAY_LAYOUT.insideX[0]);
+assert(hx+cw/2<HDD_BAY_LAYOUT.insideX[1]);
+assert(cd/2<Math.abs(HDD_BAY_LAYOUT.sideWallZ[0]));
+assert(getHddBayPosition('lower')[1]<HDD_BAY_LAYOUT.shelfLevels[1]);
+assert.throws(()=>getHddBayPosition('lateral'),RangeError);
+const model=read('js/partsRealScale.js');
+assert(model.includes("hddDrive.position.set(...getHddBayPosition('upper'))"));
+assert(model.includes('storageBays.visible=false'),'No deben renderizarse bahías falsas');
+const towerSource=read('js/towerATX.js');
+assert(towerSource.includes('HDD_BAY_LAYOUT.shelfLevels'));
+assert(towerSource.includes('hddCage.position.set(...HDD_BAY_LAYOUT.cageCenter)'));
+const routeSource=read('js/cableRouting3d.js');
+assert(routeSource.includes('HDD_BAY_LAYOUT.driveBaseY'));
+assert(routeSource.includes('HDD_BAY_LAYOUT.insideX[0]-.17'));
+assert(read('js/procedural3d.js').includes('getHddBayAlignment'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

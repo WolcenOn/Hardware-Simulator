@@ -385,6 +385,34 @@ test('las placas ATX y mATX mantienen rutas y conexiones de ventiladores',async 
   }
 });
 
+test('HDD de 3,5 pulgadas encajado en la jaula del chasis, no en el lateral',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(()=>window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click();
+  for(const disk of ['hdd','hdd4']){
+    await page.locator('select[data-cat="storage"]').selectOption(disk);
+    const bay=await page.evaluate(()=>window.PC3D.getHddBayAlignment());
+    expect(bay.selected).toBe(disk);
+    expect(bay.slot).toBe('upper');
+    expect(bay.visible).toBe(true);
+    expect(bay.fitted,'Disco fuera de la bandeja').toBe(true);
+    expect(bay.positionErrorMm).toBeLessThan(.1);
+    expect(bay.shelfGapMm).toBeGreaterThan(2);
+    expect(bay.roofGapMm).toBeGreaterThan(2);
+    expect(bay.sideGapMm).toBeGreaterThan(5);
+    const sata=await page.evaluate(()=>window.PC3D.getCableSocketAlignment()
+      .filter(x=>['sataData','sataPower'].includes(x.id)));
+    expect(sata.filter(x=>x.side===1)).toHaveLength(2);
+    for(const plug of sata.filter(x=>x.side===1)){
+      expect(plug.gapMm,disk+' '+plug.id).toBeLessThan(.25);
+      expect(plug.angleDegrees,disk+' '+plug.id).toBeLessThan(.15);
+    }
+  }
+  await page.locator('select[data-cat="storage"]').selectOption('sataSSD');
+  const after=await page.evaluate(()=>window.PC3D.getHddBayAlignment());
+  expect(after.visible).toBe(false);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

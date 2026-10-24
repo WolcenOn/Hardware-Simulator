@@ -3,7 +3,8 @@ import {createInternalHeader3d} from './connectors3d.js?v=8-4-9-routed-cables';
 // Sistema local de montaje: X=trasera→frontal, Z=superior→inferior, Y=fondo→cristal.
 // Se transforma a vertical en procedural3d.js con rotation.x=Math.PI/2.
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
-import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT } from './partsRealScale.js?v=8-4-9-routed-cables';
+import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
+  HDD_BAY_LAYOUT,getHddBayPosition } from './partsRealScale.js?v=8-4-10-hdd-bay';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);
@@ -135,12 +136,34 @@ export function createATXTower(THREE,parent,materials){
   rearSSD.position.set(-.30,-.67,.65);tower.add(rearSSD);
   for(const x of [-.84,.84])add(rearSSD,[.10,.15,1.55],[x,0,0],mesh);
   add(rearSSD,[1.82,.08,1.46],[0,-.04,0],cageMaterial);
-  // Jaula HDD 3.5" bajo la cubierta, hacia el frontal y junto a la PSU.
-  const hddCage=new THREE.Group();hddCage.name='Jaula HDD 3.5';tower.add(hddCage);
-  hddCage.position.set(3.04,1.02,4.72);
-  for(const x of [-1.64,1.64])add(hddCage,[.10,2.13,2.43],[x,0,0],panel);
-  for(const z of [-1.00,.98])add(hddCage,[3.35,2.12,.08],[0,0,z],cageMaterial);
-  for(const y of [-.68,.72])add(hddCage,[3.40,.08,2.32],[0,y,0],panel);
+  // Jaula de DOS bahías de 3,5" en la cámara inferior, delante de PSU.
+  // Disco y jaula consultan HDD_BAY_LAYOUT: ni desplazamiento lateral,
+  // ni disco atravesando el estante como ocurría con Y=.31.
+  const hddCage=new THREE.Group();hddCage.name='Jaula HDD 3.5 · dos bahías';tower.add(hddCage);
+  hddCage.position.set(...HDD_BAY_LAYOUT.cageCenter);
+  const baySteel=new THREE.MeshStandardMaterial({color:0x3f4b57,metalness:.57,roughness:.43});
+  const trayMat=new THREE.MeshStandardMaterial({color:0x27313b,metalness:.42,roughness:.63});
+  // Costillas trasera y delantera; permiten extraer las bandejas.
+  for(const x of [-1.64,1.64]){
+    for(const z of [-1.18,1.18])
+      add(hddCage,[.12,1.50,.13],[x,.02,z],baySteel);
+  }
+  // Tres plataformas delimitan dos ranuras de 3.5" superpuestas.
+  for(const level of HDD_BAY_LAYOUT.shelfLevels){
+    const y=level-HDD_BAY_LAYOUT.cageCenter[1];
+    add(hddCage,[3.37,.075,2.49],[0,y,0],trayMat);
+    for(const z of [-1.11,1.11])
+      add(hddCage,[3.32,.11,.09],[0,y+.085,z],baySteel);
+  }
+  for(const z of HDD_BAY_LAYOUT.sideWallZ)
+    add(hddCage,[3.36,1.46,.09],[0,.02,z],cageMaterial);
+  // Carriles ajustados a la longitud de 147 mm y anchura de 101,6 mm.
+  for(const z of [-1.085,1.085]){
+    add(hddCage,[3.00,.10,.08],[0,.055,z],baySteel);
+    add(hddCage,[3.00,.10,.08],[0,-.665,z],baySteel);
+  }
+  // Extracción frontal: un tirador al borde +X de la bandeja superior.
+  add(hddCage,[.09,.23,1.10],[1.68,.31,0],baySteel);
   // PSU inferior trasera, soporte para fijarla a la pared trasera.
   const psuSeat=new THREE.Group();psuSeat.name='Soporte PSU';tower.add(psuSeat);
   psuSeat.position.set(-2.45,1.24,4.73);
