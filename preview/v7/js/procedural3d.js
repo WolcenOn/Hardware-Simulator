@@ -4,13 +4,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
-  getRearVideoAnchor, getGpuVideoAnchor } from './partsRealScale.js?v=8-4-7-cable-exits';
+  getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT } from './partsRealScale.js?v=8-4-10-hdd-bay';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-9-routed-cables';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-10-hdd-bay';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
-import { createATXTower } from './towerATX.js?v=8-4-4-front-io';
+import { createATXTower } from './towerATX.js?v=8-4-10-hdd-bay';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
@@ -592,6 +592,32 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  getHddBayAlignment:()=>{
+    root.updateMatrixWorld(true);
+    const disk=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
+    const cage=root.worldToLocal(tower.hddCage.getWorldPosition(new THREE.Vector3()));
+    const [length,height,width]=HDD_BAY_LAYOUT.driveSize;
+    const [low,mid,high]=HDD_BAY_LAYOUT.shelfLevels;
+    const limits=HDD_BAY_LAYOUT.insideX;
+    const minX=disk.x-length/2,maxX=disk.x+length/2;
+    const minZ=disk.z-width/2,maxZ=disk.z+width/2;
+    const cageMinZ=cage.z+Math.min(...HDD_BAY_LAYOUT.sideWallZ);
+    const cageMaxZ=cage.z+Math.max(...HDD_BAY_LAYOUT.sideWallZ);
+    return {
+      slot:'upper',center:[disk.x,disk.y+height/2,disk.z],
+      cageCenter:cage.toArray(),
+      positionErrorMm:Math.hypot(disk.x-cage.x,disk.z-cage.z,
+        disk.y-HDD_BAY_LAYOUT.driveBaseY)*50,
+      shelfGapMm:(disk.y-mid)*50,
+      roofGapMm:(high-(disk.y+height))*50,
+      sideGapMm:Math.min(minX-limits[0],limits[1]-maxX,
+        minZ-cageMinZ,cageMaxZ-maxZ)*50,
+      fitted:disk.y>mid&&disk.y+height<high&&minX>limits[0]&&maxX<limits[1]
+        &&minZ>cageMinZ&&maxZ<cageMaxZ,
+      visible:!!assembly.hddDrive.visible,
+      selected:current?.selected?.storage||'none'
+    };
+  },
   getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getRearVideoAlignment:getVideoReceptacleAlignment,
