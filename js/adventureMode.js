@@ -80,7 +80,23 @@ const format=amount=>amount.toLocaleString('es-ES',{style:'currency',currency:'E
 const key=(cat,id)=>cat+':'+id;
 const safe=val=>String(val).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function createAdventureGame(api){
-  let game=null;
+  let game=null,importedSerial=0;
+  function importCases(raw){
+    const incoming=Array.isArray(raw)?raw:[raw];
+    if(!incoming.length||incoming.length>20)throw new Error('Máximo 20 casos por archivo.');
+    const validated=incoming.map(x=>root.PC_CLASSROOM.normalizeCase(x));
+    return validated.map(c=>{
+      const id='teacher-'+(++importedSerial);
+      CASES[id]={name:c.title,client:c.client,story:c.story,budget:c.budget,
+        minRam:c.minRam,gpu:c.gpu,minStorage:c.minStorage,maxTemp:c.maxTemp,
+        goals:c.goals};return id;
+    });
+  }
+  function getCase(){return game?{id:game.caseId,...CASES[game.caseId]}:null;}
+  function getExport(){if(!game)return null;return {
+    case:getCase(),spent:game.spent,caseReport:game.report,
+    purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed}};}
+
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
   const query=(selector)=>panel.querySelector(selector);
@@ -113,7 +129,7 @@ function createAdventureGame(api){
     if(!CASES[which])return;
     api.reset();
     const state=api.state();
-    state.adventureMode=true;state.osInstalled=false;state.installedOs=null;
+    state.adventureMode=true;state.fixings={};state.osInstalled=false;state.installedOs=null;
     state.usbImage='none';state.usbConnected=false;state.usbMediaKey=null;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
@@ -438,7 +454,7 @@ function createAdventureGame(api){
       }
       if(g.screwed[part]){message('Esta pieza ya está atornillada.','ok');return;}
       if(!expend('item:screws')){message('No quedan tornillos disponibles.');return;}
-      g.screwed[part]=true;
+      g.screwed[part]=true;st.fixings[part]=true;
       message('Atornillado: '+label(cat,id)+'.','ok');
       return;
     }
@@ -470,7 +486,7 @@ function createAdventureGame(api){
       if(cat==='ram')st.ramSeated=false;
       if(cat==='cooler')st.cpuFan=false;
       if(cat==='storage'){st.sataData=false;st.sataPower=false;st.osInstalling=false;st.osInstallToken++;}
-      delete g.screwed[cat];
+      delete g.screwed[cat];delete st.fixings[cat];
       g.stock[k]=(g.stock[k]||0)+1;
       message('Retirado: '+label(cat,id)+'. Queda disponible para volver a montar.','ok');
       api.render();return;
@@ -611,11 +627,12 @@ function createAdventureGame(api){
       ['Sistema operativo arrancado',ev.boot&&st.osInstalled&&st.biosCfg.boot==='ssd'],
       ['RAM al menos '+job.minRam+' GB',st.installed.ram&&size>=job.minRam],
       ['Almacenamiento '+job.minStorage,st.installed.storage&&
-        (job.minStorage==='nvme'?drive==='M2_NVME':st.selected.storage!=='hdd')],
+        (job.minStorage==='nvme'?drive==='M2_NVME':job.minStorage==='any'?true:
+          ['sataSSD','sataSSD2','nvmeSSD','nvme2'].includes(st.selected.storage))],
       ['Gráfica adecuada',!job.gpu||!!st.installed.gpu&&!!st.gpuPower],
       ['Temperatura aceptable y CPU_FAN',ev.temp<=job.maxTemp&&!!st.installed.cooler&&!!st.cpuFan],
       ['Piezas fijadas y seguras',['motherboard','psu','storage']
-        .every(x=>!st.installed[x]||game.screwed[x])],
+        .every(x=>!st.installed[x]||st.fixings?.[x])],
       ['Conexiones externas y pasta',st.monitorCable&&st.keyboardConnected&&st.mouseConnected&&st.paste>=.7]
     ];
     const ok=checks.every(x=>x[1]);
@@ -948,6 +965,7 @@ function createAdventureGame(api){
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
+    importCases,getCase,getExport,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

@@ -96,6 +96,31 @@ jobs:
             playwright-report/
           retention-days: 7
 
+  classroom:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test teacher JSON and thermal protection
+        run: npx playwright test --project=chromium-desktop --grep "profesor importa caso JSON|fallo térmico provoca" --workers=1 --retries=0 --reporter=list
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: classroom-tests-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
   e2e:
     needs: smoke
     runs-on: ubuntu-latest

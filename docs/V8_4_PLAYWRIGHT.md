@@ -248,3 +248,13 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - `PC3D.getInstallerUsbPose()` permite comprobar índice, visibilidad, posición y error con la toma. Nuevas pruebas smoke de compra, preparación, cambio y expulsión, y E2E del panel, precios y posición de conexión.
 - La demo técnica conserva el acceso directo a los USB ficticios para prácticas sin presupuesto; la tienda restringe únicamente el modo aventura.
 - Vista previa: `/preview/v7/?v=8-5-1-usb-market`, sin tocar el `main/index.html` estable.
+
+## 8.6.0 — casos docentes JSON, potencia por componente y fallos de montaje
+
+- **Profesor**: panel «Crear / importar caso» en la cabecera. Campos título, cliente, enunciado, presupuesto, RAM mínima, almacenamiento requerido, GPU obligatoria y límite térmico. Descarga de JSON `pc-lab.teacher-case.v1`, importación local de hasta veinte casos validados (máximo 250 KB), rechazo de presupuestos/valores incorrectos, y selección inmediata del caso en la tienda. No se ejecuta código procedente del JSON, ni se envían archivos a servidor.
+- **Alumno**: botón «Exportar montaje JSON» descarga `pc-lab.build.v1` con IDs y nombres de componentes, montados, conexiones, estado de tornillos, BIOS, SO ficticio, consumo pico/margen/fuente, presupuesto y evaluación del encargo.
+- Consumo por CPU, GPU, RAM, placa, disco, disipador y ventiladores (estimaciones educativas). Se compara el pico de los componentes con potencia nominal de PSU; se aconseja 25 % de margen. Al superar la potencia nominal, un intento de encendido termina en desconexión protectora; en test de carga se simula también un transitorio del 15 %.
+- POWER puede intentarse siempre. Ausencia de chasis, placa, fuente, ATX 24 o POWER SW deja aviso concreto. Errores de POST mantienen la secuencia diagnóstica cuando hay corriente y señal. Disipador/CPU_FAN o pasta insuficiente producen protección y apagado simulado tras unos segundos. El monitor virtual conserva el último diagnóstico tras el apagado.
+- En montaje técnico hay botones **Fijar tornillos** por pieza; en aventura se sigue exigiendo destornillador y tornillos del inventario. Una pieza suelta provoca una animación reversible de caída/inclinación y puede activar apagado preventivo. No se manipula hardware real.
+- `js/classroom.js`: validación/esquema de caso, exportación versionada y diagnóstico de potencia/mecánica. Smoke y E2E añadidos para JSON y apagado térmico.
+- Vista previa `/preview/v7/?v=8-6-0-classroom` en branch de desarrollo y Pages; `main/index.html` estable permanece intacto.

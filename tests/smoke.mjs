@@ -27,7 +27,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/osEmulation.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -340,4 +340,42 @@ assert(read('js/adventureMode.js').includes('data-prepare-usb'));
 assert(read('js/adventureMode.js').includes('data-connect-usb'));
 assert(read('js/workbench3d.js').includes('getInstallerUsbPose'));
 assert(read('js/procedural3d.js').includes('getInstallerUsbPose:'));
+// 8.6 — importación docente y exportación verificada sin ejecutar código ajeno.
+const classroom=window.PC_CLASSROOM;
+const draft={schema:classroom.CASE_SCHEMA,case:{title:'Aula multimedia',
+ story:'Montar un equipo capaz de arrancar un sistema, con RAM suficiente.',
+ client:'Profesorado',budget:780,requirements:{minRam:16,
+ minStorage:'ssd',gpu:false,maxTemp:85}}};
+const parsed=classroom.parseCases(JSON.stringify(draft));
+assert.equal(parsed.length,1);
+assert.equal(parsed[0].title,'Aula multimedia');
+assert.equal(parsed[0].budget,780);
+const imported=g.importCases(parsed);
+assert.equal(imported.length,1);
+g.start(imported[0]);
+assert.equal(g.getCase().name,'Aula multimedia');
+assert.equal(g.game.budget,780);
+assert.equal(classroom.caseDocument(parsed[0]).schema,classroom.CASE_SCHEMA);
+assert.throws(()=>classroom.parseCases(JSON.stringify({case:{title:'X',story:'Y',budget:20}})),
+ /presupuesto/i);
+assert.throws(()=>classroom.parseCases('not-json'),/JSON/);
+const hardware={installed:{psu:true,case:true,motherboard:true,cpu:true,
+ cooler:true,gpu:true,storage:true},fixings:{motherboard:true,psu:true,
+ cooler:true,storage:true,gpu:true},paste:1,cpuFan:true};
+assert.equal(classroom.diagnose(hardware,510,450).trip.code,'PSU_OVERLOAD');
+assert.equal(classroom.diagnose(hardware,350,450).trip,null);
+assert(classroom.diagnose(hardware,390,450).issues.some(i=>i.code==='PSU_LOW_MARGIN'));
+hardware.paste=.1;
+assert.equal(classroom.diagnose(hardware,310,650).trip.code,'THERMAL_PASTE');
+hardware.paste=1;hardware.fixings.motherboard=false;
+assert.equal(classroom.diagnose(hardware,310,650).mechanical.code,'LOOSE_MOTHERBOARD');
+const report=classroom.buildDocument(l.s,{power:{peak:200,rated:450}});
+assert.equal(report.schema,classroom.BUILD_SCHEMA);
+assert(report.components.selected.motherboard);
+assert('fixings' in report.components);
+assert('bios' in report);
+assert(read('index.html').includes('id="exportPcJson"'));
+assert(read('index.html').includes('id="importCaseJson"'));
+assert(read('index.html').includes('id="powerBreakdown"'));
+assert(read('js/procedural3d.js').includes('mechanicalFault'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

@@ -574,6 +574,41 @@ test('USB de tienda: comprar y alternar dos instaladores preparados',async ({pag
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getInstallerUsbPose().image)).toBe('libreforge');
 });
 
+test('profesor importa caso JSON con presupuesto y exporta montaje',async ({page})=>{
+  test.setTimeout(90000);
+  await openGame(page);
+  await page.locator('#toggleTeacher').click();
+  await expect(page.locator('#teacherTools')).toHaveAttribute('open','');
+  const json=JSON.stringify({schema:'pc-lab.teacher-case.v1',case:{
+    title:'PC aula CAD',client:'Departamento TIC',
+    story:'Equipo para renderizado, monitor y sistema operativo instalado.',
+    budget:1200,requirements:{minRam:32,minStorage:'nvme',gpu:true,maxTemp:82}}});
+  await page.locator('#importCaseJson').setInputFiles({
+    name:'caso-cad.json',mimeType:'application/json',buffer:Buffer.from(json)});
+  await expect(page.locator('#teacherStatus')).toContainText('PC aula CAD');
+  await expect(page.locator('#advClient option:checked')).toContainText('PC aula CAD');
+  await expect(page.locator('#adventurePanel')).toContainText('1.200');
+  const downloaded=page.waitForEvent('download');
+  await page.locator('#exportPcJson').click();
+  const file=await downloaded;
+  expect(file.suggestedFilename()).toMatch(/pc-lab-montaje-.*\.json/);
+  await expect(page.locator('#workshopFeedback')).toContainText('JSON');
+});
+
+test('fallo térmico provoca apagado protector y diagnóstico al volver a encender',async ({page})=>{
+  test.setTimeout(85000);
+  await openGame(page);
+  await page.locator('#autoBuild').click();
+  await page.locator('#faultSelect').selectOption('paste');
+  await page.locator('#injectFault').click();
+  await page.locator('#powerBtn').click();
+  await expect(page.locator('#screen')).toContainText('POWER: ON',{timeout:10000});
+  await expect(page.locator('#powerStatus')).toHaveText('Apagado',{timeout:15000});
+  await expect(page.locator('#screen')).toContainText('PROTECCIÓN');
+  await expect(page.locator('#workshopFeedback')).toContainText('THERMAL_PASTE');
+  await expect(page.locator('#powerBreakdown')).toContainText('CPU');
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
