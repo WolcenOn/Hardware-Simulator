@@ -25,7 +25,7 @@ function createEngine({clock}={}){
     throw new TypeError('Reloj simulado obligatorio.');
   const history=[],successful=new Set();
   let sequence=0,experience=0;
-  function attempt({kind,target='',execute,wasSuccessful,context=''}){
+  function attempt({kind,target='',execute,wasSuccessful,context='',getReason=null}){
     const def=DEFINITIONS[kind];
     if(!def)throw new RangeError('Operación desconocida: '+kind);
     if(typeof execute!=='function'||typeof wasSuccessful!=='function')
@@ -35,8 +35,8 @@ function createEngine({clock}={}){
     try{result=execute()}catch(e){error=e;}
     let passed=false;
     if(!error){try{passed=!!wasSuccessful(result)}catch(e){error=e;}}
-    const repeated=passed&&successful.has(key);
-    const category=!passed?'rejected':repeated?'repeated':
+    const repeated=successful.has(key);
+    const category=!passed?(repeated?'repeated':'rejected'):repeated?'repeated':
       kind==='inspect'?'useful_inspection':'necessary';
     const minutes=passed?clock.calculate(def.baseMinutes,def.difficulty,experience):0;
     if(passed){clock.add('technical',minutes,key);successful.add(key);}
@@ -44,7 +44,8 @@ function createEngine({clock}={}){
       seq:++sequence,operation:def.id,target:ref,context:String(context),
       status:passed?'success':'rejected',category,minutes,
       speed:clock.getSpeed(),reason:error?.message||
-        (!passed?'Prerrequisitos o resultado técnico no satisfechos.':
+        (!passed?(typeof getReason==='function'&&getReason()||
+          'Prerrequisitos o resultado técnico no satisfechos.'):
           repeated?'Operación válida repetida.':'Correcto.')
     });
     history.push(record);
