@@ -27,7 +27,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/osEmulation.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -259,4 +259,50 @@ assert(read('js/towerATX.js').includes('ssdAdapter.visible=!!installed'));
 assert(read('js/procedural3d.js').includes('viewDriveBays'));
 assert(read('js/procedural3d.js').includes('getStorageBayAlignment'));
 assert(html.includes('id="viewDriveBays"'));
+// 8.5.0 — arranque únicamente desde USB instalador o disco con SO.
+const os=window.PC_OS;
+assert.equal(Object.keys(os.CATALOG).length,3);
+assert.equal(os.storageCapacityGb('hdd','HDD SATA 2 TB'),2000);
+const machine={power:true,bios:false,installed:{storage:true},
+ selected:{storage:'sataSSD'},sataData:true,sataPower:true,
+ usbConnected:false,usbImage:'none',installedOs:null,osInstalled:false,
+ biosCfg:{boot:'ssd',bootOrder:['ssd','usb','pxe'],secure:'on',uefi:'on',sata:'AHCI'}};
+const hardware={post:true,disk:{interface:'SATA',name:'SSD SATA 1 TB'},diskGb:1000,ramGb:16};
+assert.equal(os.resolveBoot(machine,hardware).code,'NO_BOOTABLE_DEVICE');
+machine.biosCfg.boot='usb';machine.biosCfg.bootOrder=['usb','ssd','pxe'];
+assert.equal(os.resolveBoot(machine,hardware).code,'NO_BOOTABLE_DEVICE',
+  'USB vacío no debe simular un instalador');
+machine.usbConnected=true;machine.usbImage='novadesk';
+machine.biosCfg.secure='off';
+assert.equal(os.resolveBoot(machine,hardware).code,'SECURE_BOOT_REQUIRED');
+assert.equal(os.canInstall(machine,hardware).code,'SECURE_BOOT_REQUIRED');
+machine.biosCfg.secure='on';machine.biosCfg.uefi='off';
+assert.equal(os.canInstall(machine,hardware).code,'UEFI_REQUIRED');
+machine.biosCfg.uefi='on';
+assert.equal(os.resolveBoot(machine,hardware).kind,'installer');
+assert.equal(os.canInstall(machine,{...hardware,diskGb:40}).code,'DISK_TOO_SMALL');
+machine.sataData=false;
+assert.equal(os.canInstall(machine,hardware).code,'DISK_NOT_READY');
+machine.sataData=true;
+assert.equal(os.canInstall(machine,hardware).ok,true);
+assert.equal(os.installRecord(machine,hardware).ok,true);
+assert.equal(machine.installedOs.id,'novadesk');
+assert.equal(machine.installedOs.storageId,'sataSSD');
+machine.biosCfg.boot='ssd';machine.biosCfg.bootOrder=['ssd','usb','pxe'];
+assert.equal(os.resolveBoot(machine,hardware).kind,'desktop');
+machine.selected.storage='hdd';machine.usbConnected=false;
+assert.equal(os.resolveBoot(machine,hardware).code,'NO_BOOTABLE_DEVICE',
+  'Un disco sin el SO instalado no debe arrancar');
+machine.usbConnected=true;machine.usbImage='libreforge';
+machine.biosCfg.boot='usb';machine.biosCfg.bootOrder=['usb','ssd','pxe'];
+machine.biosCfg.secure='off';machine.biosCfg.uefi='off';
+assert.equal(os.canInstall(machine,hardware).ok,true,
+  'La distribución abierta ficticia permite firmware sin Secure Boot');
+const blank={...machine,installed:{storage:false},usbConnected:false};
+assert.equal(os.resolveBoot(blank,hardware).code,'NO_BOOTABLE_DEVICE');
+const htmlOS=read('index.html');
+for(const id of ['osUsbImage','osUsbToggle','osInstallBtn','biosUefi'])
+  assert(htmlOS.includes('id="'+id+'"'),'Falta control SO: '+id);
+assert(read('js/workbench3d.js').includes('window.PC_OS?.paint'));
+assert(read('js/procedural3d.js').includes('details.osVisual||null'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

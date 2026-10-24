@@ -226,3 +226,14 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - Botón **Bahías HDD / SSD**: encuadra la jaula e inspecciona su contenido. En esa vista se ocultan temporalmente el techo y frontal opaco del shroud; al salir de ella vuelven automáticamente.
 - API de depuración `PC3D.getStorageBayAlignment()`: tipo seleccionado, estante, error del centro, holgura, visibilidad de adaptador/soporte trasero y corte visual. E2E comprueba SSD predeterminado, HDD, conectores SATA y restauración de la cubierta.
 - Versión de desarrollo 8.4.11-alpha en `feature/v7-procedural-3d`, vista previa `/preview/v7/?v=8-4-11-drive-bays`; `main/index.html` no se modifica.
+
+## 8.5.0 — emulación ficticia de medios de arranque y sistema operativo
+
+- Tres sistemas originales (`NovaDesk 11`, `LibreForge`, `Terminalis`) sin fondos, logotipos ni interfaces comerciales reproducidas. No instala nada realmente ni modifica discos físicos.
+- `js/osEmulation.js` contiene reglas compartidas: discos instalados, cables SATA/mode AHCI, USB con/sin imagen, orden de arranque, modo UEFI/CSM, Secure Boot, RAM y capacidad mínima. El motor detecta `NO_BOOTABLE_DEVICE`, `SECURE_BOOT_REQUIRED`, `UEFI_REQUIRED`, `DISK_TOO_SMALL` y otros casos.
+- Añadidos selector de imagen USB, botón de conexión/desconexión, instalación y estado; BIOS incorpora firmware UEFI/Legacy. El modo aventura requiere comprar el USB instalador; la misma función realiza la instalación en ambos modos.
+- La instalación representa cuatro fases de progreso que se cancelan al apagar. El SO se registra solamente al alcanzar el 100 % y queda asociado al ID del disco elegido; si se cambia de disco, el anterior no arranca en el nuevo.
+- Al completar POST el monitor virtual y el monitor 3D distinguen búsqueda de medio, error sin sistema, instalador, instalación, splash y escritorio original de demostración; el sistema no se considera arrancado hasta tener una instalación válida en el disco que haya seleccionado el firmware.
+- Se conservaron la lógica del botón POWER físico, POST escalonado, BIOS e interacción del taller. En el monitor 3D se dibuja una interfaz original mediante Canvas2D; no se reproducen pantallas de Windows/Linux.
+- Pruebas smoke de arranque, medios y requisitos; E2E de instalación y cambio de disco. En modo aventura sigue habiendo una acción `Instalar SO`, ahora conectada a la misma emulación.
+- Vista previa: `/preview/v7/?v=8-5-0-os-emulator`. La raíz estable de `main/index.html` permanece intacta.

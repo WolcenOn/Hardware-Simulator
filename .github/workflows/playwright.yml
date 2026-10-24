@@ -46,6 +46,31 @@ jobs:
             playwright-report/
           retention-days: 7
 
+  os-boot:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser tests
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test fictional OS installation and boot
+        run: npx playwright test --project=chromium-desktop --grep "sin SO ni USB|NovaDesk comprueba|LibreForge permite" --workers=1 --retries=0 --reporter=list
+      - name: Upload boot tests report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-boot-report-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
   e2e:
     needs: smoke
     runs-on: ubuntu-latest

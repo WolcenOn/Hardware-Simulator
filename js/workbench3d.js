@@ -217,6 +217,7 @@ export function createWorkbench(THREE,scene,materials) {
     }).filter(Boolean);
   }
 
+  let currentOsVisual=null;
   let lastSignature='';
   function wrapLine(text,max=48){
     if(text.length<=max)return [text];
@@ -230,14 +231,19 @@ export function createWorkbench(THREE,scene,materials) {
     out.push(current);
     return out;
   }
-  function updateScreen(consoleText, powered=false, bios=false, signal=false){
-    const signature=[consoleText, powered, bios, signal].join('\u0001');
+  function updateScreen(consoleText, powered=false, bios=false, signal=false, osVisual=null){
+    currentOsVisual=osVisual?.kind||null;
+    const signature=[consoleText, powered, bios, signal,osVisual?.kind,
+      osVisual?.progress,osVisual?.code].join('\u0001');
     if(signature===lastSignature)return;
     lastSignature=signature;
     const width=canvas.width,height=canvas.height;
     ctx.fillStyle=signal?'#05120e':'#03060a';ctx.fillRect(0,0,width,height);
     standby.material.emissiveIntensity=signal?1.1:.05;
     if(!signal){tex.needsUpdate=true;return;}
+    if(!bios&&window.PC_OS?.paint(ctx,width,height,osVisual)){
+      tex.needsUpdate=true;return;
+    }
     const grad=ctx.createLinearGradient(0,0,0,height);
     grad.addColorStop(0,powered?'rgba(41,134,107,.17)':'rgba(40,73,96,.08)');
     grad.addColorStop(1,'rgba(0,0,0,0)');
@@ -293,5 +299,6 @@ export function createWorkbench(THREE,scene,materials) {
   updateScreen('Sistema apagado.',false,false,false);
   updateConnections({});
   return {root,updateScreen,updateConnections,getRearUsbAlignment,hitBootOption,display,
+    getOSMonitorKind:()=>currentOsVisual,
     screen,keyboard,mouseGroup,texture:tex,layout:WORKBENCH_LAYOUT};
 }

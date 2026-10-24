@@ -450,6 +450,76 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
   expect(bay.inspectionVisible).toBe(false);
 });
 
+test('sin SO ni USB válido el monitor muestra dispositivo no arrancable',async ({page})=>{
+  await openGame(page);
+  await page.locator('#autoBuild').click();
+  await page.locator('#powerBtn').click();
+  await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE',{timeout:15000});
+  await expect(page.locator('#bootStatus')).toHaveText('No arranca');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('no-boot');
+  await page.locator('#osUsbToggle').click(); // USB sin imagen
+  await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE');
+});
+
+test('NovaDesk comprueba Secure Boot y se instala antes de mostrar escritorio ficticio',async ({page})=>{
+  test.setTimeout(90000);
+  await openGame(page);
+  await page.locator('#autoBuild').click();
+  await page.locator('#osUsbImage').selectOption('novadesk');
+  await page.locator('#osUsbToggle').click();
+  await page.locator('#powerBtn').click();
+  await page.locator('#biosBtn').click();
+  await page.locator('#biosBoot').selectOption('usb');
+  await page.locator('#biosSecure').selectOption('off');
+  await page.locator('#saveBios').click();
+  await page.locator('#biosBtn').click();
+  await expect(page.locator('#screen')).toContainText('SECURE_BOOT_REQUIRED');
+  await page.locator('#osInstallBtn').click();
+  await expect(page.locator('#workshopFeedback')).toContainText('Secure Boot');
+  await page.locator('#biosBtn').click();
+  await page.locator('#biosSecure').selectOption('on');
+  await page.locator('#saveBios').click();
+  await page.locator('#biosBtn').click();
+  await expect(page.locator('#screen')).toContainText('USB INSTALADOR');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('installer');
+  await page.locator('#osInstallBtn').click();
+  await expect(page.locator('#osStatus')).toContainText('Instalación completada',{timeout:15000});
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('installed');
+  await page.locator('#biosBtn').click();
+  await page.locator('#biosBoot').selectOption('ssd');
+  await page.locator('#saveBios').click();
+  await page.locator('#biosBtn').click();
+  await expect(page.locator('#screen')).toContainText('BOOT: OK');
+  await expect(page.locator('#bootStatus')).toHaveText('Arranca');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('desktop');
+});
+
+test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco instalado',async ({page})=>{
+  test.setTimeout(85000);
+  await openGame(page);
+  await page.locator('#autoBuild').click();
+  await page.locator('#osUsbImage').selectOption('libreforge');
+  await page.locator('#osUsbToggle').click();
+  await page.locator('#powerBtn').click();
+  await page.locator('#biosBtn').click();
+  await page.locator('#biosBoot').selectOption('usb');
+  await page.locator('#biosSecure').selectOption('off');
+  await page.locator('#saveBios').click();
+  await page.locator('#biosBtn').click();
+  await expect(page.locator('#screen')).toContainText('USB INSTALADOR');
+  await page.locator('#osInstallBtn').click();
+  await expect(page.locator('#osStatus')).toContainText('Instalación completada',{timeout:15000});
+  await page.locator('#biosBtn').click();
+  await page.locator('#biosBoot').selectOption('ssd');
+  await page.locator('#saveBios').click();
+  await page.locator('#biosBtn').click();
+  await expect(page.locator('#bootStatus')).toHaveText('Arranca');
+  await page.locator('select[data-cat="storage"]').selectOption('hdd');
+  await page.locator('#autoBuild').click();
+  await page.locator('#powerBtn').click();
+  await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE',{timeout:15000});
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
