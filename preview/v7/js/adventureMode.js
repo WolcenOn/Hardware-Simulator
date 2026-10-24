@@ -405,12 +405,12 @@ function createAdventureGame(api){
       g.openSections=['actions','delivery'];
       return;
     }
-    if(verb==='inspect'){inspect();return;}
+    if(verb==='inspect')return inspect();
     if(verb==='os'){installOS();return;}
     if(!k){message('Selecciona primero una pieza del inventario.');return;}
-    if(verb==='connect'){connect(g.connection);return;}
-    if(verb==='disconnect'){disconnect(g.connection);return;}
-    if(verb==='apply'){apply(k);return;}
+    if(verb==='connect')return connect(g.connection);
+    if(verb==='disconnect')return disconnect(g.connection);
+    if(verb==='apply')return apply(k);
     const [cat,id]=k.split(':');
     if(verb==='fit'){
       if(cat==='case'&&st.installed.case){
