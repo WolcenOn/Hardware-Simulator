@@ -1,4 +1,4 @@
-import {HDD_BAY_LAYOUT} from './partsRealScale.js?v=8-4-10-hdd-bay';
+import {HDD_BAY_LAYOUT,SSD_BAY_LAYOUT,getSsdBayPosition} from './partsRealScale.js?v=8-4-11-drive-bays';
 // Planificador de mazos 3D en coordenadas de la torre (1 u = 50 mm).
 // En vez de una curva libre que atraviesa el PC, utiliza pasillos:
 // salida normal -> borde de placa -> cámara trasera -> borde -> inserción.
@@ -31,8 +31,12 @@ export function cableObstacles(cfg,gpuChoice='rx7600',storageChoice='nvmeSSD'){
     blocks.push({id:'hdd',min:[x-w/2,base,z-d/2],
       max:[x+w/2,base+h,z+d/2]});
   }
-  if(['sataSSD','sataSSD2'].includes(storageChoice))
-    blocks.push({id:'ssd',min:[-1.31,-.69,-.07],max:[.72,-.49,1.37]});
+  if(['sataSSD','sataSSD2'].includes(storageChoice)){
+    const [x,y,z]=getSsdBayPosition();
+    const [w,h,d]=SSD_BAY_LAYOUT.driveSize;
+    blocks.push({id:'ssd',min:[x-w/2,y,z-d/2],
+      max:[x+w/2,y+h,z+d/2]});
+  }
   return blocks;
 }
 function hitsBox(a,b,box,clearance=0){
@@ -97,14 +101,9 @@ function sideAccess(point,normal,cfg,edge,lane,rearY,role,id){
       v(outerRight,rearY,p[2])]);
   }
   if(role==='drive'){
-    // SSD: el cable rodea el borde izquierdo del disco para no atravesarlo.
-    if(p[0]<0)return dedupe([p,v(p[0]-.16,p[1],p[2]),
-      v(p[0]-.16,rearY,p[2]),v(p[0]-.16,rearY,1.62),
-      v(outerRight,rearY,1.62)]);
-    // HDD en jaula: extraer primero el conector por la cara izquierda
-    // (X < inicio de la jaula), luego bajar al corredor posterior.
-    // Esto evita pasar un cable SATA a través de las dos baldas.
-    const outside=Math.min(p[0],HDD_BAY_LAYOUT.insideX[0]-.17);
+    // Ambos discos comparten jaula; SATA sale por el borde X izquierdo.
+    // Evita atravesar los estantes antes de entrar a la canaleta posterior.
+    const outside=HDD_BAY_LAYOUT.insideX[0]-.17;
     return dedupe([p,v(outside,p[1],p[2]),
       v(outside,rearY,p[2]),v(outerRight,rearY,p[2])]);
   }

@@ -6,7 +6,8 @@ import {getPlugExitDistance,INTERNAL_HEADER_SPECS} from '../js/connectors3d.js';
 import {planCableRoute,routeCollisions,cableObstacles}
   from '../js/cableRouting3d.js';
 import {getInternalHeaderAnchor,getGpuPowerAnchor,
-  HDD_BAY_LAYOUT,getHddBayPosition} from '../js/partsRealScale.js';
+  HDD_BAY_LAYOUT,getHddBayPosition,
+  SSD_BAY_LAYOUT,getSsdBayPosition} from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -241,4 +242,21 @@ const routeSource=read('js/cableRouting3d.js');
 assert(routeSource.includes('HDD_BAY_LAYOUT.driveBaseY'));
 assert(routeSource.includes('HDD_BAY_LAYOUT.insideX[0]-.17'));
 assert(read('js/procedural3d.js').includes('getHddBayAlignment'));
+// 8.4.11: SATA SSD tampoco puede quedar detrás de la bandeja de placa.
+const [sx,sy,sz]=getSsdBayPosition();
+assert.equal(sx,HDD_BAY_LAYOUT.cageCenter[0]);
+assert.equal(sz,HDD_BAY_LAYOUT.cageCenter[2]);
+assert(sy>HDD_BAY_LAYOUT.shelfLevels[0]);
+assert(sy+SSD_BAY_LAYOUT.driveSize[1]<HDD_BAY_LAYOUT.shelfLevels[1]);
+assert(sx-SSD_BAY_LAYOUT.driveSize[0]/2>HDD_BAY_LAYOUT.insideX[0]);
+assert(sx+SSD_BAY_LAYOUT.driveSize[0]/2<HDD_BAY_LAYOUT.insideX[1]);
+assert(SSD_BAY_LAYOUT.adapterSize[0]>SSD_BAY_LAYOUT.driveSize[0]);
+assert(SSD_BAY_LAYOUT.adapterSize[2]>SSD_BAY_LAYOUT.driveSize[2]);
+assert(read('js/partsRealScale.js').includes('sataDrive.position.set(...getSsdBayPosition())'));
+assert(read('js/towerATX.js').includes('rearSSD.visible=false'));
+assert(read('js/towerATX.js').includes('shroudRoof.visible=!driveInspection'));
+assert(read('js/towerATX.js').includes('ssdAdapter.visible=!!installed'));
+assert(read('js/procedural3d.js').includes('viewDriveBays'));
+assert(read('js/procedural3d.js').includes('getStorageBayAlignment'));
+assert(html.includes('id="viewDriveBays"'));
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');

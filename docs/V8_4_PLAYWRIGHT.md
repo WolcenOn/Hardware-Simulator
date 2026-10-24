@@ -217,3 +217,12 @@ Vista previa: `/preview/v7/?v=8-4-2-focus-finishes`.
 - `PC3D.getHddBayAlignment()` informa sobre bahía seleccionada, centro, encaje, error de posición en mm y holgura respecto a estante/techo/laterales.
 - Smoke valida encaje para el formato de 3,5" y correspondencia con la jaula; Playwright verifica colocación de HDD/HDD4, holguras, conexiones SATA y retorno a SSD.
 - Previsualización `/preview/v7/?v=8-4-10-hdd-bay`. Se conserva intacto `main/index.html` estable.
+
+## 8.4.11 — discos SATA dentro de la jaula e inspección visible
+
+- Corrección del síntoma de la captura: el objeto del lateral trasero era el SSD SATA 2,5" predeterminado, no el HDD de 3,5". Antes se dibujaba siempre el soporte `rearSSD`; ahora desaparece esa posición en el lateral.
+- `getSsdBayPosition()` / `SSD_BAY_LAYOUT` comparten eje y centro con `HDD_BAY_LAYOUT`: HDD en estante superior de 3,5", SSD SATA en bandeja inferior con adaptador de 2,5". NVMe permanece en la placa base.
+- El adaptador inferior solo se muestra si hay SSD SATA instalado y la unidad se encuentra seleccionada. Se conservan los puertos físicos SATA de cada disco y se actualiza la caja de colisión del SSD para el planificador de cables.
+- Botón **Bahías HDD / SSD**: encuadra la jaula e inspecciona su contenido. En esa vista se ocultan temporalmente el techo y frontal opaco del shroud; al salir de ella vuelven automáticamente.
+- API de depuración `PC3D.getStorageBayAlignment()`: tipo seleccionado, estante, error del centro, holgura, visibilidad de adaptador/soporte trasero y corte visual. E2E comprueba SSD predeterminado, HDD, conectores SATA y restauración de la cubierta.
+- Versión de desarrollo 8.4.11-alpha en `feature/v7-procedural-3d`, vista previa `/preview/v7/?v=8-4-11-drive-bays`; `main/index.html` no se modifica.

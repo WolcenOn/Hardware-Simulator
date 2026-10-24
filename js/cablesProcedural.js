@@ -2,10 +2,10 @@
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
 import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
-  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-4-9-routed-cables';
+  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-9-routed-cables';
 import {planCableRoute,createSafeCableCurve,routeCollisions}
-  from './cableRouting3d.js?v=8-4-10-hdd-bay';
+  from './cableRouting3d.js?v=8-4-11-drive-bays';
 
 export function createCableHarness(THREE,scene,assembly,tower){
   const root=new THREE.Group();root.name='Cableado procedural';scene.add(root);

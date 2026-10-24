@@ -4,13 +4,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
-  getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT } from './partsRealScale.js?v=8-4-10-hdd-bay';
+  getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
+  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-4-11-drive-bays';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-10-hdd-bay';
+import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
-import { createATXTower } from './towerATX.js?v=8-4-10-hdd-bay';
+import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 
@@ -218,6 +219,7 @@ function sync(state,details={}){
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
     !!details.videoSignal);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
+  tower.setStorageSelection(state.selected?.storage,!!state.installed?.storage);
   tower.setMotherboardLayout(cfg);
   tower.setFinish?.(state.selected?.caseVariant||'tower');
   tower.setRgb?.(!!state.rgbInstalled&&!!state.power&&!!state.rgbOn);
@@ -473,6 +475,9 @@ function focusCamera(id,position,target){
   controls.update();
   smoothZoom.sync();
   cameraPreset=id;
+  // La vista de bahías es un corte visual reversible: al salir vuelve
+  // la cubierta PSU; no se cambia el montaje de ningún componente.
+  tower.setDriveInspection(id==='drives');
   view.dataset.viewPreset=id;
   stage.dataset.viewPreset=id;
   window.dispatchEvent(new CustomEvent('pc3d-view-change',{detail:{view:id}}));
@@ -497,6 +502,12 @@ function viewHardware(){
 }
 function viewRearCables(){
   focusCamera('rear',[9.0,10.2,-14.0],[1.0,5.0,.85]);
+}
+function viewDriveBays(){
+  root.updateMatrixWorld(true);
+  const center=root.localToWorld(new THREE.Vector3(...HDD_BAY_LAYOUT.cageCenter));
+  focusCamera('drives',
+    [center.x+4.5,center.y+3.4,center.z+8.5],center.toArray());
 }
 function viewScreen(){
   focusCamera('monitor',
@@ -583,6 +594,7 @@ window.PC3D={
   viewStaging,
   viewPeripherals,
   viewRearCables,
+  viewDriveBays,
   viewScreen,
   viewTop:viewSide,
   // Útil para comprobar encuadres desde pruebas E2E reales.
@@ -617,6 +629,38 @@ window.PC3D={
       visible:!!assembly.hddDrive.visible,
       selected:current?.selected?.storage||'none'
     };
+  },
+  getStorageBayAlignment:()=>{
+    root.updateMatrixWorld(true);
+    const selected=current?.selected?.storage||'none';
+    const hdd=['hdd','hdd4'].includes(selected);
+    const sataSSD=['sataSSD','sataSSD2'].includes(selected);
+    const disk=hdd?assembly.hddDrive:sataSSD?assembly.sataDrive:null;
+    const size=hdd?HDD_BAY_LAYOUT.driveSize:SSD_BAY_LAYOUT.driveSize;
+    const shelf=HDD_BAY_LAYOUT.shelfLevels;
+    const center=root.worldToLocal(tower.hddCage.getWorldPosition(new THREE.Vector3()));
+    const position=disk?root.worldToLocal(disk.getWorldPosition(new THREE.Vector3())):null;
+    const expectedY=hdd?HDD_BAY_LAYOUT.driveBaseY:SSD_BAY_LAYOUT.driveBaseY;
+    const low=hdd?shelf[1]:shelf[0];
+    const high=hdd?shelf[2]:shelf[1];
+    const bounds=HDD_BAY_LAYOUT.insideX;
+    const result=position?{
+      fitted:position.y>=low&&position.y+size[1]<high&&
+        position.x-size[0]/2>bounds[0]&&position.x+size[0]/2<bounds[1]&&
+        Math.abs(position.z-center.z)+size[2]/2<Math.abs(HDD_BAY_LAYOUT.sideWallZ[1]),
+      alignmentErrorMm:Math.hypot(position.x-center.x,
+        position.y-expectedY,position.z-center.z)*MM_PER_UNIT,
+      bottomClearanceMm:(position.y-low)*MM_PER_UNIT,
+      topClearanceMm:(high-position.y-size[1])*MM_PER_UNIT,
+      position:position.toArray()
+    }:{fitted:false,alignmentErrorMm:null,
+      bottomClearanceMm:null,topClearanceMm:null,position:null};
+    return {...result,selected,slot:hdd?'upper':sataSSD?'lower':'none',
+      visible:!!disk?.visible&&!!current?.installed?.storage,
+      rearSSDVisible:tower.rearSSD.visible,
+      ssdAdapterVisible:tower.ssdAdapter.visible,
+      inspectionVisible:tower.getDriveInspection(),
+      cagePosition:center.toArray()};
   },
   getRearUsbAlignment:()=>workbench.getRearUsbAlignment(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),

@@ -35,7 +35,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Diagnose HDD installation specifically
-        run: npx playwright test --project=chromium-desktop --grep "HDD de 3,5" --workers=1 --retries=0 --reporter=list
+        run: npx playwright test --project=chromium-desktop --grep "HDD de 3,5|SSD y HDD" --workers=1 --retries=0 --reporter=list
       - name: Upload HDD diagnosis and trace
         if: failure()
         uses: actions/upload-artifact@v4

@@ -118,6 +118,16 @@ export const HDD_BAY_LAYOUT=Object.freeze({
   driveSize:[mm(147),mm(26.1),mm(101.6)],
   clearance:.06
 });
+export const SSD_BAY_LAYOUT=Object.freeze({
+  // Adaptador de 2,5" en la bandeja INFERIOR de la misma jaula, no detrás del PCB.
+  driveBaseY:.48,
+  driveSize:[mm(100),mm(7),mm(69.85)],
+  adapterSize:[mm(126),.06,mm(94)]
+});
+export function getSsdBayPosition(){
+  return [HDD_BAY_LAYOUT.driveCenterX,SSD_BAY_LAYOUT.driveBaseY,
+    HDD_BAY_LAYOUT.driveCenterZ];
+}
 export function getHddBayPosition(slot='upper'){
   if(slot!=='upper'&&slot!=='lower')throw new RangeError('Bahía de disco incorrecta');
   return [HDD_BAY_LAYOUT.driveCenterX,
@@ -565,8 +575,9 @@ export function buildRealScale(p) {
 
   // SSD SATA 2.5": 100x69.85x7 mm, sobre el soporte, no en un slot M.2.
   const sataDrive=new THREE.Group();storage.add(sataDrive);
-  // SSD SATA de 2,5": detrás de la bandeja ATX, accesible desde panel posterior.
-  sataDrive.position.set(-.30,-.67,.65);
+  // El SSD SATA ocupa un adaptador 2,5" -> 3,5" de la bahía inferior.
+  // Compartir la jaula con el HDD no implica que ambos estén instalados.
+  sataDrive.position.set(...getSsdBayPosition());
   rounded(mm(100),mm(7),mm(69.85),.035,black,sataDrive,0,mm(7)/2,0);
   rounded(1.83,.013,1.20,.02,alu,sataDrive,0,mm(7)+.01,0);
   // Conectores en el borde físico de la unidad. Su normal apunta hacia
@@ -579,7 +590,7 @@ export function buildRealScale(p) {
     sataDrive.add(port);sataSsdPorts[kind]=port;
   }
   const ssdText=label('SATA SSD',.75,.15);
-  ssdText.position.set(0,.18,0);sataDrive.add(ssdText);
+  ssdText.position.set(0,mm(7)+.037,0);sataDrive.add(ssdText);
 
   // HDD SATA 3.5": 147x101.6x26.1 mm, más grande y grueso.
   const hddDrive=new THREE.Group();storage.add(hddDrive);

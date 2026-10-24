@@ -413,6 +413,42 @@ test('HDD de 3,5 pulgadas encajado en la jaula del chasis, no en el lateral',asy
   expect(after.visible).toBe(false);
 });
 
+test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos',async ({page})=>{
+  await openGame(page);
+  await page.waitForFunction(()=>window.PC3D?.ready===true);
+  await page.locator('#autoBuild').click(); // SSD SATA por defecto
+  await page.locator('#viewDriveBays').click();
+  await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','drives');
+  let bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
+  expect(bay.selected).toBe('sataSSD');
+  expect(bay.slot).toBe('lower');
+  expect(bay.fitted).toBe(true);
+  expect(bay.visible).toBe(true);
+  expect(bay.alignmentErrorMm).toBeLessThan(.1);
+  expect(bay.bottomClearanceMm).toBeGreaterThan(2);
+  expect(bay.ssdAdapterVisible).toBe(true);
+  expect(bay.rearSSDVisible).toBe(false);
+  expect(bay.inspectionVisible).toBe(true);
+  await page.locator('select[data-cat="storage"]').selectOption('hdd');
+  await page.locator('#autoBuild').click();
+  bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
+  expect(bay.selected).toBe('hdd');
+  expect(bay.slot).toBe('upper');
+  expect(bay.fitted).toBe(true);
+  expect(bay.visible).toBe(true);
+  expect(bay.ssdAdapterVisible).toBe(false);
+  expect(bay.rearSSDVisible).toBe(false);
+  const hdd=await page.evaluate(()=>window.PC3D.getHddBayAlignment());
+  expect(hdd.fitted).toBe(true);
+  const sata=await page.evaluate(()=>window.PC3D.getCableSocketAlignment()
+    .filter(x=>['sataData','sataPower'].includes(x.id)&&x.side===1));
+  expect(sata).toHaveLength(2);
+  for(const cable of sata)expect(cable.gapMm,cable.id).toBeLessThan(.25);
+  await page.locator('#viewRearCables').click();
+  bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
+  expect(bay.inspectionVisible).toBe(false);
+});
+
 test('los acabados blanco y grafito se conservan al colocar la caja en el taller', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);

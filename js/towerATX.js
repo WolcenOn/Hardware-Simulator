@@ -4,7 +4,8 @@ import {createInternalHeader3d} from './connectors3d.js?v=8-4-9-routed-cables';
 // Se transforma a vertical en procedural3d.js con rotation.x=Math.PI/2.
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
 import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
-  HDD_BAY_LAYOUT,getHddBayPosition } from './partsRealScale.js?v=8-4-10-hdd-bay';
+  HDD_BAY_LAYOUT,SSD_BAY_LAYOUT,getHddBayPosition,getSsdBayPosition
+} from './partsRealScale.js?v=8-4-11-drive-bays';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);
@@ -58,10 +59,10 @@ export function createATXTower(THREE,parent,materials){
     add(tower,[.60,.06,.20],[1.64,-.30,z],mesh);
   // Separador de cámara PSU: shroud inferior cubre disco/fuente sin tapar
   // por completo la inspección. Material semitransparente en el lado acristalado.
-  add(tower,[8.80,4.35,.14],[.52,1.57,3.40],steel);
+  const shroudRoof=add(tower,[8.80,4.35,.14],[.52,1.57,3.40],steel);
   const shroudFront=new THREE.MeshStandardMaterial({
     color:0x101921,transparent:true,opacity:.69,roughness:.65,depthWrite:false});
-  add(tower,[8.84,.10,2.46],[.53,3.34,4.68],shroudFront);
+  const shroudWindow=add(tower,[8.84,.10,2.46],[.53,3.34,4.68],shroudFront);
   // Fondo trasero y frente perforado. Evitar pared sólida sobre hardware.
   add(tower,[.12,4.60,2.45],[rear,1.58,4.70],panel);
   for(let i=0;i<18;i++){
@@ -131,11 +132,10 @@ export function createATXTower(THREE,parent,materials){
   }
   function setPower(powered){powerLedMaterial.emissiveIntensity=powered?2.1:.04;}
   setPower(false);
-  // SSD SATA 2.5" detrás de la bandeja de placa, no en la jaula HDD.
-  const rearSSD=new THREE.Group();rearSSD.name='Soportes SSD traseros';
-  rearSSD.position.set(-.30,-.67,.65);tower.add(rearSSD);
-  for(const x of [-.84,.84])add(rearSSD,[.10,.15,1.55],[x,0,0],mesh);
-  add(rearSSD,[1.82,.08,1.46],[0,-.04,0],cageMaterial);
+  // Retener la referencia para API legado, pero no dibujar SSD en el
+  // lateral de la bandeja: los dos SATA están ahora en la jaula inferior.
+  const rearSSD=new THREE.Group();rearSSD.name='Soporte trasero retirado';
+  rearSSD.visible=false;tower.add(rearSSD);
   // Jaula de DOS bahías de 3,5" en la cámara inferior, delante de PSU.
   // Disco y jaula consultan HDD_BAY_LAYOUT: ni desplazamiento lateral,
   // ni disco atravesando el estante como ocurría con Y=.31.
@@ -162,6 +162,23 @@ export function createATXTower(THREE,parent,materials){
     add(hddCage,[3.00,.10,.08],[0,.055,z],baySteel);
     add(hddCage,[3.00,.10,.08],[0,-.665,z],baySteel);
   }
+  // Adaptador de 2.5" sobre el estante inferior de 3.5".
+  // Se oculta cuando se selecciona un HDD, para no parecer una segunda unidad.
+  const ssdAdapter=new THREE.Group();
+  ssdAdapter.name='Adaptador SSD SATA 2.5 en bahía inferior';
+  ssdAdapter.position.set(...getSsdBayPosition());
+  tower.add(ssdAdapter);
+  const [aw,ah,ad]=SSD_BAY_LAYOUT.adapterSize;
+  add(ssdAdapter,[aw,ah,ad],[0,-.055,0],trayMat);
+  for(const z of [-ad/2+.06,ad/2-.06]){
+    add(ssdAdapter,[aw,.11,.09],[0,.035,z],baySteel);
+    for(const x of [-aw*.39,aw*.39]){
+      const screw=new THREE.Mesh(new THREE.CylinderGeometry(.038,.038,.025,10),baySteel);
+      screw.position.set(x,.105,z);ssdAdapter.add(screw);
+    }
+  }
+  for(const x of [-aw/2+.075,aw/2-.075])
+    add(ssdAdapter,[.07,.06,ad*.87],[x,-.008,0],baySteel);
   // Extracción frontal: un tirador al borde +X de la bandeja superior.
   add(hddCage,[.09,.23,1.10],[1.68,.31,0],baySteel);
   // PSU inferior trasera, soporte para fijarla a la pared trasera.
@@ -213,6 +230,17 @@ export function createATXTower(THREE,parent,materials){
     return {variant:currentFinish,frame:steel.color.getHex(),
       panel:panel.color.getHex()};
   }
+  let driveInspection=false;
+  function setDriveInspection(enabled){
+    driveInspection=!!enabled;
+    // Corte de inspección temporal: no altera montaje ni colisiones.
+    shroudRoof.visible=!driveInspection;
+    shroudWindow.visible=!driveInspection;
+  }
+  function setStorageSelection(selected,installed){
+    ssdAdapter.visible=!!installed&&['sataSSD','sataSSD2'].includes(selected);
+    rearSSD.visible=false;
+  }
   function sync(installed,closedState){
     tower.visible=!!installed;
     hinge.rotation.z=closedState?closed:open;
@@ -223,6 +251,7 @@ export function createATXTower(THREE,parent,materials){
   return {root:tower,sync,setFinish,getFinish,setRgb,setPower,pressPowerButton,updateFrontIO,
     powerControl,powerButton,powerLed,frontUsbPorts,frontIO,frontIOHeaders,
     setMotherboardLayout,mountPosts,
-    hinge,rearSSD,hddCage,psuSeat,
+    hinge,rearSSD,hddCage,ssdAdapter,psuSeat,setDriveInspection,
+    setStorageSelection,getDriveInspection:()=>driveInspection,
     bounds:{rear,front,back,side,top,bottom},sizeMM:TOWER_CASE_MM};
 }
