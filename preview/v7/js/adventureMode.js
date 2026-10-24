@@ -104,7 +104,8 @@ function createAdventureGame(api){
     if(!CASES[which])return;
     api.reset();
     const state=api.state();
-    state.adventureMode=true;state.osInstalled=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
+    state.adventureMode=true;state.osInstalled=false;state.installedOs=null;
+    state.usbImage='none';state.usbConnected=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
@@ -417,7 +418,7 @@ function createAdventureGame(api){
       if(cat==='psu'){st.eps=false;st.atx24=false;st.gpuPower=false;}
       if(cat==='ram')st.ramSeated=false;
       if(cat==='cooler')st.cpuFan=false;
-      if(cat==='storage'){st.sataData=false;st.sataPower=false;st.osInstalled=false;}
+      if(cat==='storage'){st.sataData=false;st.sataPower=false;st.osInstalling=false;st.osInstallToken++;}
       delete g.screwed[cat];
       g.stock[k]=(g.stock[k]||0)+1;
       message('Retirado: '+label(cat,id)+'. Queda disponible para volver a montar.','ok');
@@ -527,20 +528,9 @@ function createAdventureGame(api){
     return true;
   }
   function installOS(){
-    const st=api.state(),ev=api.evaluate();
-    if(!owned('item:osusb')){message('Compra una memoria USB de instalación.');return;}
-    if(!st.power||!ev.post||ev.temp>=102){message('El PC debe completar el POST sin protección térmica antes de instalar el SO.');return;}
-    if(st.biosCfg.boot!=='usb'){message('Entra en UEFI y coloca USB primero en el orden de arranque.');return;}
-    if(!st.installed.storage){message('No hay disco donde instalar el sistema.');return;}
-    if(api.part('storage').interface==='SATA'&&(!st.sataData||!st.sataPower)){
-      message('El instalador no detecta el disco: revisa datos y alimentación SATA.');return;
-    }
-    if(!st.monitorCable||!st.keyboardConnected){message('Conecta monitor y teclado para completar el instalador.');return;}
-    st.osInstalled=true;
-    gOS();
-    message('SO instalado en '+api.part('storage').name+'. ¡Recuerda volver a arrancar desde SSD!','ok');
+    if(!owned('item:osusb')){message('Compra antes un USB instalador en la tienda.');return;}
+    api.osInstall(); // Misma comprobación y animación que el taller técnico.
   }
-  function gOS(){api.render();}
   function inspect(){
     const st=api.state(),e=api.evaluate();
     const symptoms=[];
@@ -690,7 +680,7 @@ function createAdventureGame(api){
       return '7 · Instala una unidad SATA o NVMe y asegúrala.';
     if(!st.power)
       return '8 · Comprueba conexiones, conecta periféricos y enciende el equipo.';
-    if(!st.osInstalled)return '9 · Entra en BIOS, arranca desde USB y usa «Instalar SO».';
+    if(!st.osInstalled)return '9 · Compra el USB, selecciona imagen, ajusta UEFI/Secure Boot, arranca desde USB e instala el sistema ficticio.';
     return '10 · Verifica temperaturas y tornillos. Entrega el PC al cliente.';
   }
   function section(name,title,content,count=''){
@@ -872,6 +862,7 @@ function createAdventureGame(api){
     }
   });
   return {start,exit,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
+    hasInstallerUSB:()=>owned('item:osusb'),
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

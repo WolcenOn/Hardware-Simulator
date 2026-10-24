@@ -10,7 +10,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-4-7-cable-exits';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-0-os-emulator';
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
@@ -217,7 +217,7 @@ function sync(state,details={}){
   workbench.updateConnections(state,cfg,root);
   updateExternalVideo(state,cfg);
   workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
-    !!details.videoSignal);
+    !!details.videoSignal,details.osVisual||null);
   tower.sync(!!state.installed?.case,!!state.caseClosed);
   tower.setStorageSelection(state.selected?.storage,!!state.installed?.storage);
   tower.setMotherboardLayout(cfg);
@@ -604,6 +604,7 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  getOSMonitorKind:()=>workbench.getOSMonitorKind(),
   getHddBayAlignment:()=>{
     root.updateMatrixWorld(true);
     const disk=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
