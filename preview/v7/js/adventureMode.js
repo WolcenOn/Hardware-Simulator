@@ -268,7 +268,9 @@ function createAdventureGame(api){
     st.usbConnected=true;st.usbImage=profile.os;st.usbMediaKey=item;
     game.selected=item;
     message('Memoria USB '+profile.label+' conectada a la placa base.','ok');
-    api.render();return true;
+    // Pintar el puerto 3D fuera del evento de clic: WebGL puede tardar
+    // en CI y no debe bloquear la interacción con el inventario.
+    setTimeout(()=>api.render(),0);return true;
   }
   function disconnectInstallerUsb(){
     if(!game)return false;
@@ -277,7 +279,7 @@ function createAdventureGame(api){
     if(st.osInstalling){message('No se puede expulsar durante la instalación.');return false;}
     st.usbConnected=false;st.usbImage='none';st.usbMediaKey=null;
     message('USB expulsado: ahora puedes conectar otro instalador.','ok');
-    api.render();return true;
+    setTimeout(()=>api.render(),0);return true;
   }
   function toggleInstallerUsb(){return api.state().usbConnected?
     disconnectInstallerUsb():connectInstallerUsb();}
