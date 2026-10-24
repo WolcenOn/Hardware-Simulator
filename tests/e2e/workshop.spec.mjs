@@ -514,6 +514,9 @@ test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco inst
   await page.locator('#saveBios').click();
   await page.locator('#biosBtn').click();
   await expect(page.locator('#bootStatus')).toHaveText('Arranca');
+  // Sin retirar el USB válido, el firmware arrancaría su instalador,
+  // incluso si el HDD nuevo está vacío: es el comportamiento correcto.
+  await page.locator('#osUsbToggle').click();
   await page.locator('select[data-cat="storage"]').selectOption('hdd');
   await page.locator('#autoBuild').click();
   await page.locator('#powerBtn').click();
