@@ -152,9 +152,34 @@ function createAdventureGame(api){
             tools:{adequate:true}}):null});
     if(record.status==='success'&&repairingSata){
       game.pendingSataRepair=false;
-      const openIncident=game.incidents.findLast(x=>x.outcome==='loose_sata'&&!x.resolved);
-      if(openIncident){openIncident.resolved=true;openIncident.resolvedSequence=record.seq;}
+      const openIncident=game.incidents.findLast(x=>
+        ['loose_sata','latent_sata'].includes(x.outcome)&&!x.resolved);
+      if(openIncident){
+        openIncident.resolved=true;openIncident.resolvedSequence=record.seq;
+        openIncident.resolvedBy='sata_reconnect';
+      }
       message('Reparación SATA completada: cable de datos reconectado y verificado.','ok');
+    }
+    // Una desconexión deliberada descubre el contacto latente sin POWER.
+    if(record.status==='success'&&kind==='disconnect'&&target==='sataData'&&
+      game.pendingSataLatent){
+      game.pendingSataLatent=false;game.pendingSataRepair=true;
+      const latent=game.incidents.findLast(x=>x.outcome==='latent_sata'&&!x.resolved);
+      if(latent){latent.revealed=true;latent.revealedBy='disconnect';}
+      message('Al retirar SATA se detecta posible contacto deficiente: reconecta y verifica.','warn');
+    }
+    // Retirar el disco es una solución válida: no bloquear montajes alternativos.
+    if(record.status==='success'&&kind==='remove'&&target.startsWith('storage:')&&
+      (game.pendingSataLatent||game.pendingSataRepair)){
+      game.pendingSataLatent=false;game.pendingSataRepair=false;
+      operationEngine.markUndone('connect','sataData');
+      const unresolved=game.incidents.findLast(x=>
+        ['loose_sata','latent_sata'].includes(x.outcome)&&!x.resolved);
+      if(unresolved){
+        unresolved.resolved=true;unresolved.resolvedSequence=record.seq;
+        unresolved.resolvedBy='storage_removed';
+      }
+      message('Unidad retirada: incidencia SATA cerrada; puedes instalar otra unidad.','ok');
     }
     if(record.status==='success'&&kind==='inspect'&&game.pendingReview){
       game.pendingReview=0;
@@ -170,6 +195,10 @@ function createAdventureGame(api){
         game.pendingSataRepair=true;
         entry.resolved=false;
         api.render();
+      }else if(entry.outcome==='latent_sata'){
+        // Montaje aparentemente correcto; el fallo aparece solo al encender.
+        game.pendingSataLatent=true;
+        entry.revealed=false;entry.resolved=false;
       }
       game.incidents.push(entry);
       if(entry.outcome==='review')game.pendingReview++;
@@ -177,6 +206,24 @@ function createAdventureGame(api){
         ' (+'+entry.delayMinutes+' min simulados).');
     }
     paint();return record;
+  }
+  function revealLatentSataOnPower(){
+    if(!game?.pendingSataLatent)return false;
+    const st=api.state();
+    // La rutina POWER llama aquí tras validar chasis, PSU, placa y cable POWER.
+    if(!st.installed.storage||api.part('storage').interface!=='SATA'){
+      game.pendingSataLatent=false;
+      const incident=game.incidents.findLast(x=>x.outcome==='latent_sata'&&!x.resolved);
+      if(incident){incident.resolved=true;incident.resolvedBy='storage_replaced';}
+      paint();return false;
+    }
+    st.sataData=false;
+    operationEngine.markUndone('connect','sataData');
+    game.pendingSataLatent=false;game.pendingSataRepair=true;
+    const incident=game.incidents.findLast(x=>x.outcome==='latent_sata'&&!x.resolved);
+    if(incident){incident.revealed=true;incident.revealedBy='power-on';}
+    message('El disco SATA no responde al encender: diagnostica y comprueba el cable de datos.','warn');
+    return true;
   }
   function importCases(raw){
     const incoming=Array.isArray(raw)?raw:[raw];
@@ -198,7 +245,8 @@ function createAdventureGame(api){
     incidentSimulation:{enabled:game.riskEnabled,seed:game.riskSeed,
       incidents:game.incidents.map(item=>({...item})),
       pendingReview:game.pendingReview,
-      pendingRepairs:game.pendingSataRepair?['sataData']:[]}};}
+      pendingRepairs:game.pendingSataRepair?['sataData']:[],
+      pendingLatent:game.pendingSataLatent?['sataData']:[]}};}
 
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
@@ -244,7 +292,7 @@ function createAdventureGame(api){
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
-      pendingReview:0,pendingSataRepair:false
+      pendingReview:0,pendingSataRepair:false,pendingSataLatent:false
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -793,6 +841,9 @@ function createAdventureGame(api){
     message('Inspección: '+game.inspection,'ok');
   }
   function checkDelivery(){
+    if(game?.pendingSataLatent){
+      message('Verifica el arranque: hay una incidencia pendiente de comprobación.');return;
+    }
     if(game?.pendingSataRepair){
       message('Repara el cable SATA de datos pendiente antes de entregar el equipo.');return;
     }
@@ -988,6 +1039,7 @@ function createAdventureGame(api){
       '<p id="advRiskStatus" role="status">Incidencias: '+game.incidents.length+
         ' · revisiones pendientes: '+game.pendingReview+
         ' · reparaciones pendientes: '+(game.pendingSataRepair?1:0)+
+        ' · comprobaciones pendientes: '+(game.pendingSataLatent?1:0)+
         ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
         ' · probabilidades educativas configurables</p></div></div>';
     const inventory=
@@ -1185,6 +1237,7 @@ function createAdventureGame(api){
       const status=panel.querySelector('#advRiskStatus');
       if(status)status.textContent='Incidencias: '+game.incidents.length+
         ' · reparaciones pendientes: '+(game.pendingSataRepair?1:0)+
+        ' · comprobaciones pendientes: '+(game.pendingSataLatent?1:0)+
         ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
         ' · '+(game.riskEnabled?'activas':'desactivadas');
     }
@@ -1201,7 +1254,7 @@ function createAdventureGame(api){
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
     importCases,getCase,getExport,operationSummary,setSpeed,
-    setRiskEnabled,setRiskSeed,toggleEsd,
+    setRiskEnabled,setRiskSeed,toggleEsd,revealLatentSataOnPower,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;

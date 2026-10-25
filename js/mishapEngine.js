@@ -92,15 +92,21 @@ function createEngine({seed='workshop-1',random=null,rates=DEFAULT_RATES}={}){
       const resultRoll=roll();
       // Solo la conexión SATA de datos admite este primer fallo físico
       // procedimental. Se conserva el comportamiento de las demás operaciones.
-      const looseSata=category==='procedure'&&context.kind==='connect'&&
-        context.target==='sataData'&&resultRoll>=.94;
-      const outcome=looseSata?'loose_sata':resultRoll<.78?'delay':'review';
+      const sataProcedure=category==='procedure'&&context.kind==='connect'&&
+        context.target==='sataData';
+      const looseSata=sataProcedure&&resultRoll>=.94;
+      // El resultado latente se decide aquí: encender nunca consume RNG.
+      const latentSata=sataProcedure&&resultRoll>=.90&&resultRoll<.94;
+      const outcome=looseSata?'loose_sata':latentSata?'latent_sata':
+        resultRoll<.78?'delay':'review';
       return Object.freeze({
         category,outcome,code:looseSata?'PROCEDURE_LOOSE_SATA':
+          latentSata?'PROCEDURE_LATENT_SATA':
           category.toUpperCase()+'_'+outcome.toUpperCase(),
-        delayMinutes:looseSata?0:outcome==='delay'?1.5:3,
+        delayMinutes:looseSata||latentSata?0:outcome==='delay'?1.5:3,
         description:looseSata?
           'El cable SATA de datos ha quedado suelto. Diagnostica y reconecta con el PC apagado.':
+          latentSata?'Incidencia latente: verifica el arranque y diagnostica el almacenamiento.':
           outcome==='delay'?'Incidencia menor: retraso de trabajo simulado.':
           'Posible incidencia: requiere inspección de seguridad antes de entregar.',
         probability:chances[category],seed:String(seed)
