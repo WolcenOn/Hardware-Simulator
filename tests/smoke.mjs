@@ -865,7 +865,21 @@ function prepareThermalTest(){
   assert.equal(g.pasteUi.confirm(),true);
   assert.equal(g.game.stock['item:paste'],beforeDose-1);
   assert.equal(l.s.paste,1);
-  buy('cooler','air');fit('cooler:air');
+  assert.equal(g.game.shopCategory,'cooler',
+    'Después de confirmar pasta sin disipador, abrir directamente la tienda del disipador');
+  assert(g.game.openSections.includes('shop'),
+    'La tienda debe quedar abierta al terminar la jeringuilla');
+  assert(get('adventurePanel').innerHTML.includes('data-thermal-next'),
+    'Debe verse la opción Continuar: colocar disipador');
+  assert(get('adventurePanel').innerHTML.includes('Compra o selecciona el disipador'),
+    'La misión debe orientar al siguiente paso');
+  buy('cooler','air');
+  assert.equal(g.game.selected,'cooler:air');
+  assert(g.game.openSections.includes('actions'),
+    'Comprar disipador tras la pasta debe mostrar Acciones');
+  assert(get('adventurePanel').innerHTML.includes('data-suggest="fit"'),
+    'El botón Encajar disipador debe aparecer al comprarlo');
+  fit('cooler:air');
   buy('item','screwdriver');buy('item','screws');
   g.select('cooler:air');
   assert.equal(g.perform('screw'),null);
@@ -903,3 +917,28 @@ assert.equal(g.game.stock['item:screws'],10,'Limpiar recupera los tornillos mont
 assert.equal(g.game.stock['cooler:air'],1);
 assert.equal(g.game.stock['item:paste'],0,'La pasta usada no se recupera');
 console.log('8.12: jeringuilla, presión en cruz y limpieza verificadas');
+
+// 8.12.1: si el disipador ya fue comprado antes de la jeringuilla,
+// confirmar pasta debe seleccionarlo y dejar Encajar a la vista.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r7600');g.select('cpu:r7600');
+g.toggleCpuPrecision();assert.equal(g.perform('fit').status,'success');
+buy('cooler','air');
+buy('item','paste');g.select('item:paste');
+assert.equal(g.perform('apply'),null);
+g.pasteUi.pointer(.5,.5);g.pasteUi.pump(true);
+for(let t=0;t<75;t++)g.pasteUi.tick(40);
+g.pasteUi.pump(false);
+for(let t=0;t<20;t++)g.pasteUi.tick(40);
+assert.equal(g.pasteUi.confirm(),true);
+assert.equal(g.game.selected,'cooler:air',
+  'Una pasta confirmada debe seleccionar el disipador disponible');
+assert.equal(g.game.verb,'fit');
+assert(g.game.openSections.includes('actions'));
+assert(get('adventurePanel').innerHTML.includes('data-suggest="fit"'));
+assert.equal(g.perform('fit').status,'success');
+assert.equal(l.s.installed.cooler,true);
+console.log('8.12.1: continuidad de pasta a disipador en tienda e inventario OK');

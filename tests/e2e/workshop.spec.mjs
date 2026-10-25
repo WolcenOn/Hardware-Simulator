@@ -1033,7 +1033,16 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   await popup.locator('[data-paste-confirm]').evaluate(el=>el.click());
   await expect(popup).toBeHidden();
   expect(await page.evaluate(()=>state.paste)).toBe(1);
-  await buy(page,'cooler','air');await fit(page,'cooler:air');
+  // Regresión 8.12.1: la pasta acabada no debe dejar al usuario
+  // atrapado con el consumible gastado ni esconder la colocación del disipador.
+  await expect(page.locator('#advShopCategory')).toHaveValue('cooler');
+  await expect(page.locator('#adventurePanel [data-section="shop"]')).toHaveAttribute('open','');
+  await expect(page.locator('[data-thermal-next]')).toBeVisible();
+  await buy(page,'cooler','air');
+  await expect(page.locator('#adventurePanel [data-section="actions"]')).toHaveAttribute('open','');
+  await expect(page.locator('[data-suggest="fit"]:not([disabled])')).toBeVisible();
+  await fit(page,'cooler:air');
+  expect(await page.evaluate(()=>state.installed.cooler)).toBe(true);
   await buy(page,'item','screwdriver');await buy(page,'item','screws');
   await openSection(page,'inventory');
   await page.locator('[data-select-item="cooler:air"]').first().evaluate(el=>el.click());
