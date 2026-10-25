@@ -112,3 +112,16 @@ test('SATA: solo un riesgo procedimental puede soltar el cable de datos',()=>{
     .assess({kind:'connect',target:'sataPower'});
   assert.equal(sataPower.outcome,'review');
 });
+
+test('SATA latente: resultado reproducible limitado al conector de datos',()=>{
+  const rates={mechanical:0,esd:0,electrical:0,procedure:1};
+  const rng=()=>{let i=0;return ()=>[0,.92][i++];};
+  const m=PC_MISHAPS.createEngine({rates,random:rng()});
+  const fault=m.assess({kind:'connect',target:'sataData'});
+  assert.equal(fault.outcome,'latent_sata');
+  assert.equal(fault.code,'PROCEDURE_LATENT_SATA');
+  assert.equal(m.getDrawCount(),2);
+  assert.equal(fault.delayMinutes,0);
+  assert.equal(PC_MISHAPS.createEngine({rates,random:rng()})
+    .assess({kind:'connect',target:'sataPower'}).outcome,'review');
+});

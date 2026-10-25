@@ -754,3 +754,53 @@ test('Fase 2b.1: incidencia SATA reparable sin bucles, con diagnóstico y retrab
   expect(fixed.report.incidents.at(-1).resolved).toBe(true);
   expect(fixed.report.pendingRepairs).toEqual([]);
 });
+
+test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'storage','sataSSD');await fit(page,'storage:sataSSD');
+  await buy(page,'item','sataCable');
+  await openSection(page,'mission');
+  await page.locator('#advRiskSeed').fill('latent-test-1974');
+  await page.locator('[data-risk-seed]').evaluate(el=>el.click());
+  await page.locator('#advRiskMode').selectOption('on');
+  await openSection(page,'actions');
+  await page.locator('#advConnection').selectOption('sataData');
+  await page.locator('[data-verb="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('comprobaciones pendientes: 1');
+  expect(await page.evaluate(()=>state.sataData)).toBe(true);
+  await page.locator('#powerBtn').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('comprobaciones pendientes: 1');
+  await page.locator('#advRiskMode').selectOption('off');
+  await buy(page,'psu','psu450');await fit(page,'psu:psu450');
+  await openSection(page,'actions');
+  for(const connector of ['frontpanel','atx24']){
+    await page.locator('#advConnection').selectOption(connector);
+    await page.locator('[data-verb="connect"]').evaluate(el=>el.click());
+    await page.locator('[data-go]').evaluate(el=>el.click());
+  }
+  await page.locator('#powerBtn').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 1');
+  const incident=await page.evaluate(()=>adventureGame.getExport().incidentSimulation.incidents.at(-1));
+  expect(incident.revealedBy).toBe('power-on');
+  expect(await page.evaluate(()=>state.sataData)).toBe(false);
+  await page.evaluate(()=>{if(state.power)power();});
+  await openSection(page,'actions');
+  await page.locator('#advConnection').selectOption('sataData');
+  await page.locator('[data-verb="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 0');
+  const data=await page.evaluate(()=>({
+    cable:state.sataData,report:adventureGame.getExport().incidentSimulation,
+    reworks:adventureGame.operationSummary().counts.rework
+  }));
+  expect(data.cable).toBe(true);
+  expect(data.report.pendingRepairs).toEqual([]);
+  expect(data.report.pendingLatent).toEqual([]);
+  expect(data.report.incidents.at(-1).resolvedBy).toBe('sata_reconnect');
+  expect(data.reworks).toBeGreaterThanOrEqual(1);
+});
