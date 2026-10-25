@@ -662,61 +662,83 @@ assert.equal(l.s.ramSeated,true);
 console.log('8.9.1 RAM popup OK: osciladores, retrabajo, 3D y modo clásico');
 
 
-// 8.10 — minijuego de atornillado sobre el visor, sin gasto prematuro.
+// 8.10.1 — puntos de fijación individuales por componente.
 assert(html.includes('id="screwPrecisionPopup"'));
-assert(html.includes('screwPrecision.js?v=8-10-0-screw-mini'));
+assert(html.includes('screwPrecision.js?v=8-10-1-multi-screws'));
 assert(html.includes('if(details.screwPractice)data.screwPractice=details.screwPractice'));
+const layouts=window.PC_SCREW_PRECISION.layoutFor;
+assert.equal(layouts('motherboard:b650').length,9);
+assert.equal(layouts('motherboard:a520').length,6);
+assert.equal(layouts('psu:psu450').length,4);
+assert.equal(layouts('gpu:rx7600').length,1);
+assert.equal(layouts('storage:nvmeSSD').length,1);
+assert.equal(layouts('storage:sataSSD').length,4);
+assert.equal(layouts('cooler:air').length,4);
 g.start('office');
-assert.equal(g.getExport().screwPractice.enabled,true);
 buy('case','tower');fit('case:tower');
 buy('item','ioShield');fit('item:ioShield');
 buy('motherboard','b650');fit('motherboard:b650');
 g.select('motherboard:b650');
-const withoutDriver=g.perform('screw');
-assert.equal(withoutDriver.status,'rejected','No abrir sin herramientas');
-assert.equal(get('screwPrecisionPopup').hidden,true);
+const noTool=g.perform('screw');
+assert.equal(noTool.status,'rejected','Sin destornillador no puede comenzar');
 buy('item','screwdriver');buy('item','screws');
 g.select('motherboard:b650');
-const screwsBefore=g.game.stock['item:screws'];
-const opsBefore=g.operationSummary().history.length;
-const minutesBefore=g.getExport().simulatedTime.technical;
-assert.equal(g.perform('screw'),null,'La accion debe abrir popup, no fijar aun');
+const availableScrews=g.game.stock['item:screws'];
+const screwOpCount=g.operationSummary().history.length;
+const screwTime=g.getExport().simulatedTime.technical;
+assert.equal(g.perform('screw'),null);
 assert.equal(get('screwPrecisionPopup').hidden,false);
-assert.equal(l.s.fixings.motherboard,false);
-assert.equal(g.game.stock['item:screws'],screwsBefore,'No gastar al abrir');
-assert(get('screwPrecisionPopup').innerHTML.includes('screw-alignment-board'));
+assert.equal((get('screwPrecisionPopup').innerHTML.match(/data-screw-hole=/g)||[]).length,9);
+assert.equal(g.game.stock['item:screws'],availableScrews);
 g.screwMove(90,90);
 assert.equal(g.screwTurn(1).code,'not_engaged');
-assert.equal(g.screwPracticeState().depth,0,'Giro en falso no hace avanzar');
-assert(Math.abs(g.getExport().simulatedTime.technical-minutesBefore-.2)<.000001);
-g.screwMove(50,50);
-for(let i=1;i<10;i++){
-  const step=g.screwTurn(1);
-  assert.equal(step.depth,i*10);
-  assert.equal(l.s.fixings.motherboard,false,'No fijar antes del 100%');
+assert.equal(g.screwPracticeState().depth,0);
+assert(Math.abs(g.getExport().simulatedTime.technical-screwTime-.2)<1e-8);
+for(let anchor=0;anchor<9;anchor++){
+  g.screwMove(50,50);
+  for(let turn=1;turn<=10;turn++){
+    const recorded=g.screwTurn(1);
+    assert.equal(recorded.depth,turn*10);
+    if(turn<10)assert.equal(l.s.fixings.motherboard,false);
+  }
+  assert.equal(g.getExport().screwPractice.progress.motherboard.completed.length,anchor+1);
+  assert.equal(g.game.stock['item:screws'],availableScrews-anchor-1);
+  assert.equal(l.s.fixings.motherboard,anchor===8,
+    'La fijación completa debe esperar hasta el último agujero');
 }
-assert.equal(g.screwTurn(1).complete,true);
-assert.equal(l.s.fixings.motherboard,true);
-assert.equal(g.game.stock['item:screws'],screwsBefore-1,'Gastar solo un tornillo');
-assert.equal(g.operationSummary().history.length,opsBefore+1,
- 'Registrar una sola operacion tecnica al finalizar');
 assert.equal(get('screwPrecisionPopup').hidden,true);
-assert.equal(g.getExport().screwPractice.attempts.length,11);
-// Reiniciar el encargo y cancelar: nunca se modifica la fijacion.
-g.start('office');buy('case','tower');fit('case:tower');
+assert.equal(g.operationSummary().history.length,screwOpCount+1);
+assert.equal(g.getExport().screwPractice.attempts.length,91);
+assert.equal(g.getExport().screwPractice.attempts.at(-1).anchor,'s9');
+g.select('motherboard:b650');
+assert.equal(g.perform('remove').status,'success');
+assert.equal(g.game.stock['item:screws'],10,'Al desmontar se recuperan los tornillos');
+assert.equal(g.getExport().screwPractice.progress.motherboard,undefined);
+// Persistencia parcial tras cancelar, retomar y terminar en modo clásico.
+g.start('office');
+buy('case','tower');fit('case:tower');
 buy('item','ioShield');fit('item:ioShield');
 buy('motherboard','b650');fit('motherboard:b650');
 buy('item','screwdriver');buy('item','screws');
-g.select('motherboard:b650');
-assert.equal(g.perform('screw'),null);
-const beforeCancel=g.game.stock['item:screws'];
-get('screwPrecisionPopup').events.click({target:{
- closest(){return {hasAttribute:name=>name==='data-screw-cancel',dataset:{}}}
-}});
+g.select('motherboard:b650');assert.equal(g.perform('screw'),null);
+g.screwMove(50,50);
+for(let t=0;t<10;t++)g.screwTurn(1);
+assert.equal(g.getExport().screwPractice.progress.motherboard.completed.length,1);
+const midStock=g.game.stock['item:screws'];
+get('screwPrecisionPopup').events.click({target:{closest:()=>({
+  hasAttribute:key=>key==='data-screw-cancel',dataset:{}
+})}});
 assert.equal(get('screwPrecisionPopup').hidden,true);
-assert.equal(g.game.stock['item:screws'],beforeCancel);
+assert.equal(g.game.stock['item:screws'],midStock,'Cancelar no devuelve el tornillo fijado');
 assert.equal(l.s.fixings.motherboard,false);
+assert.equal(g.perform('screw'),null,'Debe poder retomarse el montaje');
+assert.equal(g.getExport().screwPractice.activeHole,1);
+assert.equal(g.getExport().screwPractice.progress.motherboard.completed.length,1);
 assert.equal(g.toggleScrewPractice(),false);
-assert.equal(g.perform('screw').status,'success','Modo clasico sigue disponible');
+assert.equal(g.perform('screw').status,'success','Montaje clásico termina lo pendiente');
+assert.equal(g.game.stock['item:screws'],1,
+  'No deben regalarse los ocho tornillos pendientes');
 assert.equal(l.s.fixings.motherboard,true);
-console.log('8.10 tornillos OK: giro en falso, rueda, profundidad, cancelacion, modo clasico');
+g.start('office');
+assert.equal(g.getExport().screwPractice.enabled,true);
+console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK');

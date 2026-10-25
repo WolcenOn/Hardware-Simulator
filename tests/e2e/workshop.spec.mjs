@@ -874,7 +874,7 @@ test('8.9.1 RAM: popup en el visor 3D y captura de marcadores oscilantes',async 
 });
 
 
-test('8.10 tornillos: arrastrar sobre agujero y rueda hace avanzar la profundidad',async ({page})=>{
+test('8.10.1 tornillos: mapa de anclajes y profundidad por cada fijación',async ({page})=>{
   test.setTimeout(210_000);
   await openGame(page);
   await buy(page,'case','tower');await fit(page,'case:tower');
@@ -887,32 +887,46 @@ test('8.10 tornillos: arrastrar sobre agujero y rueda hace avanzar la profundida
   await page.locator('[data-suggest="screw"]').first().evaluate(el=>el.click());
   const popup=page.locator('#screwPrecisionPopup');
   await expect(popup).toBeVisible();
-  await expect(popup.locator('[role="dialog"]')).toBeVisible();
+  await expect(popup.locator('[data-screw-hole]')).toHaveCount(9);
+  await expect(popup).toContainText('0/9');
+  const start=await page.evaluate(()=>adventureGame.game.stock['item:screws']);
   const board=popup.locator('.screw-alignment-board');
-  await expect(board).toBeVisible();
-  const initial=await page.evaluate(()=>adventureGame.screwPracticeState());
-  expect(initial.depth).toBe(0);
-  const screws=await page.evaluate(()=>adventureGame.game.stock['item:screws']);
-  // Mover de verdad el ratón: pointer capture y rueda sobre el área 3D.
-  const headBox=await popup.locator('[data-screw-head]').boundingBox();
-  expect(headBox).not.toBeNull();
-  await page.mouse.move(headBox.x+headBox.width/2,headBox.y+headBox.height/2);
+  const box=await board.boundingBox();
+  expect(box).not.toBeNull();
+  const head=await popup.locator('[data-screw-head]').boundingBox();
+  await page.mouse.move(head.x+head.width/2,head.y+head.height/2);
   await page.mouse.down();
-  await page.mouse.move(box.x+box.width*.88,box.y+box.height*.88,{steps:5});
+  await page.mouse.move(box.x+box.width*.89,box.y+box.height*.89,{steps:5});
   await page.mouse.up();
   await page.mouse.wheel(0,100);
   expect(await page.evaluate(()=>adventureGame.screwPracticeState().depth)).toBe(0);
   await expect(popup.locator('#screwFeedback')).toContainText('Giro en falso');
-  const movedHead=await popup.locator('[data-screw-head]').boundingBox();
-  await page.mouse.move(movedHead.x+movedHead.width/2,movedHead.y+movedHead.height/2);
+  const moved=await popup.locator('[data-screw-head]').boundingBox();
+  await page.mouse.move(moved.x+moved.width/2,moved.y+moved.height/2);
   await page.mouse.down();
-  await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5,{steps:5});
+  await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5,{steps:4});
   await page.mouse.up();
-  for(let i=0;i<10;i++)await page.mouse.wheel(0,100);
+  await page.mouse.wheel(0,100);
+  expect(await page.evaluate(()=>adventureGame.screwPracticeState().depth)).toBe(10);
+  // Completar el primer punto mediante el motor de interacción en navegador.
+  await page.evaluate(()=>{for(let i=0;i<9;i++)adventureGame.screwTurn(1);});
+  expect(await page.evaluate(()=>state.fixings.motherboard)).toBe(false);
+  await expect(popup.locator('.screw-anchor.completed')).toHaveCount(1);
+  await expect(popup).toContainText('1/9');
+  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(start-1);
+  // Los restantes agujeros mantienen acciones, tiempo y gasto independientes.
+  await page.evaluate(()=>{
+    for(let hole=1;hole<9;hole++){
+      adventureGame.screwMove(50,50);
+      for(let turn=0;turn<10;turn++)adventureGame.screwTurn(1);
+    }
+  });
   await expect(popup).toBeHidden();
   expect(await page.evaluate(()=>state.fixings.motherboard)).toBe(true);
-  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(screws-1);
-  const attempts=await page.evaluate(()=>adventureGame.getExport().screwPractice.attempts);
-  expect(attempts[0].code).toBe('not_engaged');
-  expect(attempts.at(-1).code).toBe('seated');
+  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(start-9);
+  const report=await page.evaluate(()=>adventureGame.getExport().screwPractice);
+  expect(report.progress.motherboard.completed).toHaveLength(9);
+  expect(report.attempts.filter(x=>x.code==='seated')).toHaveLength(9);
+  expect(report.attempts[0].code).toBe('not_engaged');
+  expect(report.attempts.at(-1).anchor).toBe('s9');
 });

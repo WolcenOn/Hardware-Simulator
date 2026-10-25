@@ -84,6 +84,7 @@ function createAdventureGame(api){
   let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
   let ramPrecisionEngine=null,ramPrecisionSession=null,ramPrecisionBypass=false;
   let screwEngine=null,screwSession=null,screwBypass=false,screwDragging=false;
+  let screwHoleIndex=0;
   let screwFeedback='Arrastra el tornillo hasta el centro del agujero.';
   function operationSummary(){return operationEngine?.getSummary()||null;}
   function setRiskEnabled(enabled){
@@ -261,14 +262,42 @@ function createAdventureGame(api){
       active:ramPrecisionSession?.getState()||null},
     screwPractice:{enabled:game.screwPracticeEnabled,
       attempts:game.screwHistory.map(item=>({...item})),
-      active:screwSession?.getState()||null}};}
+      progress:Object.fromEntries(Object.entries(game.screwProgress).map(
+        ([cat,info])=>[cat,{target:info.target,completed:[...info.completed]}])),
+      active:screwSession?.getState()||null,
+      activeHole:screwSession?screwHoleIndex:null}};}
 
   const panel=api.document.getElementById('adventurePanel');
   const ramPopup=api.document.getElementById('ramPrecisionPopup');
   const screwPopup=api.document.getElementById('screwPrecisionPopup');
   const screwable=new Set(['motherboard','psu','storage','gpu','cooler']);
+  function screwLayout(target){return root.PC_SCREW_PRECISION.layoutFor(target);}
+  function screwProgressFor(target){
+    const cat=String(target).split(':')[0];
+    let p=game.screwProgress[cat];
+    if(!p||p.target!==target){
+      p={target,completed:[]};game.screwProgress[cat]=p;
+    }
+    return p;
+  }
+  function screwNextHole(target){
+    const done=screwProgressFor(target).completed;
+    return screwLayout(target).findIndex(point=>!done.includes(point.id));
+  }
+  function screwPickHole(index){
+    if(!screwSession||!game||!Number.isInteger(index))return false;
+    const target=screwSession.getState().target,layout=screwLayout(target);
+    if(index<0||index>=layout.length||
+      screwProgressFor(target).completed.includes(layout[index].id))return false;
+    // Una cabeza medio roscada no salta mágicamente de agujero.
+    if(screwSession.getState().depth>0)return false;
+    screwHoleIndex=index;screwSession=screwEngine.begin(target);
+    screwFeedback='Alinea el tornillo con el agujero seleccionado ('+
+      (index+1)+'/'+layout.length+').';
+    paint();return true;
+  }
   function closeScrewPractice(){
-    screwSession=null;screwDragging=false;
+    screwSession=null;screwDragging=false;screwHoleIndex=0;
     if(screwPopup){screwPopup.hidden=true;screwPopup.innerHTML='';}
   }
   function screwPracticeState(){return screwSession?.getState()||null;}
@@ -292,9 +321,12 @@ function createAdventureGame(api){
     if(screwSession&&screwSession.getState().target!==game.selected)
       closeScrewPractice();
     if(!screwSession){
-      // No ejecutar el handler, ni consumir tornillos, hasta la profundidad final.
+      const next=screwNextHole(game.selected);
+      if(next<0)return false;
+      screwHoleIndex=next;
       screwSession=screwEngine.begin(game.selected);
-      screwFeedback='Arrastra el tornillo al agujero. La rueda abajo enrosca.';
+      screwFeedback='Punto '+(next+1)+'/'+screwLayout(game.selected).length+
+        ': arrastra el tornillo al agujero y gira la rueda para roscar.';
     }
     game.openSections=['actions','mission'];
     paint();
@@ -347,7 +379,10 @@ function createAdventureGame(api){
     }
     const result=screwSession.turn(direction);
     if(!result)return null;
-    game.screwHistory.push({session:screwSession.getState().id,...result});
+    const points=screwLayout(target),point=points[screwHoleIndex];
+    const progress=screwProgressFor(target);
+    game.screwHistory.push({session:screwSession.getState().id,
+      anchor:point.id,anchorIndex:screwHoleIndex,...result});
     if(result.penaltyMinutes)
       clock.add('technical',result.penaltyMinutes,'screw-precision:misaligned');
     screwFeedback=result.code==='not_engaged'?
@@ -356,13 +391,36 @@ function createAdventureGame(api){
       result.complete?'El tornillo ha alcanzado la profundidad correcta.':
       'Enroscando correctamente: la profundidad aumenta.';
     if(result.complete){
-      // La operación técnica real ejecuta el gasto de UN tornillo y
-      // el registro de tiempo/riesgo, solamente al completar el minijuego.
-      closeScrewPractice();
-      screwBypass=true;
-      try{perform('screw');}finally{screwBypass=false;}
-      if(!api.state().fixings?.[target.split(':')[0]])
-        message('No se pudo confirmar la fijación. Comprueba el montaje.');
+      // Cada punto terminado requiere su propio tornillo. En el último
+      // punto delegamos el consumo restante y el estado de fijación
+      // exclusivamente al handler técnico de siempre.
+      if(progress.completed.length+1<points.length){
+        if(!expend('item:screws')){
+          closeScrewPractice();
+          message('No quedan tornillos. Compra otro paquete para seguir.');return result;
+        }
+        progress.completed.push(point.id);
+        // Cada anclaje requiere tiempo, además del tiempo de la operación
+        // técnica final. Se suma una sola vez por tornillo terminado.
+        clock.add('technical',.5,'screw-precision:anchor');
+        screwHoleIndex=screwNextHole(target);
+        if(!has('item:screws')){
+          closeScrewPractice();
+          message('Fijados '+progress.completed.length+'/'+points.length+
+            ' puntos. Compra más tornillos para continuar.','warn');
+        }else{
+          screwSession=screwEngine.begin(target);
+          screwFeedback='Tornillo '+progress.completed.length+'/'+points.length+
+            ' fijado. Continúa con el punto '+(screwHoleIndex+1)+'.';
+          paint();
+          screwPopup?.querySelector('[data-screw-head]')?.focus?.();
+        }
+      }else{
+        closeScrewPractice();screwBypass=true;
+        try{perform('screw');}finally{screwBypass=false;}
+        if(!api.state().fixings?.[target.split(':')[0]])
+          message('No se pudo confirmar la fijación. Comprueba el montaje.');
+      }
     }else{
       drawScrewPractice();
       const c=panel.querySelector('#advVirtualClock');
@@ -373,13 +431,28 @@ function createAdventureGame(api){
   }
   function screwPopupMarkup(){
     if(!game?.screwPracticeEnabled||!screwSession)return '';
-    const st=screwSession.getState();
+    const st=screwSession.getState(),holes=screwLayout(st.target),
+      progress=screwProgressFor(st.target);
+    const anchors=holes.map((hole,i)=>{
+      const done=progress.completed.includes(hole.id),current=i===screwHoleIndex;
+      return '<button type="button" class="screw-anchor'+
+        (done?' completed':'')+(current?' current':'')+
+        '" data-screw-hole="'+i+'" style="left:'+hole.x+'%;top:'+hole.y+
+        '%" aria-label="'+safe(hole.label)+(done?' fijado':current?' seleccionado':' libre')+
+        '" aria-pressed="'+current+'"'+(done?' disabled':'')+'>'+
+        (done?'✚':current?'◎':'○')+'</button>';
+    }).join('');
     return '<section class="screw-precision-dialog" role="dialog" aria-modal="true" '+
       'aria-label="Minijuego de atornillado">'+
       '<header><div><small>TALLER 3D · FIJACIÓN</small><h3>Atornillar '+safe(label(...st.target.split(':')))+
       '</h3></div><button type="button" data-screw-cancel aria-label="Cerrar atornillado">✕</button></header>'+
-      '<p>Arrastra el tornillo con el ratón o el dedo hacia el agujero. '+
-      'Gira la rueda hacia abajo sobre esta zona para enroscar.</p>'+
+      '<p>Fijaciones de '+safe(label(...st.target.split(':')))+': <b>'+
+      progress.completed.length+'/'+holes.length+'</b> tornillos fijados. '+
+      'Tornillos disponibles: '+stock('item:screws')+'.</p>'+
+      '<div class="screw-anchor-map" role="group" aria-label="Puntos de anclaje del componente">'+
+      '<div class="screw-part-outline"></div>'+anchors+'</div>'+
+      '<p>Selecciona un agujero libre. Arrastra el tornillo hacia su centro '+
+      'y gira la rueda hacia abajo para enroscar.</p>'+
       '<div class="screw-alignment-board" aria-label="Área para alinear el tornillo">'+
       '<div class="screw-hole" aria-hidden="true"><span>+</span></div>'+
       '<div class="screw-head" data-screw-head role="button" tabindex="0" '+
@@ -492,7 +565,7 @@ function createAdventureGame(api){
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
-      screwPracticeEnabled:true,screwHistory:[]
+      screwPracticeEnabled:true,screwHistory:[],screwProgress:{}
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -760,6 +833,12 @@ function createAdventureGame(api){
       const record=tracked('remove',item||'sin-seleccion',()=>performLegacy(override),
         ()=>was&&!st.installed[cat]);
       if(record.status==='success'&&screwSession)closeScrewPractice();
+      if(record.status==='success'&&game.screwProgress[cat]){
+        // Retirar con destornillador libera los tornillos fijados.
+        game.stock['item:screws']=(game.stock['item:screws']||0)+
+          game.screwProgress[cat].completed.length;
+        delete game.screwProgress[cat];
+      }
       if(record.status==='success'&&cat==='ram'){
         // Una retirada invalida la colocación física y cualquier sesión abierta.
         // La próxima instalación creará una práctica nueva automáticamente.
@@ -942,9 +1021,18 @@ function createAdventureGame(api){
         message('Falta '+missing+'. Compra el material en la tienda, luego repite Atornillar.');return;
       }
       if(g.screwed[part]){message('Esta pieza ya está atornillada.','ok');return;}
-      if(!expend('item:screws')){message('No quedan tornillos disponibles.');return;}
+      const points=screwLayout(k),progress=screwProgressFor(k);
+      const remaining=points.filter(p=>!progress.completed.includes(p.id));
+      if(stock('item:screws')<remaining.length){
+        message('Faltan '+(remaining.length-stock('item:screws'))+
+          ' tornillos para fijar '+label(cat,id)+'. Compra otro paquete.');return;
+      }
+      if(!expend('item:screws',remaining.length)){
+        message('No quedan tornillos suficientes.');return;
+      }
+      progress.completed=points.map(point=>point.id);
       g.screwed[part]=true;st.fixings[part]=true;
-      message('Atornillado: '+label(cat,id)+'.','ok');
+      message('Atornillado: '+label(cat,id)+' ('+points.length+' puntos).','ok');
       return;
     }
     if(verb==='remove'){
@@ -1260,8 +1348,12 @@ function createAdventureGame(api){
         add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
       else if(cat==='ram'&&!st.ramSeated)
         add('Fijar pestañas DIMM','Presiona la RAM hasta hacer clic','fit');
-      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&!game.screwed[cat])
-        add('Atornillar '+label(cat,id),'Necesitas destornillador y tornillos','screw');
+      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&!game.screwed[cat]){
+        const p=game.screwProgress[cat],qty=screwLayout(k).length;
+        const done=p?.target===k?p.completed.length:0;
+        add('Atornillar '+label(cat,id)+' ('+done+'/'+qty+')',
+          'Necesitas destornillador y '+(qty-done)+' tornillo(s) más','screw');
+      }
       else
         add('Inspeccionar pieza','Revisar el estado y las conexiones','inspect');
     }
@@ -1272,10 +1364,13 @@ function createAdventureGame(api){
   function screwPracticeMarkup(){
     const [cat]=String(game?.selected||'').split(':');
     if(!screwable.has(cat))return '';
+    const p=game.screwProgress[cat],qty=screwLayout(game.selected).length;
+    const done=p?.target===game.selected?p.completed.length:0;
     return '<div class="adv-ram-toggle"><button type="button" data-screw-toggle>'+
       (game.screwPracticeEnabled?'Usar atornillado clásico':'Activar minijuego de tornillos')+
       '</button><span>'+(game.screwPracticeEnabled?
-        'Predeterminado · alinea con ratón y gira la rueda sobre el 3D':
+        'Predeterminado · '+done+'/'+qty+
+        ' puntos fijados · rueda sobre el visor 3D':
         'Modo clásico · sin minijuego')+'</span></div>';
   }
   function ramPrecisionMarkup(){
@@ -1556,6 +1651,7 @@ function createAdventureGame(api){
     const button=event.target.closest('button');
     if(!button||!screwSession)return;
     if(button.hasAttribute('data-screw-cancel')){closeScrewPractice();paint();return;}
+    if(button.dataset.screwHole!==undefined){screwPickHole(Number(button.dataset.screwHole));return;}
     if(button.dataset.screwTurn)screwTurn(Number(button.dataset.screwTurn));
   });
   screwPopup?.addEventListener('pointerdown',event=>{

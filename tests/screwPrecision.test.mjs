@@ -68,3 +68,30 @@ test('ningun giro invalido cambia la profundidad ni puede completarse sin pieza'
   const data=s.getState();data.history.push({code:'spoof'});
   assert.equal(s.getState().history.length,0);
 });
+
+test('cada familia de pieza ofrece distintos puntos de anclaje',()=>{
+  const counts={
+    'motherboard:b650':9,'motherboard:z790':9,'motherboard:a520':6,
+    'psu:psu450':4,'gpu:rx7600':1,'storage:nvmeSSD':1,
+    'storage:sataSSD':4,'storage:hdd':4,'cooler:air':4
+  };
+  for(const [name,count] of Object.entries(counts)){
+    const points=SCREW.layoutFor(name);
+    assert.equal(points.length,count,name);
+    assert.equal(new Set(points.map(p=>p.x+':'+p.y)).size,count,'Duplicado '+name);
+    assert(points.every(p=>p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100),name);
+    assert(points.every(p=>p.id.startsWith('s')),name);
+    assert.deepEqual(points,SCREW.layoutFor(name),'Disposición estable');
+  }
+  assert.equal(SCREW.layoutFor('ram:ddr5_16').length,0);
+});
+test('el mapa de anclajes no consume el generador de aleatoriedad',()=>{
+  const a=SCREW.createEngine({seed:'layout-test'});
+  const first=a.begin('motherboard:b650').getState();
+  for(let i=0;i<100;i++)SCREW.layoutFor('motherboard:b650');
+  const second=a.begin('motherboard:b650').getState();
+  const b=SCREW.createEngine({seed:'layout-test'});
+  b.begin('motherboard:b650');
+  assert.deepEqual(second,b.begin('motherboard:b650').getState());
+  assert.notEqual(first.id,second.id);
+});
