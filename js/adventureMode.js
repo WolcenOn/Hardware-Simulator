@@ -350,14 +350,26 @@ function createAdventureGame(api){
     if(!cpuSession||!cpuSession.move(x,y))return false;
     drawCpuPiece();return true;
   }
+  function cpuPiecePose(st){
+    // El centro geométrico de la CPU y el zócalo coincide exactamente
+    // con X=0, Y=0. "Bajar" modifica únicamente su escala (profundidad),
+    // nunca su alineación vertical: antes lower=100 restaba 24px,
+    // obligando a ajustar Y=12 para verla centrada.
+    return {
+      left:'calc(50% + '+(st.x*2)+'px)',
+      top:'calc(50% + '+(st.y*2)+'px)',
+      transform:'translate(-50%,-50%) rotate('+st.rotation+'deg) scale('+
+        (1-st.lower*.001)+')'
+    };
+  }
   function drawCpuPiece(){
     if(!cpuSession||!cpuPopup)return;
     const st=cpuSession.getState(),piece=cpuPopup.querySelector('[data-cpu-piece]');
     if(piece){
-      piece.style.left='calc(50% + '+(st.x*2)+'px)';
-      piece.style.top='calc(50% + '+(st.y*2-st.lower*.24)+'px)';
-      piece.style.transform='translate(-50%,-50%) rotate('+st.rotation+'deg) scale('+
-        (1-st.lower*.001)+')';
+      const pose=cpuPiecePose(st);
+      piece.style.left=pose.left;
+      piece.style.top=pose.top;
+      piece.style.transform=pose.transform;
     }
     for(const [name,value] of [['X',st.x],['Y',st.y],['Lower',st.lower]]){
       const control=cpuPopup.querySelector('#cpu'+name);
@@ -420,7 +432,7 @@ function createAdventureGame(api){
   }
   function cpuPopupMarkup(){
     if(!game?.cpuPrecisionEnabled||!cpuSession)return '';
-    const st=cpuSession.getState(),align=st.stage==='align';
+    const st=cpuSession.getState(),align=st.stage==='align',pose=cpuPiecePose(st);
     const controls=align?
       '<div class="cpu-precision-controls">'+
         '<button type="button" data-cpu-rotate>Girar procesador 90°</button>'+
@@ -457,9 +469,7 @@ function createAdventureGame(api){
           '<span class="cpu-socket-text">'+safe(st.socket)+'</span></div>'+
         '<div class="cpu-piece" data-cpu-piece tabindex="0" role="button" '+
           'aria-label="Arrastrar CPU, flechas para alinear y botón para girar" style="'+
-          'left:calc(50% + '+(st.x*2)+'px);top:calc(50% + '+
-          (st.y*2-st.lower*.24)+'px);transform:translate(-50%,-50%) rotate('+
-          st.rotation+'deg) scale('+(1-st.lower*.001)+')">'+
+          'left:'+pose.left+';top:'+pose.top+';transform:'+pose.transform+'">'+
           '<span class="cpu-corner-marker">◤</span><span>CPU</span></div>'+
         '<div class="cpu-retention-lid'+(align?'':' close')+
           '" aria-hidden="true"></div></div>'+

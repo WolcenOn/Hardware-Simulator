@@ -959,7 +959,23 @@ test('8.11 CPU: orientar, alinear, apoyar y cerrar la palanca sobre visor 3D',as
   const range=async(id,value)=>popup.locator('#'+id).evaluate((el,v)=>{
     el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));
   },value);
-  await range('cpuX',0);await range('cpuY',0);await range('cpuLower',100);
+  await range('cpuX',0);await range('cpuY',0);
+  // Regresión 8.11.1: Y=0 se ve centrado, tanto con CPU levantada
+  // como cuando se baja al 100 %. Antes bajar movía la CPU -24 px y
+  // obligaba a poner Y=12 para que el dibujo coincidiera.
+  const verticalOffset=()=>page.evaluate(()=>{
+    const cpu=document.querySelector('#cpuPrecisionPopup [data-cpu-piece]').getBoundingClientRect();
+    const socket=document.querySelector('#cpuPrecisionPopup .cpu-socket').getBoundingClientRect();
+    return (cpu.top+cpu.height/2)-(socket.top+socket.height/2);
+  });
+  await range('cpuLower',0);
+  expect(Math.abs(await verticalOffset())).toBeLessThan(1);
+  await range('cpuLower',100);
+  expect(Math.abs(await verticalOffset())).toBeLessThan(1);
+  await range('cpuY',12);
+  expect(await verticalOffset()).toBeCloseTo(24,0);
+  await range('cpuY',0);
+  expect(Math.abs(await verticalOffset())).toBeLessThan(1);
   await popup.locator('[data-cpu-present]').evaluate(el=>el.click());
   await expect(popup.locator('[data-cpu-capture]')).toBeVisible();
   const force=await page.evaluate(()=>adventureGame.cpuPrecisionCapture(94));

@@ -746,7 +746,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-11-0-cpu-socket'));
+assert(html.includes('adventureMode.js?v=8-11-1-cpu-align'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -811,3 +811,34 @@ assert.equal(g.toggleCpuPrecision(),false);
 assert.equal(g.perform('fit'),null);
 assert.equal(l.s.installed.cpu,false,'CPU AM4 no puede entrar en placa AM5 ni en modo clásico');
 console.log('8.11 CPU precisión OK: orientación, zócalo, palanca, fallo y compatibilidad');
+
+// Regresión 8.11.1: bajar la CPU NO puede desplazarla verticalmente.
+// 2px/unidad: antes restaba 24px al bajar al 100%, aparentando Y=12.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r7600');g.select('cpu:r7600');
+assert.equal(g.perform('fit'),null);
+const cpuNode=get('cpuPrecisionPopup');
+const queryBefore=cpuNode.querySelector;
+const cpuVisual={style:{}};
+cpuNode.querySelector=selector=>selector==='[data-cpu-piece]'?cpuVisual:null;
+g.cpuPrecisionMove(0,0);
+assert.equal(cpuVisual.style.left,'calc(50% + 0px)');
+assert.equal(cpuVisual.style.top,'calc(50% + 0px)');
+cpuNode.events.input({target:{id:'cpuLower',value:'100'}});
+assert.equal(cpuVisual.style.top,'calc(50% + 0px)',
+ 'Bajar al 100% no debe desplazar visualmente la CPU');
+g.cpuPrecisionMove(0,12);
+assert.equal(cpuVisual.style.top,'calc(50% + 24px)',
+ 'Y=12 debe verse 24px desplazado, no centrado');
+g.cpuPrecisionMove(0,0);
+assert.equal(cpuVisual.style.top,'calc(50% + 0px)');
+cpuNode.querySelector=queryBefore;
+while(g.cpuPrecisionState().rotation!==0)g.cpuPrecisionStep('rotate');
+assert.equal(g.cpuPrecisionStep('present').code,'presented',
+ 'Y=0, X=0 y CPU bajada deben aceptarse');
+g.cpuPrecisionCapture(66);
+assert.equal(l.s.installed.cpu,true);
+console.log('8.11.1: Y=0 visual y lógico coinciden antes y después de bajar CPU');
