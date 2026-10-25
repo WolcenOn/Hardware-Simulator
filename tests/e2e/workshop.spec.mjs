@@ -1043,13 +1043,16 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   await expect(page.locator('[data-suggest="fit"]:not([disabled])')).toBeVisible();
   await fit(page,'cooler:air');
   expect(await page.evaluate(()=>state.installed.cooler)).toBe(true);
+  await expect(page.locator('#screwPrecisionPopup')).toBeHidden();
+  await expect(page.locator('#adventurePanel')).toContainText('Disipador encajado');
   await buy(page,'item','screwdriver');await buy(page,'item','screws');
-  await openSection(page,'inventory');
-  await page.locator('[data-select-item="cooler:air"]').first().evaluate(el=>el.click());
-  await openSection(page,'actions');
-  await page.locator('[data-suggest="screw"]').first().evaluate(el=>el.click());
+  // El disipador ya está instalado y consumido: no se puede volver a
+  // seleccionar desde las existencias del inventario. El minijuego
+  // debe abrirse automáticamente al comprar la última herramienta.
   const screws=page.locator('#screwPrecisionPopup');
+  await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.12.2');
   const initial=await page.evaluate(()=>adventureGame.getExport().thermalPaste.spread.coverage);
   await page.evaluate(()=>{
     for(let depth=10;depth<=100;depth+=10){
@@ -1070,4 +1073,44 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   await expect(screws).toBeHidden();
   expect(await page.evaluate(()=>state.fixings.cooler)).toBe(true);
   expect(await page.evaluate(()=>state.paste)).toBe(1);
+});
+
+test('8.12.2 el disipador abre el minijuego al encajarlo con herramientas disponibles',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'cpu','r7600');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="cpu:r7600"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-cpu-toggle]').evaluate(el=>el.click());
+  await page.locator('[data-suggest="fit"]').first().evaluate(el=>el.click());
+  await buy(page,'item','screwdriver');await buy(page,'item','screws');
+  await buy(page,'cooler','air');await buy(page,'item','paste');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="item:paste"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-suggest="apply"]').first().evaluate(el=>el.click());
+  await expect(page.locator('#pastePrecisionPopup')).toBeVisible();
+  await page.evaluate(()=>{
+    adventureGame.pasteUi.pointer(.5,.5);adventureGame.pasteUi.pump(true);
+    for(let i=0;i<75;i++)adventureGame.pasteUi.tick(40);
+    adventureGame.pasteUi.pump(false);
+    for(let i=0;i<20;i++)adventureGame.pasteUi.tick(40);
+  });
+  await page.locator('#pastePrecisionPopup [data-paste-confirm]').evaluate(el=>el.click());
+  await expect(page.locator('#pastePrecisionPopup')).toBeHidden();
+  await expect(page.locator('#adventurePanel [data-section="actions"]')).toHaveAttribute('open','');
+  await page.locator('[data-suggest="fit"]').first().evaluate(el=>el.click());
+  await expect(page.locator('#screwPrecisionPopup')).toBeVisible();
+  await expect(page.locator('#thermalSpreadMap')).toBeVisible();
+  expect(await page.evaluate(()=>state.installed.cooler)).toBe(true);
+  expect(await page.evaluate(()=>state.fixings.cooler)).toBe(false);
+  await page.locator('#screwPrecisionPopup [data-screw-cancel]').first().evaluate(el=>el.click());
+  await expect(page.locator('#screwPrecisionPopup')).toBeHidden();
+  await expect(page.locator('[data-cooler-start]')).toBeVisible();
+  await page.locator('[data-cooler-start]').first().evaluate(el=>el.click());
+  await expect(page.locator('#screwPrecisionPopup')).toBeVisible();
 });

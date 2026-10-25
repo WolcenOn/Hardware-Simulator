@@ -656,6 +656,44 @@ function createAdventureGame(api){
     screwPopup?.querySelector('[data-screw-head]')?.focus?.();
     return true;
   }
+  function continueCoolerMount(){
+    // Un disipador YA encajado ha consumido su stock: no debe depender de
+    // poder seleccionarlo de nuevo desde Inventario.
+    const st=api.state();
+    if(!game||!st.installed.cooler||st.fixings?.cooler||game.screwed.cooler){
+      if(game)message('Primero encaja un disipador pendiente de fijación.','warn');
+      return false;
+    }
+    const coolerId=st.selected.cooler||'air';
+    const coolerKey='cooler:'+coolerId;
+    if(!owned(coolerKey)){
+      message('No se encuentra el disipador instalado en este encargo.','warn');
+      return false;
+    }
+    game.selected=coolerKey;
+    game.verb='screw';
+    if(!game.screwPracticeEnabled){
+      game.awaitingCoolerTools=false;
+      game.openSections=['inventory','actions'];
+      message('Atornillado clásico seleccionado. Pulsa «Atornillar» para completar la fijación.','ok');
+      return false;
+    }
+    const missing=[!owned('item:screwdriver')?'destornillador':null,
+      !has('item:screws')?'tornillos':null].filter(Boolean);
+    if(missing.length){
+      game.awaitingCoolerTools=true;
+      game.shopCategory='item';
+      game.openSections=['shop','actions'];
+      message('Disipador encajado. Para iniciar el minijuego de presión compra '+
+        missing.join(' y ')+' en Tienda → Material; la práctica se abrirá al tenerlos.','warn');
+      return false;
+    }
+    game.awaitingCoolerTools=false;
+    game.openSections=['actions','mission'];
+    if(openScrewPractice())return true;
+    message('No se puede iniciar el atornillado: apaga el PC, abre la caja y revisa la fijación.','warn');
+    return false;
+  }
   function toggleScrewPractice(){
     if(!game)return false;
     game.screwPracticeEnabled=!game.screwPracticeEnabled;
@@ -920,7 +958,8 @@ function createAdventureGame(api){
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
-      thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null
+      thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
+      awaitingCoolerTools:false
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -1048,6 +1087,12 @@ function createAdventureGame(api){
     // Tras comprar la primera caja se ve directamente sobre la mesa auxiliar.
     if(cat==='case')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
+    // El último material comprado reanuda el montaje pendiente del
+    // disipador sin perderlo por haber cambiado la selección a «tornillos».
+    if(game.awaitingCoolerTools&&
+      (k==='item:screwdriver'||k==='item:screws')&&
+      owned('item:screwdriver')&&has('item:screws'))
+      continueCoolerMount();
   }
   function prepareUsb(osId){
     if(!game)return false;
@@ -1176,6 +1221,10 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const verb=override||game.verb;
+    if(verb==='fit'&&String(game.selected).startsWith('cooler:')&&
+      api.state().installed.cooler&&!api.state().fixings?.cooler){
+      continueCoolerMount();return null;
+    }
     if(verb==='fit'&&String(game.selected).startsWith('cpu:')&&
        api.state().installed.motherboard){
       const cpuId=String(game.selected).split(':')[1];
@@ -1223,7 +1272,9 @@ function createAdventureGame(api){
         closeCpuPrecision();pasteUi?.close();pasteSpread=null;
         game.thermalPaste=null;game.pasteReview=null;st.paste=0;
       }
-      if(record.status==='success'&&cat==='cooler')game.pasteReview=null;
+      if(record.status==='success'&&cat==='cooler'){
+        game.pasteReview=null;game.awaitingCoolerTools=false;
+      }
       if(record.status==='success'&&cat==='ram'){
         // Una retirada invalida la colocación física y cualquier sesión abierta.
         // La próxima instalación creará una práctica nueva automáticamente.
@@ -1257,6 +1308,12 @@ function createAdventureGame(api){
     if(!ramPrecisionBypass&&game.ramPrecisionEnabled&&verb==='fit'&&
        cat==='ram'&&record.status==='success'&&st.installed.ram&&!st.ramSeated)
       openRamPrecision();
+    // La instalación del disipador tiene dos fases físicas. Tras encajarlo,
+    // abrir inmediatamente el minijuego de cuatro tornillos y presión
+    // térmica, si dispone de herramientas; si no, explicar cómo comprarlas.
+    if(verb==='fit'&&cat==='cooler'&&record.status==='success'&&
+      st.installed.cooler&&!st.fixings?.cooler)
+      continueCoolerMount();
     return record;
   }
   function performLegacy(override=null){
@@ -1983,8 +2040,19 @@ function createAdventureGame(api){
       '<div class="issue" id="advUsbStatus" role="status">'+
       (stActions.usbConnected?'Conectado: '+safe(root.PC_OS.CATALOG[stActions.usbImage]?.name||'USB'):
        'Puerto USB-A libre · sin instalador conectado')+'</div></div>';
+    const coolerPending=!!stActions.installed.cooler&&
+      !stActions.fixings?.cooler&&!game.screwed.cooler;
+    const coolerContinue=coolerPending?
+      '<div class="adv-thermal-next" role="group" aria-label="Siguiente paso del disipador">'+
+      '<p><strong>Disipador colocado: falta fijarlo.</strong> '+
+      (game.thermalPaste?'La pasta se distribuirá al apretar cada tornillo.':
+        'Sin pasta térmica la refrigeración puede fallar.')+'</p>'+
+      '<button type="button" class="primary" data-cooler-start>'+
+      (game.screwPracticeEnabled?'Iniciar minijuego del disipador y la pasta':
+       'Continuar con atornillado clásico')+'</button></div>':'';
     const actions=
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
+      coolerContinue+
       '<div class="adv-quick-actions">'+
       '<button type="button" data-quick="boot" class="primary">'+
       (api.state().power?'Apagar ordenador':'Encender ordenador')+'</button>'+
@@ -2020,7 +2088,8 @@ function createAdventureGame(api){
       'Ver montaje recomendado (demostración, sin encargo)</button>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
-      '<div class="title"><h2>Taller de montaje</h2><span>Modo aventura</span></div>'+
+      '<div class="title"><h2>Taller de montaje</h2>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.2</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
       section('mission','Encargo y progreso',mission)+
       usbTools+
@@ -2205,6 +2274,7 @@ function createAdventureGame(api){
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
     if(button.hasAttribute('data-paste-toggle')){togglePastePractice();return;}
     if(button.hasAttribute('data-thermal-next')){thermalNext();return;}
+    if(button.hasAttribute('data-cooler-start')){continueCoolerMount();return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
@@ -2286,7 +2356,7 @@ function createAdventureGame(api){
     toggleRamPrecision,ramPrecisionStep,ramPrecisionState,ramPrecisionCapture,
     toggleScrewPractice,screwPracticeState,screwMove,screwTurn,
     toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
-    togglePastePractice,finishCoolerPractice,thermalNext,
+    togglePastePractice,finishCoolerPractice,thermalNext,continueCoolerMount,
     pasteUi:{getState:()=>pasteUi?.getState()||null,
       pump:down=>pasteUi?.pump(down),pointer:(x,y)=>pasteUi?.pointer(x,y),
       tick:ms=>pasteUi?.tick(ms),confirm:()=>pasteUi?.confirm()},

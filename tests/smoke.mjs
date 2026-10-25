@@ -942,3 +942,61 @@ assert(get('adventurePanel').innerHTML.includes('data-suggest="fit"'));
 assert.equal(g.perform('fit').status,'success');
 assert.equal(l.s.installed.cooler,true);
 console.log('8.12.1: continuidad de pasta a disipador en tienda e inventario OK');
+
+// 8.12.2: encajar disipador inicia automáticamente la práctica cuando
+// el destornillador y los tornillos están disponibles.
+function stageCoolerTest(){
+  g.start('office');
+  buy('case','tower');fit('case:tower');
+  buy('item','ioShield');fit('item:ioShield');
+  buy('motherboard','b650');fit('motherboard:b650');
+  buy('cpu','r7600');g.select('cpu:r7600');
+  g.toggleCpuPrecision();assert.equal(g.perform('fit').status,'success');
+  buy('item','paste');g.select('item:paste');
+  assert.equal(g.perform('apply'),null);
+  g.pasteUi.pointer(.5,.5);g.pasteUi.pump(true);
+  for(let tick=0;tick<75;tick++)g.pasteUi.tick(40);
+  g.pasteUi.pump(false);
+  for(let tick=0;tick<20;tick++)g.pasteUi.tick(40);
+  assert.equal(g.pasteUi.confirm(),true);
+  buy('cooler','air');
+}
+stageCoolerTest();
+buy('item','screwdriver');buy('item','screws');
+g.select('cooler:air');
+assert.equal(g.perform('fit').status,'success');
+assert.equal(get('screwPrecisionPopup').hidden,false,
+  'El minijuego debe abrirse al encajar el disipador con herramientas');
+assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
+  'El minijuego debe mostrar el mapa de pasta durante el apriete');
+assert(get('adventurePanel').innerHTML.includes('Motor 8.12.2'),
+  'La revisión activa debe quedar identificada visualmente');
+g.screwMove(50,50);
+assert.equal(g.screwTurn(1).depth,10);
+const beforeCancel=get('screwPrecisionPopup');
+beforeCancel.events.click({target:{closest:()=>({
+  hasAttribute:key=>key==='data-screw-cancel',dataset:{}
+})}});
+assert.equal(get('screwPrecisionPopup').hidden,true);
+assert(get('adventurePanel').innerHTML.includes('data-cooler-start'),
+  'La continuación debe estar visible aunque se haya cerrado la práctica');
+assert.equal(g.continueCoolerMount(),true);
+assert.equal(g.screwPracticeState().depth,10,
+  'Reabrir conserva el roscado parcial');
+stageCoolerTest();
+assert.equal(g.perform('fit').status,'success');
+assert.equal(get('screwPrecisionPopup').hidden,true,
+  'Sin herramientas debe mostrarse la guía, no gastar tornillos');
+assert.equal(g.game.awaitingCoolerTools,true);
+assert.equal(g.game.shopCategory,'item');
+assert(get('adventurePanel').innerHTML.includes('data-cooler-start'));
+buy('item','screwdriver');
+assert.equal(get('screwPrecisionPopup').hidden,true);
+buy('item','screws');
+assert.equal(get('screwPrecisionPopup').hidden,false,
+  'La compra del último material debe iniciar la práctica pendiente');
+assert.equal(g.game.selected,'cooler:air',
+  'El disipador instalado se recupera sin requerir stock en inventario');
+assert.equal(g.game.awaitingCoolerTools,false);
+assert.equal(g.getExport().thermalPaste.application.status,'ready');
+console.log('8.12.2: el minijuego se abre al encajar y se reanuda tras adquirir material');
