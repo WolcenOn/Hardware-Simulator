@@ -357,13 +357,88 @@ body.adventure-on #resetBtn{display:none!important}
 @media(max-width:650px){.screw-anchor-map{min-height:100px}
  .screw-anchor{width:26px;height:26px}
  .screw-precision-dialog .screw-alignment-board{height:125px}}
+
+/* 8.11 — práctica CPU: muesca, zócalo y palanca con oscilador de fuerza. */
+.cpu-precision-popup[hidden]{display:none!important}
+.cpu-precision-popup{position:absolute;inset:0;z-index:32;display:flex;
+  align-items:center;justify-content:center;overflow:auto;
+  padding:clamp(.3rem,2vw,1rem);background:#061523d9;backdrop-filter:blur(4px)}
+.cpu-precision-dialog{box-sizing:border-box;width:min(610px,100%);max-height:100%;
+  overflow:auto;display:grid;gap:.6rem;padding:clamp(.6rem,2vw,1rem);
+  border-radius:15px;border:2px solid #74c9bb;
+  background:linear-gradient(155deg,#193c4c,#0c2536);color:#e9f6fd;
+  box-shadow:0 15px 48px #000b}
+.cpu-precision-dialog header{position:static;display:flex;justify-content:space-between;
+  align-items:flex-start;gap:.6rem;padding:0;margin:0;background:none;border:0;box-shadow:none}
+.cpu-precision-dialog header small{font-weight:800;color:#90efe2;letter-spacing:.09em}
+.cpu-precision-dialog h3{font-size:1.05rem;margin:.2rem 0}
+.cpu-precision-dialog p{margin:0;font-size:.84rem}
+.cpu-precision-dialog button{min-height:36px;white-space:normal}
+.cpu-precision-dialog footer{display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:.5rem;border-top:1px solid #3d6a80;padding-top:.5rem;
+  font-size:.75rem;color:#c6e4ee}
+.cpu-precision-scene{position:relative;height:210px;overflow:hidden;
+  touch-action:none;border:1px solid #5d93a9;border-radius:11px;
+  background:repeating-linear-gradient(0deg,#0e2b3b,#0e2b3b 19px,#133749 20px)}
+.cpu-socket{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:154px;height:154px;border:9px solid #778d95;border-radius:10px;
+  background:#1b3035;box-shadow:0 0 0 7px #334b5b,0 0 18px #050b15;
+  display:grid;place-items:center}
+.cpu-socket:after{content:"";position:absolute;inset:16px;
+  border:1px dashed #c8c3a1aa;border-radius:4px}
+.cpu-socket-triangle,.cpu-corner-marker{position:absolute;
+  left:2px;top:0;z-index:4;color:#ffe18a;font-size:20px;line-height:1;
+  text-shadow:0 1px 3px #000}
+.cpu-socket-text{font-size:.72rem;letter-spacing:.1em;font-weight:800;color:#a1bec4}
+.cpu-piece{position:absolute;width:118px;height:118px;display:grid;place-items:center;
+  border:7px solid #afbeac;border-radius:7px;
+  background:linear-gradient(135deg,#bdc9c3,#748f8a);
+  box-shadow:0 8px 17px #000b;z-index:3;cursor:grab;touch-action:none;
+  user-select:none;color:#213e36;font-weight:900;letter-spacing:.2em;font-size:1.25rem}
+.cpu-piece:active{cursor:grabbing}
+.cpu-piece:focus-visible,.cpu-precision-dialog button:focus-visible,
+.cpu-precision-dialog input:focus-visible{outline:3px solid #ffda8f;outline-offset:3px}
+.cpu-corner-marker{left:1px;top:0;color:#f3cd65;font-size:18px}
+.cpu-retention-lid{position:absolute;right:calc(50% - 105px);top:calc(50% - 97px);
+  width:194px;height:15px;border:3px solid #8b9b9e;background:#97adb0;
+  border-radius:5px;transform-origin:right center;transform:rotate(-10deg);
+  pointer-events:none;z-index:5;opacity:.78}
+.cpu-retention-lid.close{transform:rotate(0deg);height:10px;background:#9db8ba}
+.cpu-precision-controls{display:grid;gap:.55rem}
+.cpu-align-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
+.cpu-align-grid label{display:grid;gap:.25rem;color:#daedf4;font-size:.8rem}
+.cpu-align-grid label:last-child{grid-column:1/-1}
+.cpu-align-grid output{font-variant-numeric:tabular-nums;color:#b4f4dd}
+.cpu-align-grid input[type=range]{width:100%;accent-color:#76dbc1;min-height:28px}
+.cpu-lever-controls{display:grid;gap:.55rem}
+.cpu-force-scale{position:relative;height:32px;margin:4px 8px;
+  border-radius:8px;border:1px solid #c7e2e9;
+  background:linear-gradient(90deg,#c34d50 0%,#c34d50 44%,
+    #d6ad55 45%,#d6ad55 57%,#49ba86 58%,#49ba86 74%,
+    #d6ad55 75%,#d6ad55 85%,#c34d50 86%,#c34d50 100%)}
+.cpu-force-needle{position:absolute;top:-7px;bottom:-7px;width:4px;
+  transform:translateX(-50%);background:#fff;border:1px solid #17354c;
+  box-shadow:0 0 0 2px #163349,0 0 11px #fff9}
+.cpu-force-head{display:flex;justify-content:space-between;gap:.5rem;font-size:.83rem}
+.cpu-force-head output{font-variant-numeric:tabular-nums;color:#c5ffdf}
+.cpu-lever-controls small{color:#bed7df}
+.cpu-feedback{min-height:1.5em;color:#dbf4e7}
+@media(max-width:650px){
+ .cpu-precision-popup{align-items:flex-start;padding:.22rem}
+ .cpu-precision-dialog{gap:.36rem;max-height:100%;padding:.5rem}
+ .cpu-precision-scene{height:170px}
+ .cpu-socket{width:125px;height:125px}
+ .cpu-piece{width:96px;height:96px}
+ .cpu-retention-lid{display:none}
+}
+@media(prefers-reduced-motion:reduce){.cpu-piece{transition:none}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.10.1-alpha: tornillos individuales y anclajes por componente</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.11.0-alpha: CPU con zócalo y palanca de fuerza</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <details id="teacherTools" class="panel teacher-tools"><summary><strong>Herramientas docentes · Caso práctico JSON</strong></summary>
 <p>El profesor puede redactar un encargo y su presupuesto, descargarlo en JSON o importar uno para resolverlo en «Tienda y encargos».</p>
 <div class="teacher-fields">
@@ -395,9 +470,9 @@ body.adventure-on #resetBtn{display:none!important}
 <button id="mouseToggle">Conectar ratón USB</button>
 <button id="monitorToggle">Conectar HDMI / DP</button></div>
 <div class="issue" id="peripheralStatus">Teclado, ratón y monitor sin conectar.</div><div class="title"><h2>Ficha técnica</h2><span id="selectedPartName">—</span></div><div id="specPanel"></div></section>
-<section><div class="panel"><div class="title"><h2 id="modeLabel">Modo montaje guiado</h2><span>monitor + BIOS</span></div><div class="actions"><button id="autoBuild" class="okbtn">Montaje recomendado (demo)</button><button id="powerBtn" class="primary">Encender PC</button><button id="biosBtn" class="warnbtn" title="Enciende el PC y abre UEFI si supera POST">Encender y entrar BIOS</button></div><div id="workshopFeedback" class="workshopFeedback" role="status" aria-live="polite">En un encargo, compra y conecta las piezas antes de encender. «Montaje recomendado» abre una demostración técnica independiente.</div></div><div class="panel" style="margin-top:1rem"><div id="resourceAlert" class="resourceAlert" role="status" aria-live="polite" hidden></div><div id="viewportWrap" class="viewportWrap"><canvas id="viewport"></canvas><div id="ramPrecisionPopup" class="ram-precision-popup" hidden></div><div id="screwPrecisionPopup" class="screw-precision-popup" hidden></div><div id="sceneHoverTip" class="sceneHoverTip" role="tooltip" hidden></div><aside id="partContextMenu" class="partContextMenu" role="dialog" aria-label="Acciones de pieza 3D" hidden></aside><aside id="partSpecSheet" class="partSpecSheet" role="dialog" aria-label="Ficha técnica de componente" hidden></aside><div id="fallback" class="fallback"></div><div class="hint">Dos mesas: selecciona las piezas compradas · rueda para zoom</div><div class="sceneActions"><button id="viewDesk" data-camera-view="general" aria-pressed="true">Vista general</button><button id="viewAssemblyDesk" data-camera-view="assembly" aria-pressed="false">Mesa de montaje</button><button id="viewStaging3d" data-camera-view="staging" aria-pressed="false">Mesa de piezas</button><button id="viewPeripherals" data-camera-view="peripherals" aria-pressed="false">Periféricos</button><button id="stagePrev" title="Página anterior de piezas">◀</button><span id="stageCount" class="stageCounter">Mesa 1/1</span><button id="stageNext" title="Página siguiente de piezas">▶</button><button id="viewMonitor3d" data-camera-view="monitor" aria-pressed="false">Monitor 3D</button><button id="viewIso" data-camera-view="tower" aria-pressed="false">Vista torre</button><button id="viewTop" data-camera-view="side" aria-pressed="false">Lateral</button><button id="viewRearCables" data-camera-view="rear" aria-pressed="false">Trasera / cables</button><button id="viewDriveBays" data-camera-view="drives" aria-pressed="false" title="Inspeccionar bahías: vista con cubierta de PSU oculta">Bahías HDD / SSD</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom -</button><button id="explodeBtn">Expandir</button></div></div><div class="monitor"><div class="monitorTop"><strong id="monitorTitle">Monitor virtual</strong><span><i id="ledPower" class="light"></i><i id="ledPost" class="light"></i><i id="ledBoot" class="light"></i></span></div><div id="biosPanel" class="biosPanel"><div class="title"><h2>BIOS/UEFI simulada</h2><span>configurable</span></div><div class="biosGrid"><div class="field"><label>Boot #1</label><select id="biosBoot"><option value="ssd">SSD/NVMe del sistema</option><option value="pxe">PXE Network</option><option value="usb">USB instalador</option></select></div><div class="field"><label>Modo SATA</label><select id="biosSata"><option value="AHCI">AHCI</option><option value="RAID">RAID</option><option value="IDE">IDE legado</option></select></div><div class="field"><label>Perfil memoria</label><select id="biosXmp"><option value="Auto">Auto/JEDEC</option><option value="EXPO">EXPO/XMP estable</option><option value="Aggressive">OC agresivo</option></select></div><div class="field"><label>Curva ventilador CPU</label><select id="biosFan"><option value="Balanced">Balanced</option><option value="Silent">Silent</option><option value="Performance">Performance</option></select></div><div class="field"><label>PCIe GPU</label><select id="biosPcie"><option value="Auto">Auto</option><option value="Gen4">Forzar Gen4</option><option value="Gen5">Forzar Gen5 only</option></select></div><div class="field"><label>Secure Boot</label><select id="biosSecure"><option value="on">Activado</option><option value="off">Desactivado</option></select></div><div class="field"><label>Firmware</label><select id="biosUefi"><option value="on">UEFI</option><option value="off">Legacy / CSM</option></select></div></div><div class="actions" style="margin-top:.7rem"><button id="saveBios" class="okbtn">Guardar BIOS</button><button id="biosDefaults" class="warnbtn">Valores seguros</button></div></div><div id="osPanel" class="osPanel" aria-label="Arranque e instalación ficticios"><div class="title"><h2>Arranque e instalación ficticia</h2><span>USB / disco / SO</span></div><div class="field"><label for="osUsbImage">Imagen del USB</label><select id="osUsbImage"><option value="none">Sin imagen de arranque</option><option value="novadesk">NovaDesk 11 · UEFI y Secure Boot</option><option value="libreforge">LibreForge · Entorno libre</option><option value="terminalis">Terminalis · Consola educativa</option></select></div><div class="actions"><button id="osUsbToggle">Conectar USB instalador</button><button id="osInstallBtn" class="okbtn">Instalar SO en el disco</button></div><p class="osHelp">En encargos, compra y prepara una memoria en la tienda y conéctala desde «Preparar y conectar USB» del panel lateral. En la demo técnica puedes elegir la imagen directamente. No se modifica ningún disco real.</p><div id="osStatus" class="issue" role="status" aria-live="polite">No se ha configurado un medio de arranque.</div></div><div id="screen" class="screen"></div><div class="meters"><div class="meter"><span>CPU <b id="cpuLoadText">0%</b></span><div class="bar"><i id="cpuBar"></i></div></div><div class="meter"><span>GPU <b id="gpuLoadText">0%</b></span><div class="bar"><i id="gpuBar"></i></div></div><div class="meter"><span>PSU <b id="psuLoadText">0%</b></span><div class="bar"><i id="psuBar"></i></div></div><div class="meter"><span>Temp <b id="tempLoadText">35°C</b></span><div class="bar"><i id="tempBar"></i></div></div></div></div></div></section>
+<section><div class="panel"><div class="title"><h2 id="modeLabel">Modo montaje guiado</h2><span>monitor + BIOS</span></div><div class="actions"><button id="autoBuild" class="okbtn">Montaje recomendado (demo)</button><button id="powerBtn" class="primary">Encender PC</button><button id="biosBtn" class="warnbtn" title="Enciende el PC y abre UEFI si supera POST">Encender y entrar BIOS</button></div><div id="workshopFeedback" class="workshopFeedback" role="status" aria-live="polite">En un encargo, compra y conecta las piezas antes de encender. «Montaje recomendado» abre una demostración técnica independiente.</div></div><div class="panel" style="margin-top:1rem"><div id="resourceAlert" class="resourceAlert" role="status" aria-live="polite" hidden></div><div id="viewportWrap" class="viewportWrap"><canvas id="viewport"></canvas><div id="ramPrecisionPopup" class="ram-precision-popup" hidden></div><div id="screwPrecisionPopup" class="screw-precision-popup" hidden></div><div id="cpuPrecisionPopup" class="cpu-precision-popup" hidden></div><div id="sceneHoverTip" class="sceneHoverTip" role="tooltip" hidden></div><aside id="partContextMenu" class="partContextMenu" role="dialog" aria-label="Acciones de pieza 3D" hidden></aside><aside id="partSpecSheet" class="partSpecSheet" role="dialog" aria-label="Ficha técnica de componente" hidden></aside><div id="fallback" class="fallback"></div><div class="hint">Dos mesas: selecciona las piezas compradas · rueda para zoom</div><div class="sceneActions"><button id="viewDesk" data-camera-view="general" aria-pressed="true">Vista general</button><button id="viewAssemblyDesk" data-camera-view="assembly" aria-pressed="false">Mesa de montaje</button><button id="viewStaging3d" data-camera-view="staging" aria-pressed="false">Mesa de piezas</button><button id="viewPeripherals" data-camera-view="peripherals" aria-pressed="false">Periféricos</button><button id="stagePrev" title="Página anterior de piezas">◀</button><span id="stageCount" class="stageCounter">Mesa 1/1</span><button id="stageNext" title="Página siguiente de piezas">▶</button><button id="viewMonitor3d" data-camera-view="monitor" aria-pressed="false">Monitor 3D</button><button id="viewIso" data-camera-view="tower" aria-pressed="false">Vista torre</button><button id="viewTop" data-camera-view="side" aria-pressed="false">Lateral</button><button id="viewRearCables" data-camera-view="rear" aria-pressed="false">Trasera / cables</button><button id="viewDriveBays" data-camera-view="drives" aria-pressed="false" title="Inspeccionar bahías: vista con cubierta de PSU oculta">Bahías HDD / SSD</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom -</button><button id="explodeBtn">Expandir</button></div></div><div class="monitor"><div class="monitorTop"><strong id="monitorTitle">Monitor virtual</strong><span><i id="ledPower" class="light"></i><i id="ledPost" class="light"></i><i id="ledBoot" class="light"></i></span></div><div id="biosPanel" class="biosPanel"><div class="title"><h2>BIOS/UEFI simulada</h2><span>configurable</span></div><div class="biosGrid"><div class="field"><label>Boot #1</label><select id="biosBoot"><option value="ssd">SSD/NVMe del sistema</option><option value="pxe">PXE Network</option><option value="usb">USB instalador</option></select></div><div class="field"><label>Modo SATA</label><select id="biosSata"><option value="AHCI">AHCI</option><option value="RAID">RAID</option><option value="IDE">IDE legado</option></select></div><div class="field"><label>Perfil memoria</label><select id="biosXmp"><option value="Auto">Auto/JEDEC</option><option value="EXPO">EXPO/XMP estable</option><option value="Aggressive">OC agresivo</option></select></div><div class="field"><label>Curva ventilador CPU</label><select id="biosFan"><option value="Balanced">Balanced</option><option value="Silent">Silent</option><option value="Performance">Performance</option></select></div><div class="field"><label>PCIe GPU</label><select id="biosPcie"><option value="Auto">Auto</option><option value="Gen4">Forzar Gen4</option><option value="Gen5">Forzar Gen5 only</option></select></div><div class="field"><label>Secure Boot</label><select id="biosSecure"><option value="on">Activado</option><option value="off">Desactivado</option></select></div><div class="field"><label>Firmware</label><select id="biosUefi"><option value="on">UEFI</option><option value="off">Legacy / CSM</option></select></div></div><div class="actions" style="margin-top:.7rem"><button id="saveBios" class="okbtn">Guardar BIOS</button><button id="biosDefaults" class="warnbtn">Valores seguros</button></div></div><div id="osPanel" class="osPanel" aria-label="Arranque e instalación ficticios"><div class="title"><h2>Arranque e instalación ficticia</h2><span>USB / disco / SO</span></div><div class="field"><label for="osUsbImage">Imagen del USB</label><select id="osUsbImage"><option value="none">Sin imagen de arranque</option><option value="novadesk">NovaDesk 11 · UEFI y Secure Boot</option><option value="libreforge">LibreForge · Entorno libre</option><option value="terminalis">Terminalis · Consola educativa</option></select></div><div class="actions"><button id="osUsbToggle">Conectar USB instalador</button><button id="osInstallBtn" class="okbtn">Instalar SO en el disco</button></div><p class="osHelp">En encargos, compra y prepara una memoria en la tienda y conéctala desde «Preparar y conectar USB» del panel lateral. En la demo técnica puedes elegir la imagen directamente. No se modifica ningún disco real.</p><div id="osStatus" class="issue" role="status" aria-live="polite">No se ha configurado un medio de arranque.</div></div><div id="screen" class="screen"></div><div class="meters"><div class="meter"><span>CPU <b id="cpuLoadText">0%</b></span><div class="bar"><i id="cpuBar"></i></div></div><div class="meter"><span>GPU <b id="gpuLoadText">0%</b></span><div class="bar"><i id="gpuBar"></i></div></div><div class="meter"><span>PSU <b id="psuLoadText">0%</b></span><div class="bar"><i id="psuBar"></i></div></div><div class="meter"><span>Temp <b id="tempLoadText">35°C</b></span><div class="bar"><i id="tempBar"></i></div></div></div></div></div></section>
 <aside class="panel"><div class="title"><h2>Inspector IA</h2><span>diagnóstico</span></div><div class="status"><div><span>Alim.</span><strong id="powerStatus">Apagado</strong></div><div><span>POST</span><strong id="postStatus">Pendiente</strong></div><div><span>Boot</span><strong id="bootStatus">Pendiente</strong></div><div><span>Watts</span><strong id="wattsStatus">0 W</strong></div><div><span>CPU</span><strong id="tempStatus">35 °C</strong></div><div><span>Compat.</span><strong id="compatStatus">—</strong></div></div><h3>Conectores y reglas</h3><div id="compatPanel"></div><h3>Consumo por componente</h3><div id="powerBreakdown" role="status"></div><h3>Banco de errores</h3><select id="faultSelect"></select><div class="tools"><button id="injectFault" class="warnbtn">Inyectar</button><button id="randomFault" class="warnbtn">Aleatorio</button></div><div id="activeFaults"></div><h3>Correcciones</h3><div class="tools" id="fixButtons"></div><h3>Herramientas</h3><div class="tools"><button data-tool="visual">Inspección</button><button data-tool="beep">Pitidos</button><button data-tool="multimeter">Multímetro</button><button data-tool="smart">SMART</button><button data-tool="stress">Test estrés</button><button data-tool="bios">BIOS</button></div><h3>Bitácora</h3><ol id="eventLog"></ol></aside>
-</main><p class="foot">Versión 8.10.1-alpha: puntos de anclaje por pieza, cada tornillo con alineación y roscado propios.</p>
+</main><p class="foot">Versión 8.11.0-alpha: insertar CPU, alinear orientación y cerrar palanca con control de fuerza.</p>
 <script src="./js/hardwareExpansion.js?v=8-4-1-gameplay-e2e"></script>
 <script src="./js/osEmulation.js?v=8-5-0-os-emulator"></script>
 <script src="./js/classroom.js?v=8-6-0-classroom"></script>
@@ -405,8 +480,9 @@ body.adventure-on #resetBtn{display:none!important}
 <script src="./js/mishapEngine.js?v=8-8-2-latent-sata"></script>
 <script src="./js/ramPrecision.js?v=8-9-1-ram-popup"></script>
 <script src="./js/screwPrecision.js?v=8-10-1-multi-screws"></script>
+<script src="./js/cpuPrecision.js?v=8-11-0-cpu-socket"></script>
 <script src="./js/operationEngine.js?v=8-8-2-latent-sata"></script>
-<script src="./js/adventureMode.js?v=8-10-1-multi-screws"></script>
+<script src="./js/adventureMode.js?v=8-11-0-cpu-socket"></script>
 <script src="./js/partInspector.js?v=8-4-4-front-io"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -990,6 +1066,7 @@ function exportMount(){try{
    if(details.incidentSimulation)data.incidentSimulation=details.incidentSimulation;
    if(details.ramPrecision)data.ramPrecision=details.ramPrecision;
    if(details.screwPractice)data.screwPractice=details.screwPractice;
+   if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision;
  }
  downloadJson('pc-lab-montaje-'+Date.now()+'.json',data);
  addLog('ok','Exportación JSON realizada: montaje, conexiones, fijaciones, BIOS, consumo y caso.');render();

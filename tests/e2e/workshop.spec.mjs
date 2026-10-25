@@ -930,3 +930,45 @@ test('8.10.1 tornillos: mapa de anclajes y profundidad por cada fijación',async
   expect(report.attempts[0].code).toBe('not_engaged');
   expect(report.attempts.at(-1).anchor).toBe('s9');
 });
+
+test('8.11 CPU: orientar, alinear, apoyar y cerrar la palanca sobre visor 3D',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'cpu','r7600');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="cpu:r7600"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await expect(page.locator('[data-cpu-toggle]')).toContainText('Usar colocación clásica');
+  await page.locator('[data-suggest="fit"]').first().evaluate(el=>el.click());
+  const popup=page.locator('#cpuPrecisionPopup');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('[role="dialog"]')).toBeVisible();
+  expect(await page.evaluate(()=>state.installed.cpu)).toBe(false);
+  const before=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
+  await popup.locator('[data-cpu-present]').evaluate(el=>el.click());
+  const after=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
+  expect(after-before).toBeCloseTo(.6,1);
+  for(let i=0;i<4;i++){
+    const rotation=await page.evaluate(()=>adventureGame.cpuPrecisionState().rotation);
+    if(rotation===0)break;
+    await popup.locator('[data-cpu-rotate]').evaluate(el=>el.click());
+  }
+  const range=async(id,value)=>popup.locator('#'+id).evaluate((el,v)=>{
+    el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));
+  },value);
+  await range('cpuX',0);await range('cpuY',0);await range('cpuLower',100);
+  await popup.locator('[data-cpu-present]').evaluate(el=>el.click());
+  await expect(popup.locator('[data-cpu-capture]')).toBeVisible();
+  const force=await page.evaluate(()=>adventureGame.cpuPrecisionCapture(94));
+  expect(force.code).toBe('excessive_force');
+  expect(await page.evaluate(()=>state.installed.cpu)).toBe(false);
+  await page.evaluate(()=>adventureGame.cpuPrecisionCapture(66));
+  await expect(popup).toBeHidden();
+  expect(await page.evaluate(()=>state.installed.cpu)).toBe(true);
+  const history=await page.evaluate(()=>adventureGame.getExport().cpuPrecision.attempts);
+  expect(history.at(-1).code).toBe('locked');
+  expect(history.some(x=>x.code==='excessive_force')).toBe(true);
+});

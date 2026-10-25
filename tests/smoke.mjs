@@ -28,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -742,3 +742,72 @@ assert.equal(l.s.fixings.motherboard,true);
 g.start('office');
 assert.equal(g.getExport().screwPractice.enabled,true);
 console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK');
+
+// 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
+assert(html.includes('id="cpuPrecisionPopup"'));
+assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
+assert(html.includes('adventureMode.js?v=8-11-0-cpu-socket'));
+assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r7600');g.select('cpu:r7600');
+assert.equal(g.getExport().cpuPrecision.enabled,true);
+const cpuStock=g.game.stock['cpu:r7600'];
+const cpuBefore=g.getExport().operationHistory.length;
+assert.equal(g.perform('fit'),null,'Debe abrir popup y no instalar todavía');
+assert.equal(get('cpuPrecisionPopup').hidden,false);
+assert.equal(l.s.installed.cpu,false);
+assert.equal(g.game.stock['cpu:r7600'],cpuStock);
+const badCpuPosition=g.cpuPrecisionStep('present');
+assert.equal(badCpuPosition.ok,false);
+assert.equal(badCpuPosition.penaltyMinutes,.6);
+while(g.cpuPrecisionState().rotation!==0)g.cpuPrecisionStep('rotate');
+g.cpuPrecisionMove(0,0);
+get('cpuPrecisionPopup').events.input({target:{id:'cpuLower',value:'100'}});
+assert.equal(g.cpuPrecisionStep('present').code,'presented');
+assert.equal(g.cpuPrecisionState().stage,'lever');
+assert.equal(g.cpuPrecisionCapture(12).code,'insufficient_force');
+assert.equal(l.s.installed.cpu,false);
+assert.equal(g.cpuPrecisionCapture(96).code,'excessive_force');
+assert.equal(l.s.installed.cpu,false);
+assert.equal(g.cpuPrecisionCapture(66).code,'locked');
+assert.equal(l.s.installed.cpu,true,'CPU debe instalarse solo con fuerza verde');
+assert.equal(get('cpuPrecisionPopup').hidden,true);
+assert.equal(g.game.stock['cpu:r7600'],cpuStock-1);
+assert.equal(g.getExport().operationHistory.length,cpuBefore+1);
+assert.equal(g.getExport().cpuPrecision.attempts.length,4);
+// Sin CPU compatible: no se abre el popup ni se instala.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r5600');g.select('cpu:r5600');
+assert.equal(g.perform('fit'),null);
+assert.equal(get('cpuPrecisionPopup').hidden,true);
+assert.equal(l.s.installed.cpu,false);
+assert.equal(g.game.stock['cpu:r5600'],1);
+// Cancelar no pierde material; montaje clásico sigue disponible.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r7600');g.select('cpu:r7600');
+g.perform('fit');g.cpuPrecisionStep('cancel');
+assert.equal(l.s.installed.cpu,false);
+assert.equal(g.game.stock['cpu:r7600'],1);
+assert.equal(g.toggleCpuPrecision(),false);
+assert.equal(g.perform('fit').status,'success','Montaje clásico CPU sigue operativo');
+assert.equal(l.s.installed.cpu,true);
+g.start('office');
+assert.equal(g.getExport().cpuPrecision.enabled,true);
+// La alternativa clásica tampoco puede saltarse la incompatibilidad física.
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r5600');g.select('cpu:r5600');
+assert.equal(g.toggleCpuPrecision(),false);
+assert.equal(g.perform('fit'),null);
+assert.equal(l.s.installed.cpu,false,'CPU AM4 no puede entrar en placa AM5 ni en modo clásico');
+console.log('8.11 CPU precisión OK: orientación, zócalo, palanca, fallo y compatibilidad');
