@@ -139,21 +139,42 @@ function createAdventureGame(api){
     const st=api.state(),powered=!!st.power;
     const esd={worn:!!game.esdConnected,
       grounded:!!game.esdConnected&&owned('item:esdStrap')&&!!st.installed.case&&!powered};
+    // Reparar una avería conocida no debe provocar un ciclo interminable:
+    // se comprueba la reparación, pero no se sortea una nueva avería SATA.
+    const repairingSata=kind==='connect'&&target==='sataData'&&
+      game.pendingSataRepair;
     const record=operationEngine.attempt({kind,target,execute,wasSuccessful:verify,
       context:game.caseId,getReason:()=>game.lastFeedback!==beforeFeedback?
         game.lastFeedback?.text:null,
-      incidentEvaluator:game.riskEnabled?({kind,speed,difficulty,experience})=>
-        mishaps.assess({kind,speed,difficulty,experience,esd,powered,
-          tools:{adequate:true}}):null});
+      incidentEvaluator:game.riskEnabled&&!repairingSata?
+        ({kind,speed,difficulty,experience})=>
+          mishaps.assess({kind,target,speed,difficulty,experience,esd,powered,
+            tools:{adequate:true}}):null});
+    if(record.status==='success'&&repairingSata){
+      game.pendingSataRepair=false;
+      const openIncident=game.incidents.findLast(x=>x.outcome==='loose_sata'&&!x.resolved);
+      if(openIncident){openIncident.resolved=true;openIncident.resolvedSequence=record.seq;}
+      message('Reparación SATA completada: cable de datos reconectado y verificado.','ok');
+    }
     if(record.status==='success'&&kind==='inspect'&&game.pendingReview){
       game.pendingReview=0;
       message('Inspección de seguridad completada: incidencias pendientes revisadas.','ok');
     }
     if(record.incident){
-      game.incidents.push({operation:kind,target,...record.incident,sequence:record.seq});
-      if(record.incident.outcome==='review')game.pendingReview++;
-      message(record.incident.code+' · '+record.incident.description+
-        ' (+'+record.incident.delayMinutes+' min simulados).');
+      const entry={operation:kind,target,...record.incident,sequence:record.seq};
+      if(entry.outcome==='loose_sata'){
+        // El handler ha conectado y verificado el cable; la incidencia
+        // posterior lo suelta, sin inventar daño ni gastar material.
+        api.state().sataData=false;
+        operationEngine.markUndone('connect','sataData');
+        game.pendingSataRepair=true;
+        entry.resolved=false;
+        api.render();
+      }
+      game.incidents.push(entry);
+      if(entry.outcome==='review')game.pendingReview++;
+      message(entry.code+' · '+entry.description+
+        ' (+'+entry.delayMinutes+' min simulados).');
     }
     paint();return record;
   }
@@ -176,7 +197,8 @@ function createAdventureGame(api){
     simulatedTime:clock?.getSummary()||null,
     incidentSimulation:{enabled:game.riskEnabled,seed:game.riskSeed,
       incidents:game.incidents.map(item=>({...item})),
-      pendingReview:game.pendingReview}};}
+      pendingReview:game.pendingReview,
+      pendingRepairs:game.pendingSataRepair?['sataData']:[]}};}
 
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
@@ -221,7 +243,8 @@ function createAdventureGame(api){
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,
-      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],pendingReview:0
+      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
+      pendingReview:0,pendingSataRepair:false
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -764,10 +787,15 @@ function createAdventureGame(api){
       if(e.temp>=90)symptoms.push('Temperatura crítica. Revisa pasta térmica, disipador y ventiladores.');
       if(!symptoms.length)symptoms.push('El equipo responde. Comprueba que cumple los requisitos del cliente.');
     }
+    if(game.pendingSataRepair)
+      symptoms.push('Cable SATA de datos suelto: comprueba el conector y reconecta con el equipo apagado y la caja abierta.');
     game.inspection=symptoms.join(' ');
     message('Inspección: '+game.inspection,'ok');
   }
   function checkDelivery(){
+    if(game?.pendingSataRepair){
+      message('Repara el cable SATA de datos pendiente antes de entregar el equipo.');return;
+    }
     if(game?.pendingReview){
       message('Completa una inspección para revisar las '+game.pendingReview+
         ' incidencias pendientes antes de entregar el equipo.');return;
@@ -959,6 +987,7 @@ function createAdventureGame(api){
         'Desconectar pulsera ESD':'Conectar pulsera ESD al chasis')+'</button>'+
       '<p id="advRiskStatus" role="status">Incidencias: '+game.incidents.length+
         ' · revisiones pendientes: '+game.pendingReview+
+        ' · reparaciones pendientes: '+(game.pendingSataRepair?1:0)+
         ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
         ' · probabilidades educativas configurables</p></div></div>';
     const inventory=
@@ -1155,6 +1184,7 @@ function createAdventureGame(api){
       game.riskEnabled=event.target.value==='on';
       const status=panel.querySelector('#advRiskStatus');
       if(status)status.textContent='Incidencias: '+game.incidents.length+
+        ' · reparaciones pendientes: '+(game.pendingSataRepair?1:0)+
         ' · pulsera ESD: '+(game.esdConnected?'conectada':'desconectada')+
         ' · '+(game.riskEnabled?'activas':'desactivadas');
     }
