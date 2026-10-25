@@ -85,6 +85,8 @@ function createAdventureGame(api){
   let ramPrecisionEngine=null,ramPrecisionSession=null,ramPrecisionBypass=false;
   let screwEngine=null,screwSession=null,screwBypass=false,screwDragging=false;
   let screwHoleIndex=0;
+  let cpuEngine=null,cpuSession=null,cpuBypass=false,cpuDragging=false;
+  let cpuFrame=0,cpuOscStart=0,cpuFeedback='Gira y alinea el procesador.';
   let screwFeedback='Arrastra el tornillo hasta el centro del agujero.';
   function operationSummary(){return operationEngine?.getSummary()||null;}
   function setRiskEnabled(enabled){
@@ -105,7 +107,8 @@ function createAdventureGame(api){
       // presentación abierta sin alterar incidencias ya registradas.
       ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:value});
       screwEngine=root.PC_SCREW_PRECISION.createEngine({seed:value});
-      closeScrewPractice();
+      cpuEngine=root.PC_CPU_PRECISION.createEngine({seed:value});
+      closeCpuPrecision();closeScrewPractice();
       ramPrecisionSession=null;stopRamAnimation();ramCaptures={left:null,right:null};
       message('Semilla guardada: '+value+'. Secuencia reiniciada.','ok');
       return true;
@@ -260,6 +263,9 @@ function createAdventureGame(api){
     ramPrecision:{enabled:game.ramPrecisionEnabled,
       attempts:game.ramPrecisionHistory.map(item=>({...item})),
       active:ramPrecisionSession?.getState()||null},
+    cpuPrecision:{enabled:game.cpuPrecisionEnabled,
+      attempts:game.cpuPrecisionHistory.map(x=>({...x})),
+      active:cpuSession?.getState()||null},
     screwPractice:{enabled:game.screwPracticeEnabled,
       attempts:game.screwHistory.map(item=>({...item})),
       progress:Object.fromEntries(Object.entries(game.screwProgress).map(
@@ -270,6 +276,201 @@ function createAdventureGame(api){
   const panel=api.document.getElementById('adventurePanel');
   const ramPopup=api.document.getElementById('ramPrecisionPopup');
   const screwPopup=api.document.getElementById('screwPrecisionPopup');
+  const cpuPopup=api.document.getElementById('cpuPrecisionPopup');
+  const cpuNow=()=>root.performance?.now?.()??0;
+  function stopCpuAnimation(){
+    if(cpuFrame&&root.cancelAnimationFrame)root.cancelAnimationFrame(cpuFrame);
+    cpuFrame=0;
+  }
+  function closeCpuPrecision(){
+    stopCpuAnimation();cpuSession=null;cpuDragging=false;
+    if(cpuPopup){cpuPopup.hidden=true;cpuPopup.innerHTML='';}
+  }
+  function cpuPrecisionState(){return cpuSession?.getState()||null;}
+  function cpuPrerequisites(){
+    const st=api.state(),selected=String(game?.selected||'');
+    const id=selected.split(':')[1];
+    if(!game||!selected.startsWith('cpu:')||!game.cpuPrecisionEnabled)
+      return 'Selecciona una CPU para instalar.';
+    if(!has(selected))return 'Compra una CPU antes de instalarla.';
+    if(!st.installed.case||!st.installed.motherboard)
+      return 'Coloca la caja y la placa base antes de presentar la CPU.';
+    if(st.power||st.caseClosed)return 'Apaga el ordenador y abre la caja antes de tocar el zócalo.';
+    if(st.installed.cpu||st.installed.cooler)
+      return 'Retira primero la CPU o el disipador ya instalados.';
+    const cpu=api.catalog.cpus?.[id],board=api.part('motherboard');
+    if(!cpu?.socket||!board?.socket)return 'No se puede identificar el tipo de zócalo.';
+    if(cpu.socket!==board.socket)
+      return 'CPU '+cpu.socket+' incompatible con zócalo '+board.socket+'. Elige una compatible.';
+    return '';
+  }
+  function openCpuPrecision(){
+    const problem=cpuPrerequisites();
+    if(problem){message(problem,'warn');return false;}
+    closeScrewPractice();
+    ramPrecisionSession=null;ramCaptures={left:null,right:null};
+    stopRamAnimation();
+    if(!cpuSession)cpuSession=cpuEngine.begin({
+      target:game.selected,socket:api.part('motherboard').socket
+    });
+    game.openSections=['actions','mission'];
+    paint();
+    cpuPopup?.querySelector('[data-cpu-piece]')?.focus?.();
+    return true;
+  }
+  function toggleCpuPrecision(){
+    if(!game)return false;
+    game.cpuPrecisionEnabled=!game.cpuPrecisionEnabled;
+    if(!game.cpuPrecisionEnabled)closeCpuPrecision();
+    message(game.cpuPrecisionEnabled?
+      'Minijuego de CPU activado para este encargo.':
+      'Inserción clásica de CPU activada para este encargo.','ok');
+    return game.cpuPrecisionEnabled;
+  }
+  function drawCpuForce(){
+    if(!cpuSession||cpuSession.getState().stage!=='lever'){
+      stopCpuAnimation();return;
+    }
+    const reading=root.PC_CPU_PRECISION.oscillatorValue(cpuNow()-cpuOscStart);
+    const marker=cpuPopup?.querySelector('[data-cpu-force-marker]');
+    const output=cpuPopup?.querySelector('[data-cpu-force-reading]');
+    if(marker)marker.style.left=reading+'%';
+    if(output)output.textContent=reading+'/100';
+    if(root.requestAnimationFrame)cpuFrame=root.requestAnimationFrame(drawCpuForce);
+  }
+  function paintCpuPopup(){
+    if(!cpuPopup)return;
+    const active=!!game?.cpuPrecisionEnabled&&!!cpuSession;
+    cpuPopup.hidden=!active;
+    cpuPopup.innerHTML=active?cpuPopupMarkup():'';
+    if(active&&cpuSession.getState().stage==='lever'&&!cpuFrame)drawCpuForce();
+    else if(!active)stopCpuAnimation();
+  }
+  function cpuPrecisionMove(x,y){
+    if(!cpuSession||!cpuSession.move(x,y))return false;
+    drawCpuPiece();return true;
+  }
+  function drawCpuPiece(){
+    if(!cpuSession||!cpuPopup)return;
+    const st=cpuSession.getState(),piece=cpuPopup.querySelector('[data-cpu-piece]');
+    if(piece){
+      piece.style.left='calc(50% + '+(st.x*2)+'px)';
+      piece.style.top='calc(50% + '+(st.y*2-st.lower*.24)+'px)';
+      piece.style.transform='translate(-50%,-50%) rotate('+st.rotation+'deg) scale('+
+        (1-st.lower*.001)+')';
+    }
+    for(const [name,value] of [['X',st.x],['Y',st.y],['Lower',st.lower]]){
+      const control=cpuPopup.querySelector('#cpu'+name);
+      const output=cpuPopup.querySelector('#cpu'+name+'Value');
+      if(control)control.value=String(value);
+      if(output)output.textContent=String(value)+(name==='Lower'?'%':'');
+    }
+  }
+  function cpuPrecisionStep(action){
+    if(!cpuSession||!game)return null;
+    if(action==='cancel'){
+      closeCpuPrecision();message('Práctica CPU cancelada. El zócalo queda vacío.','warn');
+      return null;
+    }
+    if(action==='rotate'){
+      cpuSession.rotate();cpuFeedback='Alinea el triángulo y centra la CPU sobre el zócalo.';
+      paint();return null;
+    }
+    if(action!=='present')return null;
+    const result=cpuSession.present();
+    if(!result)return null;
+    cpuFeedback=result.message;
+    if(!result.ok){
+      const snapshot=cpuSession.getState();
+      game.cpuPrecisionHistory.push({session:snapshot.id,component:game.selected,
+        ...snapshot.attempts.at(-1)});
+      if(result.penaltyMinutes)
+        clock.add('technical',result.penaltyMinutes,'cpu-precision:'+result.code);
+    }else cpuOscStart=cpuNow();
+    paint();return result;
+  }
+  function cpuPrecisionCapture(value=null){
+    if(!cpuSession||!game||cpuSession.getState().stage!=='lever')return null;
+    const st=cpuSession.getState(),force=Number.isFinite(value)?
+      value:root.PC_CPU_PRECISION.oscillatorValue(cpuNow()-cpuOscStart);
+    if(st.target!==game.selected||cpuPrerequisites()){
+      closeCpuPrecision();message('Condiciones de CPU cambiadas. Reinicia el montaje.');
+      return null;
+    }
+    const result=cpuSession.capture(force);
+    const snapshot=cpuSession.getState();
+    game.cpuPrecisionHistory.push({session:snapshot.id,component:game.selected,
+      ...snapshot.attempts.at(-1)});
+    cpuFeedback=result.message;
+    if(result.penaltyMinutes)
+      clock.add('technical',result.penaltyMinutes,'cpu-precision:'+result.code);
+    if(result.ok){
+      closeCpuPrecision();cpuBypass=true;
+      try{perform('fit');}finally{cpuBypass=false;}
+      message(api.state().installed.cpu?
+        'CPU insertada y palanca del zócalo cerrada correctamente.':
+        'La prueba terminó, pero el montaje técnico rechazó la instalación.',
+        api.state().installed.cpu?'ok':'warn');
+    }else{
+      cpuOscStart=cpuNow();
+      stopCpuAnimation();
+      paint();
+    }
+    return result;
+  }
+  function cpuPopupMarkup(){
+    if(!game?.cpuPrecisionEnabled||!cpuSession)return '';
+    const st=cpuSession.getState(),align=st.stage==='align';
+    const controls=align?
+      '<div class="cpu-precision-controls">'+
+        '<button type="button" data-cpu-rotate>Girar procesador 90°</button>'+
+        '<div class="cpu-align-grid">'+
+          [['X','Centrado horizontal',st.x,-30,30],
+           ['Y','Centrado vertical',st.y,-30,30],
+           ['Lower','Bajar suavemente',st.lower,0,100]].map(([k,label,value,min,max])=>
+            '<label for="cpu'+k+'">'+label+' <output id="cpu'+k+'Value">'+value+
+            (k==='Lower'?'%':'')+'</output><input id="cpu'+k+'" type="range" min="'+
+            min+'" max="'+max+'" value="'+value+'"></label>').join('')+
+        '</div><button type="button" class="primary" data-cpu-present>'+
+        'Apoyar CPU en zócalo</button></div>':
+      '<div class="cpu-lever-controls"><p>CPU apoyada. Detén el marcador en verde '+
+        'para cerrar la palanca de retención.</p>'+
+        '<div class="cpu-force-scale" aria-label="Indicador oscilante de fuerza: rojo, '+
+          'amarillo, verde, amarillo, rojo" role="img">'+
+          '<i class="cpu-force-needle" data-cpu-force-marker style="left:50%"></i></div>'+
+        '<div class="cpu-force-head"><span>Fuerza didáctica de palanca</span>'+
+          '<output data-cpu-force-reading>50/100</output></div>'+
+        '<button type="button" class="primary" data-cpu-capture>'+
+        'Cerrar palanca · detener marcador</button>'+
+        '<small>Zona verde: 58–74. No equivale a newtons ni a una fuerza recomendada.</small>'+
+      '</div>';
+    return '<section class="cpu-precision-dialog" role="dialog" aria-modal="true" '+
+      'aria-label="Inserción de procesador CPU">'+
+      '<header><div><small>TALLER 3D · ZÓCALO '+safe(st.socket)+'</small>'+
+        '<h3>'+(align?'Orientar y colocar CPU':'Cerrar palanca de retención')+
+        '</h3></div><button type="button" data-cpu-cancel '+
+        'aria-label="Cancelar montaje CPU">✕</button></header>'+
+      '<p>Haz coincidir las marcas triangulares del procesador y del zócalo. '+
+        'No fuerces los contactos.</p>'+
+      '<div class="cpu-precision-scene" aria-label="Esquema del zócalo y procesador">'+
+        '<div class="cpu-socket"><span class="cpu-socket-triangle">◤</span>'+
+          '<span class="cpu-socket-text">'+safe(st.socket)+'</span></div>'+
+        '<div class="cpu-piece" data-cpu-piece tabindex="0" role="button" '+
+          'aria-label="Arrastrar CPU, flechas para alinear y botón para girar" style="'+
+          'left:calc(50% + '+(st.x*2)+'px);top:calc(50% + '+
+          (st.y*2-st.lower*.24)+'px);transform:translate(-50%,-50%) rotate('+
+          st.rotation+'deg) scale('+(1-st.lower*.001)+')">'+
+          '<span class="cpu-corner-marker">◤</span><span>CPU</span></div>'+
+        '<div class="cpu-retention-lid'+(align?'':' close')+
+          '" aria-hidden="true"></div></div>'+
+      controls+
+      '<p class="cpu-feedback" role="status" aria-live="polite">'+safe(cpuFeedback)+'</p>'+
+      '<footer><span>Intentos: '+st.attempts.length+
+        ' · fallo: +0,6 min virtuales</span>'+
+        '<button type="button" data-cpu-cancel>Cancelar y volver</button></footer>'+
+      '</section>';
+  }
+
   const screwable=new Set(['motherboard','psu','storage','gpu','cooler']);
   function screwLayout(target){return root.PC_SCREW_PRECISION.layoutFor(target);}
   function screwProgressFor(target){
@@ -314,6 +515,7 @@ function createAdventureGame(api){
   function openScrewPractice(){
     if(!screwValid())return false;
     // No se pueden tener dos prácticas superpuestas sobre el mismo visor.
+    closeCpuPrecision();
     if(ramPrecisionSession){
       ramPrecisionSession=null;ramCaptures={left:null,right:null};
       stopRamAnimation();
@@ -554,7 +756,8 @@ function createAdventureGame(api){
     mishaps=root.PC_MISHAPS.createEngine({seed:which+'-aula-1'});
     ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:which+'-aula-1'});
     screwEngine=root.PC_SCREW_PRECISION.createEngine({seed:which+'-aula-1'});
-    closeScrewPractice();
+    cpuEngine=root.PC_CPU_PRECISION.createEngine({seed:which+'-aula-1'});
+    closeCpuPrecision();closeScrewPractice();
     ramPrecisionSession=null;ramPrecisionBypass=false;
     stopRamAnimation();ramCaptures={left:null,right:null};
     game={
@@ -565,6 +768,7 @@ function createAdventureGame(api){
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
+      cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{}
     };
     state.casePlaced=false;
@@ -595,7 +799,7 @@ function createAdventureGame(api){
     message('Demostración cancelada. Se conservan las compras.', 'ok');
   }
   function exit(){
-    closeScrewPractice();
+    closeCpuPrecision();closeScrewPractice();
     stopRamAnimation();ramPrecisionSession=null;ramCaptures={left:null,right:null};
     api.stage?.([], '');
     api.document.body.classList.remove('adventure-on');
@@ -732,7 +936,7 @@ function createAdventureGame(api){
   function toggleInstallerUsb(){return api.state().usbConnected?
     disconnectInstallerUsb():connectInstallerUsb();}
   function openRamPrecision(){
-    closeScrewPractice();
+    closeCpuPrecision();closeScrewPractice();
     if(!game?.ramPrecisionEnabled||!root.PC_RAM_PRECISION)return false;
     const st=api.state(),[cat,id]=String(game.selected||'').split(':');
     if(cat!=='ram'||!st.installed.ram||st.ramSeated||
@@ -807,6 +1011,7 @@ function createAdventureGame(api){
       ramCaptures={left:null,right:null};
     }
     if(screwSession&&game.selected!==k)closeScrewPractice();
+    if(cpuSession&&game.selected!==k)closeCpuPrecision();
     game.selected=k;
     game.openSections=['inventory','actions'];
     paint();
@@ -815,6 +1020,22 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const verb=override||game.verb;
+    if(verb==='fit'&&String(game.selected).startsWith('cpu:')&&
+       api.state().installed.motherboard){
+      const cpuId=String(game.selected).split(':')[1];
+      const cpuSocket=api.catalog.cpus?.[cpuId]?.socket;
+      const boardSocket=api.part('motherboard')?.socket;
+      if(cpuSocket&&boardSocket&&cpuSocket!==boardSocket){
+        message('CPU '+cpuSocket+' incompatible con zócalo '+boardSocket+
+          '. No se puede encajar este procesador.','warn');
+        return null;
+      }
+    }
+    if(verb!=='fit'&&cpuSession)closeCpuPrecision();
+    if(verb==='fit'&&!cpuBypass&&game.cpuPrecisionEnabled&&
+      String(game.selected).startsWith('cpu:')&&!api.state().installed.cpu){
+      openCpuPrecision();return null;
+    }
     if(verb!=='screw'&&screwSession)closeScrewPractice();
     if(verb==='screw'&&!screwBypass&&openScrewPractice())return null;
     if(verb==='fit'&&!ramPrecisionBypass&&game.ramPrecisionEnabled&&
@@ -839,6 +1060,7 @@ function createAdventureGame(api){
           game.screwProgress[cat].completed.length;
         delete game.screwProgress[cat];
       }
+      if(record.status==='success'&&cat==='cpu')closeCpuPrecision();
       if(record.status==='success'&&cat==='ram'){
         // Una retirada invalida la colocación física y cualquier sesión abierta.
         // La próxima instalación creará una práctica nueva automáticamente.
@@ -1361,6 +1583,14 @@ function createAdventureGame(api){
       add('Retirar '+label(cat,id),'Primero apaga el equipo y abre la caja','remove');
     return '<div class="adv-suggestions">'+ideas.join('')+'</div>';
   }
+  function cpuPrecisionMarkup(){
+    if(!game?.selected?.startsWith('cpu:'))return '';
+    return '<div class="adv-ram-toggle"><button type="button" data-cpu-toggle>'+
+      (game.cpuPrecisionEnabled?'Usar colocación clásica':'Activar minijuego CPU')+
+      '</button><span>'+(game.cpuPrecisionEnabled?
+        'Predeterminado · orientar, apoyar y cerrar la palanca en el visor 3D':
+        'Modo clásico · pulsa para recuperar el minijuego')+'</span></div>';
+  }
   function screwPracticeMarkup(){
     const [cat]=String(game?.selected||'').split(':');
     if(!screwable.has(cat))return '';
@@ -1474,7 +1704,7 @@ function createAdventureGame(api){
       '<div class="adv-accordion-body">'+content+'</div></details>';
   }
   function paint(){
-    if(!game){if(panel)panel.innerHTML='';paintRamPopup();paintScrewPopup();return;}
+    if(!game){if(panel)panel.innerHTML='';paintRamPopup();paintScrewPopup();paintCpuPopup();return;}
     const top=panel.scrollTop;
     const job=CASES[game.caseId];
     const available=stagedItems();
@@ -1573,7 +1803,7 @@ function createAdventureGame(api){
       '</div>'+
       peripherals+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
-      ramPrecisionMarkup()+screwPracticeMarkup()+
+      ramPrecisionMarkup()+screwPracticeMarkup()+cpuPrecisionMarkup()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Salida de vídeo al monitor</label>'+
@@ -1616,9 +1846,57 @@ function createAdventureGame(api){
     panel.scrollTop=top;
     paintRamPopup();
     paintScrewPopup();
+    paintCpuPopup();
   }
   // El inventario también se puede arrastrar hasta los anclajes verdes
   // del 3D. Nunca instala piezas que no se hayan comprado.
+  cpuPopup?.addEventListener('click',event=>{
+    const button=event.target.closest('button');
+    if(!button||!game||!cpuSession)return;
+    if(button.hasAttribute('data-cpu-cancel')){cpuPrecisionStep('cancel');return;}
+    if(button.hasAttribute('data-cpu-rotate')){cpuPrecisionStep('rotate');return;}
+    if(button.hasAttribute('data-cpu-present')){cpuPrecisionStep('present');return;}
+    if(button.hasAttribute('data-cpu-capture'))cpuPrecisionCapture();
+  });
+  cpuPopup?.addEventListener('input',event=>{
+    if(!cpuSession||!game)return;
+    const st=cpuSession.getState(),v=Number(event.target.value);
+    if(event.target.id==='cpuX')cpuPrecisionMove(v,st.y);
+    else if(event.target.id==='cpuY')cpuPrecisionMove(st.x,v);
+    else if(event.target.id==='cpuLower'&&cpuSession.setLower(v))drawCpuPiece();
+  });
+  cpuPopup?.addEventListener('pointerdown',event=>{
+    if(!cpuSession||!event.target.closest('[data-cpu-piece]')||
+       cpuSession.getState().stage!=='align')return;
+    cpuDragging=true;
+    const scene=cpuPopup.querySelector('.cpu-precision-scene');
+    scene?.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  cpuPopup?.addEventListener('pointermove',event=>{
+    if(!cpuDragging||!cpuSession)return;
+    const box=cpuPopup.querySelector('.cpu-precision-scene')?.getBoundingClientRect();
+    if(!box)return;
+    cpuPrecisionMove((event.clientX-box.left-box.width/2)/2,
+      (event.clientY-box.top-box.height/2)/2);
+    event.preventDefault();
+  });
+  cpuPopup?.addEventListener('pointerup',()=>{cpuDragging=false;});
+  cpuPopup?.addEventListener('pointercancel',()=>{cpuDragging=false;});
+  cpuPopup?.addEventListener('keydown',event=>{
+    if(!cpuSession)return;
+    if(event.key==='Escape'){event.preventDefault();cpuPrecisionStep('cancel');return;}
+    if(!event.target.closest('[data-cpu-piece]'))return;
+    const delta={ArrowLeft:[-2,0],ArrowRight:[2,0],
+      ArrowUp:[0,-2],ArrowDown:[0,2]}[event.key];
+    if(delta){
+      event.preventDefault();
+      const st=cpuSession.getState();
+      cpuPrecisionMove(st.x+delta[0],st.y+delta[1]);
+    }else if(event.key==='r'||event.key==='R'){
+      event.preventDefault();cpuPrecisionStep('rotate');
+    }
+  });
   ramPopup?.addEventListener('click',event=>{
     const button=event.target.closest('button');
     if(!button||!game||!ramPrecisionSession)return;
@@ -1732,6 +2010,7 @@ function createAdventureGame(api){
     const button=event.target.closest('button');if(!button||!game)return;
     if(button.hasAttribute('data-ram-toggle')){toggleRamPrecision();return;}
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
+    if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
@@ -1812,6 +2091,7 @@ function createAdventureGame(api){
     setRiskEnabled,setRiskSeed,toggleEsd,revealLatentSataOnPower,
     toggleRamPrecision,ramPrecisionStep,ramPrecisionState,ramPrecisionCapture,
     toggleScrewPractice,screwPracticeState,screwMove,screwTurn,
+    toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
