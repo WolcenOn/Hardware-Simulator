@@ -118,3 +118,22 @@ test('fallos, trabajos repetidos y consumibles no alteran reglas técnicas',()=>
   assert.equal(badApply.category,'rejected');
   assert.equal(clock.getSummary().total,minutes);
 });
+
+test('conexión deshecha por incidencia se repara como retrabajo',()=>{
+  const clock=PC_TIME.createClock();
+  const engine=PC_OPERATIONS.createEngine({clock});
+  let connected=false;
+  const install=()=>engine.attempt({kind:'connect',target:'sataData',
+    execute:()=>{connected=true},wasSuccessful:()=>connected});
+  const first=install();
+  assert.equal(first.category,'necessary');
+  connected=false;
+  assert.equal(engine.markUndone('connect','sataData'),true);
+  assert.equal(engine.markUndone('connect','sataData'),false);
+  const second=install();
+  assert.equal(second.category,'rework');
+  assert.equal(second.status,'success');
+  assert.equal(engine.getSummary().counts.rework,1);
+  assert.equal(engine.getSummary().counts.necessary,1);
+  assert(clock.getSummary().technical>first.minutes);
+});

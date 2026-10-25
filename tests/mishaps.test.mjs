@@ -94,3 +94,21 @@ test('se rechazan RNG, tasas y semilla inválidos',()=>{
  assert.throws(()=>PC_MISHAPS.calculateRisks({kind:'fit',rates:{mechanical:-1}}),/Probabilidad/);
  assert.throws(()=>PC_MISHAPS.createEngine({random:()=>1}).assess({kind:'fit'}),/RNG/);
 });
+
+test('SATA: solo un riesgo procedimental puede soltar el cable de datos',()=>{
+  const rates={mechanical:0,esd:0,electrical:0,procedure:1};
+  const choose=()=>{let i=0;return ()=>[0,.99][i++%2];};
+  const failure=PC_MISHAPS.createEngine({seed:'sata-test',rates,random:choose()})
+    .assess({kind:'connect',target:'sataData'});
+  assert.equal(failure.outcome,'loose_sata');
+  assert.equal(failure.code,'PROCEDURE_LOOSE_SATA');
+  assert.equal(failure.category,'procedure');
+  assert.equal(failure.delayMinutes,0);
+  assert.match(failure.description,/reconecta/i);
+  const other=PC_MISHAPS.createEngine({rates,random:choose()})
+    .assess({kind:'connect',target:'eps'});
+  assert.equal(other.outcome,'review');
+  const sataPower=PC_MISHAPS.createEngine({rates,random:choose()})
+    .assess({kind:'connect',target:'sataPower'});
+  assert.equal(sataPower.outcome,'review');
+});

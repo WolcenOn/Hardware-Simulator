@@ -707,3 +707,48 @@ test('los acabados blanco y grafito se conservan al colocar la caja en el taller
   expect(graphite.frame).toBe(0x566570);
   expect(graphite.frame).not.toBe(white.frame);
 });
+
+test('Fase 2b.1: incidencia SATA reparable sin bucles, con diagnóstico y retrabajo',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'storage','sataSSD');await fit(page,'storage:sataSSD');
+  await buy(page,'item','sataCable');
+  const seed=await page.evaluate(()=>{
+    const m=window.PC_MISHAPS,risk=m.calculateRisks({kind:'connect',difficulty:2});
+    for(let i=0;i<20000;i++){
+      const seed='sata-e2e-'+i,rng=m.createSeededRandom(seed);
+      if(rng()>=risk.electrical&&rng()<risk.procedure&&rng()>=.94)return seed;
+    }
+    throw new Error('No se encontró semilla para fallo SATA');
+  });
+  await openSection(page,'mission');
+  await page.locator('#advRiskSeed').fill(seed);
+  await page.locator('[data-risk-seed]').evaluate(el=>el.click());
+  await page.locator('#advRiskMode').selectOption('on');
+  await openSection(page,'actions');
+  await page.locator('#advConnection').selectOption('sataData');
+  await page.locator('[data-quick="connect"]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 1');
+  const broken=await page.evaluate(()=>({
+    connected:state.sataData,report:adventureGame.getExport().incidentSimulation
+  }));
+  expect(broken.connected).toBe(false);
+  expect(broken.report.incidents.at(-1).outcome).toBe('loose_sata');
+  await openSection(page,'delivery');
+  await page.locator('[data-deliver]').evaluate(el=>el.click());
+  await expect(page.locator('#adventurePanel')).toContainText('Repara el cable SATA');
+  await openSection(page,'actions');
+  await page.locator('#advConnection').selectOption('sataData');
+  await page.locator('[data-quick="connect"]').evaluate(el=>el.click());
+  await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 0');
+  await expect(page.locator('#advWorkSummary')).toContainText('Retrabajos: 1');
+  const fixed=await page.evaluate(()=>({
+    connected:state.sataData,report:adventureGame.getExport().incidentSimulation
+  }));
+  expect(fixed.connected).toBe(true);
+  expect(fixed.report.incidents.at(-1).resolved).toBe(true);
+  expect(fixed.report.pendingRepairs).toEqual([]);
+});

@@ -427,8 +427,8 @@ assert(html.includes('id="advWorkSpeed"')===false,
  'El selector se genera dinámicamente dentro de adventureMode.js');
 assert(read('js/adventureMode.js').includes('id="advWorkSpeed"'));
 assert(html.includes('timeEngine.js?v=8-7-1-operation-lifecycle'));
-assert(html.includes('mishapEngine.js?v=8-8-0-seeded-mishaps'));
-assert(html.includes('operationEngine.js?v=8-8-0-seeded-mishaps'));
+assert(html.includes('mishapEngine.js?v=8-8-1-sata-repair'));
+assert(html.includes('operationEngine.js?v=8-8-1-sata-repair'));
 // 8.7.1 — las cuatro operaciones adicionales conservan validaciones existentes.
 g.start('office');
 const failedRoute=g.perform('route');
@@ -504,3 +504,42 @@ assert.equal(g.getExport().incidentSimulation.seed,'semilla-uno');
 assert.equal(g.toggleEsd(),true);
 assert(!g.game.esdConnected);
 console.log('Smoke OK: demo, BIOS, PSU, USB, RGB, AIO and 3D case finishes');
+
+// 8.8.1: incidencia física de cable SATA, inspección, bloqueo y retrabajo.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('storage','sataSSD');fit('storage:sataSSD');
+buy('item','sataCable');
+const sataChances=risk.calculateRisks({kind:'connect',difficulty:2});
+let sataSeed=null;
+for(let i=0;i<20000&&!sataSeed;i++){
+  const candidate='sata-regression-'+i,rng=risk.createSeededRandom(candidate);
+  if(rng()>=sataChances.electrical&&rng()<sataChances.procedure&&rng()>=.94)
+    sataSeed=candidate;
+}
+assert(sataSeed,'Debe existir una semilla que reproduzca el incidente SATA');
+assert.equal(g.setRiskSeed(sataSeed),true);
+assert.equal(g.setRiskEnabled(true),true);
+const looseRecord=g.connect('sataData');
+assert.equal(looseRecord.incident.outcome,'loose_sata');
+assert.equal(looseRecord.status,'success');
+assert.equal(l.s.sataData,false,'La incidencia debe soltar físicamente SATA');
+assert.equal(g.game.pendingSataRepair,true);
+assert.equal(g.getExport().incidentSimulation.pendingRepairs[0],'sataData');
+g.checkDelivery();
+assert.equal(g.game.report,null,'Entrega bloqueada mientras exista avería');
+g.setRiskEnabled(false);
+g.perform('inspect');
+assert.match(g.game.inspection,/Cable SATA de datos suelto/i);
+const reconnect=g.connect('sataData');
+assert.equal(reconnect.status,'success');
+assert.equal(reconnect.category,'rework');
+assert.equal(reconnect.incident,null);
+assert.equal(l.s.sataData,true);
+assert.equal(g.game.pendingSataRepair,false);
+assert.equal(g.getExport().incidentSimulation.incidents[0].resolved,true);
+assert.equal(g.getExport().incidentSimulation.incidents[0].resolvedSequence,reconnect.seq);
+assert.equal(g.getExport().incidentSimulation.pendingRepairs.length,0);
+console.log('Fase 2b.1 OK: SATA reparable sin afectar la entrega estable');
