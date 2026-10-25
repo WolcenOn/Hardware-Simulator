@@ -596,14 +596,14 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-9-1-ram-popup'));
+assert(html.includes('adventureMode.js?v=8-9-2-ram-default'));
 g.start('office');
-assert.equal(g.getExport().ramPrecision.enabled,false);
+assert.equal(g.getExport().ramPrecision.enabled,true,
+  'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
 buy('case','tower');fit('case:tower');
 buy('item','ioShield');fit('item:ioShield');
 buy('motherboard','b650');fit('motherboard:b650');
 buy('ram','ddr5_16');g.select('ram:ddr5_16');
-assert.equal(g.toggleRamPrecision(),true);
 const ramFit=g.perform('fit');
 assert.equal(ramFit.status,'success');
 assert.equal(l.s.installed.ram,true);assert.equal(l.s.ramSeated,false);
@@ -633,8 +633,24 @@ assert.equal(l.s.ramSeated,true);
 assert.equal(get('ramPrecisionPopup').hidden,true,'Cerrar popup al encajar');
 assert.equal(g.getExport().ramPrecision.attempts.length,3);
 assert.equal(g.getExport().ramPrecision.attempts.at(-1).code,'perfect_seat');
-// El montaje clásico sigue activo al dejar el minijuego desactivado.
+// Volver a instalar el módulo debe abrir OTRA sesión automáticamente.
+g.select('ram:ddr5_16');
+const removedRam=g.perform('remove');
+assert.equal(removedRam.status,'success');
+assert.equal(l.s.installed.ram,false);
+assert.equal(get('ramPrecisionPopup').hidden,true);
+const secondRamFit=g.perform('fit');
+assert.equal(secondRamFit.status,'success');
+assert(g.ramPrecisionState(),'Nueva instalación debe abrir un nuevo minijuego');
+assert.equal(g.getExport().ramPrecision.active.attempts.length,0);
+assert.equal(l.s.ramSeated,false);
+assert.equal(get('ramPrecisionPopup').hidden,false);
+g.ramPrecisionStep('cancel');
+assert.equal(l.s.ramSeated,false,'Cancelar el minijuego no debe asentar la RAM');
+// El montaje clásico sigue disponible mediante una desactivación explícita.
 g.start('office');
+assert.equal(g.getExport().ramPrecision.enabled,true,'Reiniciar restaura el valor predeterminado');
+assert.equal(g.toggleRamPrecision(),false);
 buy('case','tower');fit('case:tower');
 buy('item','ioShield');fit('item:ioShield');
 buy('motherboard','b650');fit('motherboard:b650');

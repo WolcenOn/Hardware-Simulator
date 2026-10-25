@@ -340,7 +340,7 @@ function createAdventureGame(api){
       purchases:[],osUSB:false,pendingDemo:false,
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
-      ramPrecisionEnabled:false,ramPrecisionHistory:[]
+      ramPrecisionEnabled:true,ramPrecisionHistory:[]
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -600,8 +600,15 @@ function createAdventureGame(api){
     if(verb==='remove'){
       const st=api.state(),item=game.selected||'',cat=String(item).split(':')[0];
       const was=!!st.installed[cat];
-      return tracked('remove',item||'sin-seleccion',()=>performLegacy(override),
+      const record=tracked('remove',item||'sin-seleccion',()=>performLegacy(override),
         ()=>was&&!st.installed[cat]);
+      if(record.status==='success'&&cat==='ram'){
+        // Una retirada invalida la colocación física y cualquier sesión abierta.
+        // La próxima instalación creará una práctica nueva automáticamente.
+        ramPrecisionSession=null;ramCaptures={left:null,right:null};
+        stopRamAnimation();paintRamPopup();
+      }
+      return record;
     }
     if(verb!=='fit'&&verb!=='screw')return performLegacy(override);
     const st=api.state(),k=game.selected,[cat,id]=String(k||'').split(':');
@@ -1107,11 +1114,11 @@ function createAdventureGame(api){
   function ramPrecisionMarkup(){
     if(!game?.selected?.startsWith('ram:'))return '';
     return '<div class="adv-ram-toggle"><button type="button" data-ram-toggle>'+
-      (game.ramPrecisionEnabled?'Desactivar':'Activar')+
-      ' prueba de precisión RAM</button><span>'+
+      (game.ramPrecisionEnabled?'Usar montaje clásico':'Activar minijuego RAM')+
+      '</button><span>'+
       (game.ramPrecisionEnabled?
-        'Activa · el minijuego se abre sobre la vista 3D':
-        'Opcional · el modo clásico sigue disponible')+'</span></div>';
+        'Predeterminado · se abre al instalar RAM en el visor 3D':
+        'Modo clásico · pulsa para recuperar el minijuego')+'</span></div>';
   }
   function ramPrecisionPopupMarkup(){
     if(!ramPrecisionSession||!game?.ramPrecisionEnabled)return '';

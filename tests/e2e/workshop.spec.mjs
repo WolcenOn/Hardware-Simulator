@@ -817,7 +817,8 @@ test('8.9.1 RAM: popup en el visor 3D y captura de marcadores oscilantes',async 
   await openSection(page,'inventory');
   await page.locator('[data-select-item="ram:ddr5_16"]').first().evaluate(el=>el.click());
   await openSection(page,'actions');
-  await page.locator('[data-ram-toggle]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>adventureGame.getExport().ramPrecision.enabled)).toBe(true);
+  await expect(page.locator('[data-ram-toggle]')).toContainText('Usar montaje clásico');
   await page.locator('[data-suggest="fit"]:not([disabled])').first().evaluate(el=>el.click());
   const popup=page.locator('#ramPrecisionPopup');
   await expect(popup).toBeVisible();
@@ -859,4 +860,15 @@ test('8.9.1 RAM: popup en el visor 3D y captura de marcadores oscilantes',async 
   expect(await page.evaluate(()=>state.ramSeated)).toBe(true);
   await expect(popup).toBeHidden();
   expect(result.report.attempts.at(-1).code).toBe('perfect_seat');
+  // Cada nuevo montaje, incluso tras retirar la RAM, vuelve a abrir el popup.
+  await openSection(page,'actions');
+  await page.locator('[data-verb="remove"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.installed.ram)).toBe(false);
+  await page.locator('[data-verb="fit"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
+  await expect(popup).toBeVisible();
+  expect(await page.evaluate(()=>adventureGame.getExport().ramPrecision.active.attempts.length)).toBe(0);
+  await popup.locator('[data-ram-cancel]').first().evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
 });
