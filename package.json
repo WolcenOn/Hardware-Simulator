@@ -1,7 +1,7 @@
 {
   "name": "hardware-simulator-e2e",
   "private": true,
-  "version": "8.8.2",
+  "version": "8.9.0",
   "description": "Pruebas end-to-end del simulador Hardware Simulator",
   "type": "module",
   "scripts": {
