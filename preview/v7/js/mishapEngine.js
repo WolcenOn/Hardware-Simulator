@@ -89,12 +89,19 @@ function createEngine({seed='workshop-1',random=null,rates=DEFAULT_RATES}={}){
     for(const category of CATEGORIES){
       if(chances[category]===0)continue;
       if(roll()>=chances[category])continue;
-      const outcome=roll()<.78?'delay':'review';
+      const resultRoll=roll();
+      // Solo la conexión SATA de datos admite este primer fallo físico
+      // procedimental. Se conserva el comportamiento de las demás operaciones.
+      const looseSata=category==='procedure'&&context.kind==='connect'&&
+        context.target==='sataData'&&resultRoll>=.94;
+      const outcome=looseSata?'loose_sata':resultRoll<.78?'delay':'review';
       return Object.freeze({
-        category,outcome,code:category.toUpperCase()+'_'+outcome.toUpperCase(),
-        delayMinutes:outcome==='delay'?1.5:3,
-        description:outcome==='delay'?
-          'Incidencia menor: retraso de trabajo simulado.':
+        category,outcome,code:looseSata?'PROCEDURE_LOOSE_SATA':
+          category.toUpperCase()+'_'+outcome.toUpperCase(),
+        delayMinutes:looseSata?0:outcome==='delay'?1.5:3,
+        description:looseSata?
+          'El cable SATA de datos ha quedado suelto. Diagnostica y reconecta con el PC apagado.':
+          outcome==='delay'?'Incidencia menor: retraso de trabajo simulado.':
           'Posible incidencia: requiere inspección de seguridad antes de entregar.',
         probability:chances[category],seed:String(seed)
       });

@@ -105,8 +105,17 @@ function createEngine({clock,assessIncident=null}={}){
     if(error)throw error; // conservar el comportamiento de errores del handler.
     return record;
   }
+  // El efecto de una incidencia posterior puede deshacer un trabajo válido.
+  // Conservar su registro, pero reconocer la corrección como retrabajo.
+  function markUndone(kind,target=''){
+    if(!DEFINITIONS[kind])throw new RangeError('Operación desconocida: '+kind);
+    const key=kind+':'+String(target||'general');
+    if(!active.has(key))return false;
+    active.delete(key);undone.add(key);
+    return true;
+  }
   return Object.freeze({
-    attempt,
+    attempt,markUndone,
     getDefinitions:()=>DEFINITIONS,
     getHistory:()=>history.map(r=>({...r,incident:r.incident?{...r.incident}:null})),
     getSummary:()=>{
