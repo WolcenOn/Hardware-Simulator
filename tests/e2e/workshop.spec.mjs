@@ -730,7 +730,8 @@ test('Fase 2b.1: incidencia SATA reparable sin bucles, con diagnóstico y retrab
   await page.locator('#advRiskMode').selectOption('on');
   await openSection(page,'actions');
   await page.locator('#advConnection').selectOption('sataData');
-  await page.locator('[data-quick="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-verb="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
   await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 1');
   const broken=await page.evaluate(()=>({
     connected:state.sataData,report:adventureGame.getExport().incidentSimulation
@@ -742,7 +743,8 @@ test('Fase 2b.1: incidencia SATA reparable sin bucles, con diagnóstico y retrab
   await expect(page.locator('#adventurePanel')).toContainText('Repara el cable SATA');
   await openSection(page,'actions');
   await page.locator('#advConnection').selectOption('sataData');
-  await page.locator('[data-quick="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-verb="connect"]').evaluate(el=>el.click());
+  await page.locator('[data-go]').evaluate(el=>el.click());
   await expect(page.locator('#advRiskStatus')).toContainText('reparaciones pendientes: 0');
   await expect(page.locator('#advWorkSummary')).toContainText('Retrabajos: 1');
   const fixed=await page.evaluate(()=>({
