@@ -555,10 +555,15 @@ function createAdventureGame(api){
       cat==='item'&&id==='fan'?st.caseFans.filter(x=>x.installed).length:
       cat==='ram'&&st.installed.ram&&!st.ramSeated?false:
       !!st.installed[part];
-    const old=readResult();
+    const old=readResult(),wasRamInstalled=!!st.installed.ram,
+      wasRamSeated=!!st.ramSeated;
     const record=tracked(verb,k||'sin-seleccion',()=>performLegacy(override),()=>{
-      const now=verb==='fit'&&cat==='ram'&&old===true?
-        !!st.ramSeated:readResult();
+      // El DIMM tiene dos hitos físicos distintos: colocar y asentar.
+      // Colocarlo SIN cerrar pestañas no es un rechazo de la instalación.
+      if(verb==='fit'&&cat==='ram')
+        return wasRamInstalled?!wasRamSeated&&!!st.ramSeated:
+          !!st.installed.ram&&!st.ramSeated;
+      const now=readResult();
       return typeof old==='number'?now>old:!old&&!!now;
     });
     // La primera colocación RAM continúa usando el handler técnico real,
