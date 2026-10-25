@@ -775,6 +775,7 @@ test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({pag
   expect(await page.evaluate(()=>state.sataData)).toBe(true);
   await page.locator('#powerBtn').evaluate(el=>el.click());
   await expect(page.locator('#advRiskStatus')).toContainText('comprobaciones pendientes: 1');
+  await openSection(page,'mission');
   await page.locator('#advRiskMode').selectOption('off');
   await buy(page,'psu','psu450');await fit(page,'psu:psu450');
   await openSection(page,'actions');
