@@ -93,3 +93,31 @@ test('ningún control externo puede alterar posiciones o presión después del �
   snapshot.attempts[0].code='false';
   assert.notEqual(s.getState().attempts[0].code,'false');
 });
+
+test('el oscilador temporal va de rojo a verde y vuelve a rojo',()=>{
+  const f=RAM.oscillatorValue;
+  assert.equal(f(0,'left'),0);
+  assert.equal(f(450,'left'),50);
+  assert.equal(f(900,'left'),100);
+  assert.equal(f(1350,'left'),50);
+  assert.equal(f(1800,'left'),0);
+  assert.equal(f(594,'left'),66);
+  assert.equal(f(276,'right'),66);
+  assert.equal(f(595,'right'),95);
+  assert.equal(f(0,'right'),41,'el extremo derecho oscila con fase diferente');
+  assert.equal(f(0,'left'),f(1800,'left'),'el movimiento es periódico');
+  assert.throws(()=>f(0,'middle'),/Extremo DIMM/);
+  assert.throws(()=>f(Number.NaN,'left'),/Tiempo de oscilación/);
+});
+test('el oscilador no consume sorteos del motor de incidencias ni del minijuego',()=>{
+  const a=RAM.createEngine({seed:'oscillate'});
+  const before=a.begin().getState();
+  for(let t=0;t<5000;t+=17){
+    RAM.oscillatorValue(t,'left');RAM.oscillatorValue(t,'right');
+  }
+  const after=a.begin().getState();
+  const b=RAM.createEngine({seed:'oscillate'});
+  b.begin();
+  assert.deepEqual(after,b.begin().getState());
+  assert.notEqual(before.id,after.id);
+});

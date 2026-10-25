@@ -4,6 +4,21 @@
 'use strict';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const PENALTY_MINUTES=.8;
+const OSCILLATORS=Object.freeze({
+  left:Object.freeze({periodMs:1800,offsetMs:0}),
+  right:Object.freeze({periodMs:2200,offsetMs:450})
+});
+// Triángulo temporal rojo → verde → rojo. Solo animación/entrada;
+// el reloj de taller sigue siendo virtual y se contabiliza por intentos.
+function oscillatorValue(elapsedMs,side){
+  const cfg=OSCILLATORS[side];
+  if(!cfg)throw new RangeError('Extremo DIMM desconocido.');
+  if(!Number.isFinite(elapsedMs))throw new RangeError('Tiempo de oscilación no válido.');
+  const period=cfg.periodMs;
+  const phase=((elapsedMs+cfg.offsetMs)%period+period)%period/period;
+  return Math.round((phase<=.5?phase*2:(1-phase)*2)*100);
+}
+
 const LIMITS=Object.freeze({alignment:8,approach:90,idealLow:58,
   idealHigh:74,idealBalance:8,mediumLow:45,mediumHigh:85,mediumBalance:22});
 function createEngine({seed='ram-practice'}={}){
@@ -84,5 +99,5 @@ function createEngine({seed='ram-practice'}={}){
   }
   return Object.freeze({begin});
 }
-root.PC_RAM_PRECISION=Object.freeze({LIMITS,PENALTY_MINUTES,createEngine});
+root.PC_RAM_PRECISION=Object.freeze({LIMITS,PENALTY_MINUTES,OSCILLATORS,oscillatorValue,createEngine});
 })(typeof window!=='undefined'?window:globalThis);

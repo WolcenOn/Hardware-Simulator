@@ -806,7 +806,8 @@ test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({pag
   expect(data.reworks).toBeGreaterThanOrEqual(1);
 });
 
-test('8.9 RAM precisión: girar, acercar, equilibrar extremos y asentar sin daños',async ({page})=>{
+
+test('8.9.1 RAM: popup en el visor 3D y captura de marcadores oscilantes',async ({page})=>{
   test.setTimeout(210_000);
   await openGame(page);
   await buy(page,'case','tower');await fit(page,'case:tower');
@@ -818,33 +819,44 @@ test('8.9 RAM precisión: girar, acercar, equilibrar extremos y asentar sin dañ
   await openSection(page,'actions');
   await page.locator('[data-ram-toggle]').evaluate(el=>el.click());
   await page.locator('[data-suggest="fit"]:not([disabled])').first().evaluate(el=>el.click());
-  await expect(page.locator('.adv-ram-game')).toBeVisible();
-  let ram=await page.evaluate(()=>adventureGame.ramPrecisionState());
+  const popup=page.locator('#ramPrecisionPopup');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('[role="dialog"]')).toBeVisible();
+  await expect(page.locator('#adventurePanel .adv-ram-scene')).toHaveCount(0);
+  const ram=await page.evaluate(()=>adventureGame.ramPrecisionState());
   expect(ram.stage).toBe('align');
-  expect(ram.approach).toBe(0);
-  expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
   const before=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
-  await page.locator('[data-ram-present]').evaluate(el=>el.click());
+  await popup.locator('[data-ram-present]').evaluate(el=>el.click());
   const after=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
   expect(after-before).toBeCloseTo(.8,1);
-  ram=await page.evaluate(()=>adventureGame.ramPrecisionState());
-  if(ram.reversed)await page.locator('[data-ram-flip]').evaluate(el=>el.click());
-  const range=async(id,value)=>page.locator('#'+id).evaluate((el,v)=>{
+  if((await page.evaluate(()=>adventureGame.ramPrecisionState())).reversed)
+    await popup.locator('[data-ram-flip]').evaluate(el=>el.click());
+  const range=async(id,value)=>popup.locator('#'+id).evaluate((el,v)=>{
     el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));
   },value);
-  await range('advRamAlign',0);
-  await range('advRamApproach',100);
-  await page.locator('[data-ram-present]').evaluate(el=>el.click());
-  await expect(page.locator('[data-ram-press]')).toBeVisible();
-  await range('advRamLeft',66);await range('advRamRight',95);
-  await page.locator('[data-ram-press]').evaluate(el=>el.click());
+  await range('advRamAlign',0);await range('advRamApproach',100);
+  await popup.locator('[data-ram-present]').evaluate(el=>el.click());
+  await expect(popup.locator('[data-ram-capture="left"]')).toBeVisible();
+  await expect(popup.locator('[data-ram-capture="right"]')).toBeVisible();
+  await expect(popup.locator('#advRamLeft')).toHaveCount(0);
+  await popup.locator('[data-ram-capture="left"]').evaluate(el=>el.click());
+  await expect(popup.locator('[data-ram-capture="left"]')).toBeDisabled();
+  const captured=await page.evaluate(()=>adventureGame.ramPrecisionState().left);
+  expect(captured).toBeGreaterThanOrEqual(0);
+  expect(captured).toBeLessThanOrEqual(100);
+  // Completar el primer ciclo con presión excesiva, con tiempo controlado;
+  // la interacción real del marcador izquierdo ya se verificó mediante clic.
+  await page.evaluate(()=>adventureGame.ramPrecisionCapture('right',650));
+  await expect(popup).toBeVisible();
   expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
-  await range('advRamRight',66);
-  await page.locator('[data-ram-press]').evaluate(el=>el.click());
+  const result=await page.evaluate(()=>({
+    left:adventureGame.ramPrecisionCapture('left',594),
+    right:adventureGame.ramPrecisionCapture('right',276),
+    report:adventureGame.getExport().ramPrecision
+  }));
+  expect(result.left.value).toBe(66);
+  expect(result.right.code).toBe('perfect_seat');
   expect(await page.evaluate(()=>state.ramSeated)).toBe(true);
-  const result=await page.evaluate(()=>adventureGame.getExport().ramPrecision);
-  expect(result.active).toBeNull();
-  expect(result.attempts.map(x=>x.code)).toEqual([
-    ram.attempts[0].code,'too_strong','perfect_seat'
-  ]);
+  await expect(popup).toBeHidden();
+  expect(result.report.attempts.at(-1).code).toBe('perfect_seat');
 });

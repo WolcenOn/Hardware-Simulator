@@ -593,7 +593,10 @@ assert.equal(g.game.pendingSataRepair,false);
 assert.equal(g.getExport().incidentSimulation.incidents[0].resolvedBy,'storage_removed');
 console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustitución');
 
-// 8.9: mini-juego RAM opcional: orientación, acercamiento y presión a dos lados.
+// 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
+assert(html.includes('id="ramPrecisionPopup"'));
+assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
+assert(html.includes('adventureMode.js?v=8-9-1-ram-popup'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,false);
 buy('case','tower');fit('case:tower');
@@ -602,30 +605,36 @@ buy('motherboard','b650');fit('motherboard:b650');
 buy('ram','ddr5_16');g.select('ram:ddr5_16');
 assert.equal(g.toggleRamPrecision(),true);
 const ramFit=g.perform('fit');
-assert.equal(ramFit.status,'success','Colocar DIMM sin asentar es válido');
+assert.equal(ramFit.status,'success');
 assert.equal(l.s.installed.ram,true);assert.equal(l.s.ramSeated,false);
-assert(g.ramPrecisionState(),'Debe abrirse el minijuego');
+assert.equal(get('ramPrecisionPopup').hidden,false,'Popup 3D visible');
+assert(!get('adventurePanel').innerHTML.includes('adv-ram-scene'),
+ 'La interfaz antigua no debe aparecer en la columna lateral');
+assert(get('ramPrecisionPopup').innerHTML.includes('data-ram-flip'));
 const beforeRamMistake=g.getExport().simulatedTime.technical;
 const firstRamAttempt=g.ramPrecisionStep('present');
 assert.equal(firstRamAttempt.ok,false);
-assert.equal(g.getExport().simulatedTime.technical,beforeRamMistake+.8,
-  'Los intentos fallidos de destreza consumen tiempo aunque no monten');
+assert.equal(g.getExport().simulatedTime.technical,beforeRamMistake+.8);
 if(g.ramPrecisionState().reversed)g.ramPrecisionStep('flip');
-const ramInput=(id,value)=>get('adventurePanel').events.input({target:{id,value:String(value)}});
+const ramInput=(id,value)=>get('ramPrecisionPopup').events.input({
+  target:{id,value:String(value)}});
 ramInput('advRamAlign',0);ramInput('advRamApproach',100);
 assert.equal(g.ramPrecisionStep('present').code,'aligned');
-ramInput('advRamLeft',66);ramInput('advRamRight',95);
-assert.equal(g.ramPrecisionStep('press').code,'too_strong');
-assert.equal(l.s.ramSeated,false,'Nunca asentar con presión excesiva');
-ramInput('advRamRight',66);
-assert.equal(g.ramPrecisionStep('press').code,'perfect_seat');
+assert(get('ramPrecisionPopup').innerHTML.includes('data-ram-capture="left"'));
+assert(get('ramPrecisionPopup').innerHTML.includes('data-ram-capture="right"'));
+assert(!get('ramPrecisionPopup').innerHTML.includes('advRamLeft'),
+ 'Eliminar el slider antiguo de presión izquierda');
+assert.equal(g.ramPrecisionCapture('left',594).value,66);
+assert.equal(g.ramPrecisionCapture('right',595).code,'too_strong');
+assert.equal(l.s.ramSeated,false,'Presión excesiva: no encaja');
+assert.equal(g.ramPrecisionCapture('left',594).value,66);
+assert.equal(g.ramPrecisionCapture('right',276).code,'perfect_seat');
 assert.equal(l.s.ramSeated,true);
-assert.equal(g.ramPrecisionState(),null);
+assert.equal(get('ramPrecisionPopup').hidden,true,'Cerrar popup al encajar');
 assert.equal(g.getExport().ramPrecision.attempts.length,3);
 assert.equal(g.getExport().ramPrecision.attempts.at(-1).code,'perfect_seat');
-// El modo clásico sigue funcionando al desactivar el prototipo.
+// El montaje clásico sigue activo al dejar el minijuego desactivado.
 g.start('office');
-assert.equal(g.getExport().ramPrecision.enabled,false);
 buy('case','tower');fit('case:tower');
 buy('item','ioShield');fit('item:ioShield');
 buy('motherboard','b650');fit('motherboard:b650');
@@ -634,4 +643,4 @@ assert.equal(g.ramPrecisionState(),null);
 assert.equal(l.s.ramSeated,false);
 assert.equal(g.perform('fit').status,'success');
 assert.equal(l.s.ramSeated,true);
-console.log('8.9 RAM precisión OK: orientación, acercamiento, dos presiones, tiempo y modo clásico');
+console.log('8.9.1 RAM popup OK: osciladores, retrabajo, 3D y modo clásico');
