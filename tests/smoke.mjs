@@ -376,6 +376,8 @@ assert(report.components.selected.motherboard);
 assert('fixings' in report.components);
 assert('bios' in report);
 assert(read('index.html').includes('id="exportPcJson"'));
+assert(html.includes('if(details.ramPrecision)data.ramPrecision=details.ramPrecision'),
+ 'La exportación docente conserva el historial opcional del minijuego RAM');
 assert(read('index.html').includes('id="importCaseJson"'));
 assert(read('index.html').includes('id="powerBreakdown"'));
 assert(read('js/procedural3d.js').includes('mechanicalFault'));
