@@ -744,8 +744,12 @@ function createAdventureGame(api){
     const progress=screwProgressFor(target);
     game.screwHistory.push({session:screwSession.getState().id,
       anchor:point.id,anchorIndex:screwHoleIndex,...result});
-    if(target.startsWith('cooler:')&&pasteSpread&&result.code!=='not_engaged')
+    if(target.startsWith('cooler:')&&pasteSpread&&result.code!=='not_engaged'){
       pasteSpread.tighten(screwHoleIndex,result.depth);
+      // La presión modifica el dibujo EN EL MISMO GIRO. Nunca esperar a
+      // completar los cuatro tornillos para pintar la pasta.
+      root.PC_PASTE_UI.updateSpread(screwPopup,pasteSpread,screwHoleIndex);
+    }
     if(result.penaltyMinutes)
       clock.add('technical',result.penaltyMinutes,'screw-precision:misaligned');
     screwFeedback=result.code==='not_engaged'?
@@ -794,7 +798,6 @@ function createAdventureGame(api){
       }
     }else{
       drawScrewPractice();
-      root.PC_PASTE_UI.updateSpread(screwPopup,pasteSpread);
       const c=panel.querySelector('#advVirtualClock');
       if(c)c.textContent='Tiempo virtual: '+clock.getSummary().total+' min · '+
         operationEngine.getHistory().length+' operaciones registradas';
@@ -822,7 +825,7 @@ function createAdventureGame(api){
       return '<section class="screw-precision-dialog" role="dialog" aria-modal="true" '+
         'aria-label="Resultado de la pasta térmica">'+
         '<header><h3>Resultado final de la pasta y el disipador</h3></header>'+
-        root.PC_PASTE_UI.spreadMarkup(pasteSpread)+
+        root.PC_PASTE_UI.spreadMarkup(pasteSpread,screwHoleIndex)+
         '<p><b>Resultado: '+safe(qualityLabel)+'</b>. '+
         (r.quality==='good'?'Distribución adecuada.':
         'Riesgo de mala transferencia térmica o presión irregular.')+'</p>'+
@@ -830,14 +833,17 @@ function createAdventureGame(api){
         'data-cooler-finish>Finalizar instalación del disipador</button>'+
         '<button type="button" data-cooler-clean>Limpiar y repetir</button></div></section>';
     }
-    return '<section class="screw-precision-dialog" role="dialog" aria-modal="true" '+
-      'aria-label="Minijuego de atornillado">'+
+    return '<section class="screw-precision-dialog'+
+      (st.target.startsWith('cooler:')&&pasteSpread?' has-thermal-spread':'')+
+      '" role="dialog" aria-modal="true" aria-label="Minijuego de atornillado">'+
       '<header><div><small>TALLER 3D · FIJACIÓN</small><h3>Atornillar '+safe(label(...st.target.split(':')))+
       '</h3></div><button type="button" data-screw-cancel aria-label="Cerrar atornillado">✕</button></header>'+
+      // Situar el monitor de pasta ARRIBA, visible durante la interacción:
+      // la sección pegajosa permanece visible al desplazarse hacia el tornillo.
+      (st.target.startsWith('cooler:')?root.PC_PASTE_UI.spreadMarkup(pasteSpread,screwHoleIndex):'')+
       '<p>Fijaciones de '+safe(label(...st.target.split(':')))+': <b>'+
       progress.completed.length+'/'+holes.length+'</b> tornillos fijados. '+
       'Tornillos disponibles: '+stock('item:screws')+'.</p>'+
-      (st.target.startsWith('cooler:')?root.PC_PASTE_UI.spreadMarkup(pasteSpread):'')+
       '<div class="screw-anchor-map" role="group" aria-label="Puntos de anclaje del componente">'+
       '<div class="screw-part-outline"></div>'+anchors+'</div>'+
       '<p>Selecciona un agujero libre. Arrastra el tornillo hacia su centro '+
@@ -867,7 +873,11 @@ function createAdventureGame(api){
     const active=!!game?.screwPracticeEnabled&&!!screwSession;
     screwPopup.hidden=!active;
     screwPopup.innerHTML=active?screwPopupMarkup():'';
-    if(active)drawScrewPractice();
+    if(active){
+      drawScrewPractice();
+      if(screwSession.getState().target.startsWith('cooler:')&&pasteSpread)
+        root.PC_PASTE_UI.updateSpread(screwPopup,pasteSpread,screwHoleIndex);
+    }
   }
   let ramFrame=0,ramOscillationStart=0,ramCaptures={left:null,right:null};
   const ramNow=()=>root.performance?.now?.()??0;
@@ -2089,7 +2099,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.2</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.3</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
       section('mission','Encargo y progreso',mission)+
       usbTools+
