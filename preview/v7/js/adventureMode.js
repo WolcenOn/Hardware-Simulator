@@ -311,6 +311,27 @@ function createAdventureGame(api){
       'Aplicación clásica de pasta térmica activada.','ok');
     return game.thermalPasteEnabled;
   }
+  function thermalNext(){
+    if(!game)return false;
+    const st=api.state();
+    if(!st.installed.cpu||st.installed.cooler||!st.paste){
+      message('Aplica primero la pasta sobre la CPU y comprueba que el disipador siga pendiente.');return false;
+    }
+    // Usar una pieza real del inventario, no crear ni seleccionar un
+    // disipador que no se haya comprado.
+    const cooler=Object.keys(game.stock).find(k=>k.startsWith('cooler:')&&has(k));
+    if(cooler){
+      game.selected=cooler;
+      game.verb='fit';
+      game.openSections=['inventory','actions'];
+      message('Pasta preparada. Disipador seleccionado: pulsa «Encajar» en Acciones.','ok');
+      return true;
+    }
+    game.shopCategory='cooler';
+    game.openSections=['shop','actions'];
+    message('Pasta preparada. Compra un disipador en Tienda → Disipador; después podrás encajarlo.','ok');
+    return false;
+  }
   function onPasteConfirm(deposit){
     if(!game||game.selected!=='item:paste'||pastePrerequisites())return false;
     pasteBypass=true;let result;
@@ -319,7 +340,7 @@ function createAdventureGame(api){
     game.thermalPaste={dots:deposit.dots,volume:deposit.volume,status:'ready'};
     pasteSpread=root.PC_THERMAL_PASTE.createSpread(deposit.dots);
     game.thermalHistory.push({type:'applied',volume:Math.round(deposit.volume*100)/100});
-    message('Pasta depositada. Se expandirá al atornillar el disipador.','ok');
+    thermalNext();
     return true;
   }
   pasteUi=root.PC_PASTE_UI.create({popup:pastePopup,onConfirm:onPasteConfirm,
@@ -1020,7 +1041,10 @@ function createAdventureGame(api){
     game.spent+=cost;
     game.purchases.push({k,price:cost});
     game.selected=k;
-    game.openSections=['shop','inventory'];
+    game.openSections=cat==='cooler'&&api.state().installed.cpu&&api.state().paste>0?
+      ['inventory','actions']:['shop','inventory'];
+    if(cat==='cooler'&&api.state().installed.cpu&&api.state().paste>0)
+      game.verb='fit';
     // Tras comprar la primera caja se ve directamente sobre la mesa auxiliar.
     if(cat==='case')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
@@ -1695,7 +1719,9 @@ function createAdventureGame(api){
       add('Instalar tira LED ARGB','Iluminación dentro del chasis, PC apagado','apply',
         has(k)&&!!st.installed.case&&!st.power&&!st.caseClosed);
     }else if(k==='item:paste'){
-      add('Aplicar pasta sobre CPU','Antes de montar el disipador','apply',
+      if(st.paste>0&&!st.installed.cooler)
+        add('✓ Pasta aplicada','Continúa con el disipador en Tienda o Inventario','inspect');
+      else add('Aplicar pasta sobre CPU','Antes de montar el disipador','apply',
         has(k)&&!!st.installed.cpu&&!st.installed.cooler);
     }else if(cat==='item'){
       if(id==='fan')add('Encajar ventilador','Colócalo en una ranura del chasis','fit',has(k));
@@ -1724,7 +1750,15 @@ function createAdventureGame(api){
     }
     if(st.installed[cat]&&cat!=='case')
       add('Retirar '+label(cat,id),'Primero apaga el equipo y abre la caja','remove');
-    return '<div class="adv-suggestions">'+ideas.join('')+'</div>';
+    const next=st.installed.cpu&&!st.installed.cooler&&st.paste>0&&
+      (k==='item:paste'||cat==='cooler');
+    const continueBtn=next?
+      '<button type="button" class="adv-suggest adv-next-thermal" data-thermal-next>'+
+        '<b>Continuar: colocar disipador</b><small>'+
+        (Object.keys(game.stock).some(key=>key.startsWith('cooler:')&&has(key))?
+        'Seleccionar el disipador comprado y mostrar Encajar':
+        'Abrir la tienda en la categoría Disipador')+'</small></button>':'';
+    return '<div class="adv-suggestions">'+continueBtn+ideas.join('')+'</div>';
   }
   function pastePracticeMarkup(){
     if(!game||game.selected!=='item:paste')return '';
@@ -1834,10 +1868,14 @@ function createAdventureGame(api){
         return '3 · La fuente se instaló antes. Selecciona la placa y usa «Apartar y asegurar mazos PSU»; después encájala.';
       return '3 · Coloca la placa base dentro de la caja y fíjala con tornillos.';
     }
+    if(st.installed.cpu&&st.paste>0&&!st.installed.cooler)
+      return '5 · Pasta aplicada. Compra o selecciona el disipador y pulsa «Encajar» en Acciones.';
+    if(st.installed.cooler&&!st.fixings?.cooler)
+      return '5 · Disipador colocado. Atornilla gradualmente sus cuatro esquinas para ver la expansión de la pasta.';
     if(!st.installed.cpu||!st.installed.ram)
       return '4 · Instala CPU y RAM. Encaja las pestañas de memoria; compra pasta térmica.';
     if(!st.installed.cooler||!st.cpuFan)
-      return '5 · Aplica pasta antes del disipador y conecta CPU_FAN.';
+      return '5 · Aplica pasta, monta el disipador y conecta CPU_FAN.';
     if(!st.installed.psu||!st.atx24||!st.eps||!st.frontPanel)
       return '6 · Coloca la fuente, atorníllala y conecta ATX24, EPS y POWER SW.';
     if(!st.installed.storage)
@@ -2166,6 +2204,7 @@ function createAdventureGame(api){
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
     if(button.hasAttribute('data-paste-toggle')){togglePastePractice();return;}
+    if(button.hasAttribute('data-thermal-next')){thermalNext();return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
@@ -2247,7 +2286,7 @@ function createAdventureGame(api){
     toggleRamPrecision,ramPrecisionStep,ramPrecisionState,ramPrecisionCapture,
     toggleScrewPractice,screwPracticeState,screwMove,screwTurn,
     toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
-    togglePastePractice,finishCoolerPractice,
+    togglePastePractice,finishCoolerPractice,thermalNext,
     pasteUi:{getState:()=>pasteUi?.getState()||null,
       pump:down=>pasteUi?.pump(down),pointer:(x,y)=>pasteUi?.pointer(x,y),
       tick:ms=>pasteUi?.tick(ms),confirm:()=>pasteUi?.confirm()},
