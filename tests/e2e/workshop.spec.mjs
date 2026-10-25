@@ -988,3 +988,77 @@ test('8.11 CPU: orientar, alinear, apoyar y cerrar la palanca sobre visor 3D',as
   expect(history.at(-1).code).toBe('locked');
   expect(history.some(x=>x.code==='excessive_force')).toBe(true);
 });
+
+
+test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'cpu','r7600');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="cpu:r7600"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-cpu-toggle]').evaluate(el=>el.click());
+  await page.locator('[data-suggest="fit"]').first().evaluate(el=>el.click());
+  await buy(page,'item','paste');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="item:paste"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-suggest="apply"]').first().evaluate(el=>el.click());
+  const popup=page.locator('#pastePrecisionPopup');
+  await expect(popup).toBeVisible();
+  const chip=popup.locator('[data-paste-chip]');
+  const box=await chip.boundingBox();
+  expect(box).not.toBeNull();
+  const center={x:box.x+box.width/2,y:box.y+box.height/2};
+  await page.mouse.move(center.x,center.y);
+  await page.mouse.down();
+  // Playwright verifica que se dispensa durante una pulsación real.
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  const beforeRelease=await page.evaluate(()=>adventureGame.pasteUi.getState().used);
+  await page.waitForTimeout(220);
+  const afterRelease=await page.evaluate(()=>adventureGame.pasteUi.getState().used);
+  expect(afterRelease).toBeGreaterThan(beforeRelease);
+  // Para garantizar una dosis útil sin depender del reloj real CI, completar
+  // con la misma API que impulsa la animación.
+  await page.evaluate(()=>{
+    adventureGame.pasteUi.pointer(.5,.5);adventureGame.pasteUi.pump(true);
+    for(let i=0;i<70;i++)adventureGame.pasteUi.tick(40);
+    adventureGame.pasteUi.pump(false);
+    for(let i=0;i<20;i++)adventureGame.pasteUi.tick(40);
+  });
+  await popup.locator('[data-paste-confirm]').evaluate(el=>el.click());
+  await expect(popup).toBeHidden();
+  expect(await page.evaluate(()=>state.paste)).toBe(1);
+  await buy(page,'cooler','air');await fit(page,'cooler:air');
+  await buy(page,'item','screwdriver');await buy(page,'item','screws');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="cooler:air"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-suggest="screw"]').first().evaluate(el=>el.click());
+  const screws=page.locator('#screwPrecisionPopup');
+  await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
+  const initial=await page.evaluate(()=>adventureGame.getExport().thermalPaste.spread.coverage);
+  await page.evaluate(()=>{
+    for(let depth=10;depth<=100;depth+=10){
+      for(const corner of [0,3,1,2]){
+        const item=document.querySelector('[data-screw-hole="'+corner+'"]');
+        item?.click();
+        adventureGame.screwMove(50,50);
+        adventureGame.screwTurn(1);
+      }
+    }
+  });
+  await expect(screws.locator('[data-cooler-finish]')).toBeVisible();
+  const report=await page.evaluate(()=>adventureGame.getExport().thermalPaste);
+  expect(report.review.quality).toBe('good');
+  expect(report.review.coverage).toBeGreaterThan(initial);
+  expect(report.review.peakImbalance).toBe(10);
+  await screws.locator('[data-cooler-finish]').evaluate(el=>el.click());
+  await expect(screws).toBeHidden();
+  expect(await page.evaluate(()=>state.fixings.cooler)).toBe(true);
+  expect(await page.evaluate(()=>state.paste)).toBe(1);
+});

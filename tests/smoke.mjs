@@ -28,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/thermalPaste.js','js/pasteGameplay.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -70,7 +70,7 @@ assert(!l.s.frontUsb3&&l.s.frontUsbC,'Cada cable USB tiene estado independiente'
 buy('item','rgbStrip');g.select('item:rgbStrip');g.perform('apply');
 assert(l.s.rgbInstalled);
 buy('cpu','r7600');fit('cpu:r7600');
-buy('item','paste');g.select('item:paste');g.perform('apply');
+buy('item','paste');g.select('item:paste');g.togglePastePractice();g.perform('apply');
 buy('cooler','aio240');fit('cooler:aio240');
 assert.equal(l.s.selected.cooler,'aio240');
 l.s.cpuFan=true;
@@ -842,3 +842,64 @@ assert.equal(g.cpuPrecisionStep('present').code,'presented',
 g.cpuPrecisionCapture(66);
 assert.equal(l.s.installed.cpu,true);
 console.log('8.11.1: Y=0 visual y lógico coinciden antes y después de bajar CPU');
+
+// 8.12: jeringuilla viscosa y cobertura asociada a los tornillos.
+assert(html.includes('id="pastePrecisionPopup"'));
+assert(html.includes('pasteGameplay.js?v=8-12-0-paste-pressure'));
+assert(html.includes('if(details.thermalPaste)data.thermalPaste=details.thermalPaste'));
+function prepareThermalTest(){
+  g.start('office');
+  buy('case','tower');fit('case:tower');
+  buy('item','ioShield');fit('item:ioShield');
+  buy('motherboard','b650');fit('motherboard:b650');
+  buy('cpu','r7600');g.select('cpu:r7600');
+  g.toggleCpuPrecision();assert.equal(g.perform('fit').status,'success');
+  buy('item','paste');g.select('item:paste');
+  assert.equal(g.perform('apply'),null);
+  assert.equal(get('pastePrecisionPopup').hidden,false);
+  assert.equal(l.s.paste,0);
+  const beforeDose=g.game.stock['item:paste'];
+  g.pasteUi.pointer(.5,.5);g.pasteUi.pump(true);
+  for(let i=0;i<75;i++)g.pasteUi.tick(40);
+  g.pasteUi.pump(false);for(let i=0;i<20;i++)g.pasteUi.tick(40);
+  assert.equal(g.pasteUi.confirm(),true);
+  assert.equal(g.game.stock['item:paste'],beforeDose-1);
+  assert.equal(l.s.paste,1);
+  buy('cooler','air');fit('cooler:air');
+  buy('item','screwdriver');buy('item','screws');
+  g.select('cooler:air');
+  assert.equal(g.perform('screw'),null);
+  assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'));
+}
+prepareThermalTest();
+const clickHole=n=>get('screwPrecisionPopup').events.click({
+  target:{closest:()=>({hasAttribute:()=>false,dataset:{screwHole:String(n)}})}
+});
+for(let depth=10;depth<=100;depth+=10){
+  for(const corner of [0,3,1,2]){
+    clickHole(corner);g.screwMove(50,50);
+    assert.equal(g.screwTurn(1).depth,depth);
+  }
+}
+const balancedPaste=g.getExport().thermalPaste.review;
+assert.equal(balancedPaste.quality,'good');
+assert.equal(balancedPaste.peakImbalance,10);
+assert.equal(l.s.fixings.cooler,false);
+assert.equal(g.finishCoolerPractice(false),true);
+assert.equal(l.s.fixings.cooler,true);
+assert.equal(l.s.paste,1);
+prepareThermalTest();
+for(let hole=0;hole<4;hole++){
+  g.screwMove(50,50);
+  for(let turn=0;turn<10;turn++)g.screwTurn(1);
+}
+const unevenPaste=g.getExport().thermalPaste.review;
+assert.equal(unevenPaste.peakImbalance,100);
+assert.equal(unevenPaste.quality,'unbalanced');
+assert.equal(g.finishCoolerPractice(true),true);
+assert.equal(l.s.installed.cooler,false);
+assert.equal(l.s.paste,0);
+assert.equal(g.game.stock['item:screws'],10,'Limpiar recupera los tornillos montados');
+assert.equal(g.game.stock['cooler:air'],1);
+assert.equal(g.game.stock['item:paste'],0,'La pasta usada no se recupera');
+console.log('8.12: jeringuilla, presión en cruz y limpieza verificadas');

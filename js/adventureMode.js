@@ -84,7 +84,8 @@ function createAdventureGame(api){
   let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
   let ramPrecisionEngine=null,ramPrecisionSession=null,ramPrecisionBypass=false;
   let screwEngine=null,screwSession=null,screwBypass=false,screwDragging=false;
-  let screwHoleIndex=0;
+  let screwHoleIndex=0,screwSessions=new Map();
+  let pasteUi=null,pasteSpread=null,pasteBypass=false;
   let cpuEngine=null,cpuSession=null,cpuBypass=false,cpuDragging=false;
   let cpuFrame=0,cpuOscStart=0,cpuFeedback='Gira y alinea el procesador.';
   let screwFeedback='Arrastra el tornillo hasta el centro del agujero.';
@@ -108,6 +109,7 @@ function createAdventureGame(api){
       ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:value});
       screwEngine=root.PC_SCREW_PRECISION.createEngine({seed:value});
       cpuEngine=root.PC_CPU_PRECISION.createEngine({seed:value});
+      pasteUi?.close();
       closeCpuPrecision();closeScrewPractice();
       ramPrecisionSession=null;stopRamAnimation();ramCaptures={left:null,right:null};
       message('Semilla guardada: '+value+'. Secuencia reiniciada.','ok');
@@ -266,6 +268,12 @@ function createAdventureGame(api){
     cpuPrecision:{enabled:game.cpuPrecisionEnabled,
       attempts:game.cpuPrecisionHistory.map(x=>({...x})),
       active:cpuSession?.getState()||null},
+    thermalPaste:{enabled:game.thermalPasteEnabled,
+      application:game.thermalPaste?{...game.thermalPaste,
+        dots:game.thermalPaste.dots.map(d=>({...d}))}:null,
+      spread:pasteSpread?.getState()||null,
+      review:game.pasteReview?{...game.pasteReview}:null,
+      history:game.thermalHistory.map(x=>({...x}))},
     screwPractice:{enabled:game.screwPracticeEnabled,
       attempts:game.screwHistory.map(item=>({...item})),
       progress:Object.fromEntries(Object.entries(game.screwProgress).map(
@@ -276,6 +284,82 @@ function createAdventureGame(api){
   const panel=api.document.getElementById('adventurePanel');
   const ramPopup=api.document.getElementById('ramPrecisionPopup');
   const screwPopup=api.document.getElementById('screwPrecisionPopup');
+  const pastePopup=api.document.getElementById('pastePrecisionPopup');
+  function pastePrerequisites(){
+    if(!game||!game.thermalPasteEnabled)return 'La aplicación clásica está activada.';
+    const st=api.state();
+    if(st.power||st.caseClosed)return 'Apaga el PC y abre la caja antes de aplicar pasta.';
+    if(!st.installed.cpu||st.installed.cooler)
+      return 'La pasta va sobre la CPU antes de instalar el disipador.';
+    if(st.paste>0)return 'Ya hay pasta aplicada; termina o retira el disipador.';
+    if(!has('item:paste'))return 'Compra una dosis de pasta térmica.';
+    return '';
+  }
+  function openPastePractice(){
+    const issue=pastePrerequisites();
+    if(issue){message(issue,'warn');return false;}
+    closeCpuPrecision();closeScrewPractice();
+    if(ramPrecisionSession){ramPrecisionSession=null;stopRamAnimation();}
+    game.openSections=['actions','mission'];paint();
+    return pasteUi?.open()||false;
+  }
+  function togglePastePractice(){
+    if(!game)return false;
+    game.thermalPasteEnabled=!game.thermalPasteEnabled;
+    if(!game.thermalPasteEnabled)pasteUi?.close();
+    message(game.thermalPasteEnabled?'Jeringuilla térmica activada.':
+      'Aplicación clásica de pasta térmica activada.','ok');
+    return game.thermalPasteEnabled;
+  }
+  function onPasteConfirm(deposit){
+    if(!game||game.selected!=='item:paste'||pastePrerequisites())return false;
+    pasteBypass=true;let result;
+    try{result=apply('item:paste');}finally{pasteBypass=false;}
+    if(result?.status!=='success'||!api.state().paste)return false;
+    game.thermalPaste={dots:deposit.dots,volume:deposit.volume,status:'ready'};
+    pasteSpread=root.PC_THERMAL_PASTE.createSpread(deposit.dots);
+    game.thermalHistory.push({type:'applied',volume:Math.round(deposit.volume*100)/100});
+    message('Pasta depositada. Se expandirá al atornillar el disipador.','ok');
+    return true;
+  }
+  pasteUi=root.PC_PASTE_UI.create({popup:pastePopup,onConfirm:onPasteConfirm,
+    onCancel:()=>message('Jeringuilla cancelada: no se ha consumido pasta.')});
+  function thermalReview(){
+    if(!pasteSpread)return null;
+    const r=pasteSpread.getState();
+    return {quality:r.quality,coverage:r.coverage,overflow:r.overflow,
+      peakImbalance:r.peakImbalance,volume:r.volume};
+  }
+  function finishCoolerPractice(clean=false){
+    if(!game?.pasteReview||!screwSession||
+      !screwSession.getState().target.startsWith('cooler:'))return false;
+    if(clean){
+      closeScrewPractice();
+      const record=perform('remove');
+      if(record?.status!=='success')return false;
+      api.state().paste=0;game.thermalPaste=null;pasteSpread=null;
+      game.thermalHistory.push({type:'clean',minutes:2});
+      game.pasteReview=null;
+      clock.add('technical',2,'paste-clean');
+      message('Disipador retirado y pasta limpiada. Necesitas otra dosis para repetir.','warn');
+      return true;
+    }
+    const review=game.pasteReview;
+    closeScrewPractice();screwBypass=true;let record;
+    try{record=perform('screw');}finally{screwBypass=false;}
+    if(record?.status!=='success')return false;
+    game.thermalHistory.push({type:'final',...review});
+    if(game.thermalPaste)game.thermalPaste.status='sealed';
+    api.state().paste=review.quality==='good'?1:.5;
+    game.pasteReview=null;
+    message(review.quality==='good'?'Disipador fijado: cobertura '+review.coverage+
+      '%, rebose '+review.overflow+'%.':
+      'Disipador fijado con advertencia térmica ('+review.quality+
+      '). Para corregir, retira el disipador y renueva la pasta.',
+      review.quality==='good'?'ok':'warn');
+    return true;
+  }
+
   const cpuPopup=api.document.getElementById('cpuPrecisionPopup');
   const cpuNow=()=>root.performance?.now?.()??0;
   function stopCpuAnimation(){
@@ -496,13 +580,16 @@ function createAdventureGame(api){
     return screwLayout(target).findIndex(point=>!done.includes(point.id));
   }
   function screwPickHole(index){
-    if(!screwSession||!game||!Number.isInteger(index))return false;
+    if(!screwSession||!game||game.pasteReview||!Number.isInteger(index))return false;
     const target=screwSession.getState().target,layout=screwLayout(target);
     if(index<0||index>=layout.length||
       screwProgressFor(target).completed.includes(layout[index].id))return false;
-    // Una cabeza medio roscada no salta mágicamente de agujero.
-    if(screwSession.getState().depth>0)return false;
-    screwHoleIndex=index;screwSession=screwEngine.begin(target);
+    // Preservar roscados parciales al alternar las esquinas.
+    screwSessions.set(target+'|'+layout[screwHoleIndex].id,screwSession);
+    screwHoleIndex=index;
+    const key=target+'|'+layout[index].id;
+    screwSession=screwSessions.get(key)||screwEngine.begin(target);
+    screwSessions.set(key,screwSession);
     screwFeedback='Alinea el tornillo con el agujero seleccionado ('+
       (index+1)+'/'+layout.length+').';
     paint();return true;
@@ -524,6 +611,7 @@ function createAdventureGame(api){
   }
   function openScrewPractice(){
     if(!screwValid())return false;
+    pasteUi?.close();
     // No se pueden tener dos prácticas superpuestas sobre el mismo visor.
     closeCpuPrecision();
     if(ramPrecisionSession){
@@ -536,7 +624,9 @@ function createAdventureGame(api){
       const next=screwNextHole(game.selected);
       if(next<0)return false;
       screwHoleIndex=next;
-      screwSession=screwEngine.begin(game.selected);
+      const key=game.selected+'|'+screwLayout(game.selected)[next].id;
+      screwSession=screwSessions.get(key)||screwEngine.begin(game.selected);
+      screwSessions.set(key,screwSession);
       screwFeedback='Punto '+(next+1)+'/'+screwLayout(game.selected).length+
         ': arrastra el tornillo al agujero y gira la rueda para roscar.';
     }
@@ -582,7 +672,7 @@ function createAdventureGame(api){
     drawScrewPractice();return true;
   }
   function screwTurn(direction=1){
-    if(!screwSession||!game)return null;
+    if(!screwSession||!game||game.pasteReview)return null;
     const target=screwSession.getState().target;
     if(target!==game.selected||!screwValid(target)){
       closeScrewPractice();
@@ -595,6 +685,8 @@ function createAdventureGame(api){
     const progress=screwProgressFor(target);
     game.screwHistory.push({session:screwSession.getState().id,
       anchor:point.id,anchorIndex:screwHoleIndex,...result});
+    if(target.startsWith('cooler:')&&pasteSpread&&result.code!=='not_engaged')
+      pasteSpread.tighten(screwHoleIndex,result.depth);
     if(result.penaltyMinutes)
       clock.add('technical',result.penaltyMinutes,'screw-precision:misaligned');
     screwFeedback=result.code==='not_engaged'?
@@ -612,6 +704,7 @@ function createAdventureGame(api){
           message('No quedan tornillos. Compra otro paquete para seguir.');return result;
         }
         progress.completed.push(point.id);
+        screwSessions.delete(target+'|'+point.id);
         // Cada anclaje requiere tiempo, además del tiempo de la operación
         // técnica final. Se suma una sola vez por tornillo terminado.
         clock.add('technical',.5,'screw-precision:anchor');
@@ -621,12 +714,19 @@ function createAdventureGame(api){
           message('Fijados '+progress.completed.length+'/'+points.length+
             ' puntos. Compra más tornillos para continuar.','warn');
         }else{
-          screwSession=screwEngine.begin(target);
+          const key=target+'|'+points[screwHoleIndex].id;
+          screwSession=screwSessions.get(key)||screwEngine.begin(target);
+          screwSessions.set(key,screwSession);
           screwFeedback='Tornillo '+progress.completed.length+'/'+points.length+
             ' fijado. Continúa con el punto '+(screwHoleIndex+1)+'.';
           paint();
           screwPopup?.querySelector('[data-screw-head]')?.focus?.();
         }
+      }else if(target.startsWith('cooler:')&&pasteSpread){
+        screwSessions.delete(target+'|'+point.id);
+        game.pasteReview=thermalReview();
+        screwFeedback='Los cuatro tornillos están apretados. Revisa la pasta.';
+        paint();
       }else{
         closeScrewPractice();screwBypass=true;
         try{perform('screw');}finally{screwBypass=false;}
@@ -635,6 +735,7 @@ function createAdventureGame(api){
       }
     }else{
       drawScrewPractice();
+      root.PC_PASTE_UI.updateSpread(screwPopup,pasteSpread);
       const c=panel.querySelector('#advVirtualClock');
       if(c)c.textContent='Tiempo virtual: '+clock.getSummary().total+' min · '+
         operationEngine.getHistory().length+' operaciones registradas';
@@ -654,6 +755,22 @@ function createAdventureGame(api){
         '" aria-pressed="'+current+'"'+(done?' disabled':'')+'>'+
         (done?'✚':current?'◎':'○')+'</button>';
     }).join('');
+    if(game.pasteReview&&st.target.startsWith('cooler:')){
+      const r=game.pasteReview;
+      const qualityLabel={good:'Cobertura equilibrada',
+        unbalanced:'Apriete desigual',insufficient:'Cantidad insuficiente',
+        excessive:'Exceso de pasta',uneven:'Distribución irregular'}[r.quality]||r.quality;
+      return '<section class="screw-precision-dialog" role="dialog" aria-modal="true" '+
+        'aria-label="Resultado de la pasta térmica">'+
+        '<header><h3>Resultado final de la pasta y el disipador</h3></header>'+
+        root.PC_PASTE_UI.spreadMarkup(pasteSpread)+
+        '<p><b>Resultado: '+safe(qualityLabel)+'</b>. '+
+        (r.quality==='good'?'Distribución adecuada.':
+        'Riesgo de mala transferencia térmica o presión irregular.')+'</p>'+
+        '<div class="screw-fallback-controls"><button type="button" class="primary" '+
+        'data-cooler-finish>Finalizar instalación del disipador</button>'+
+        '<button type="button" data-cooler-clean>Limpiar y repetir</button></div></section>';
+    }
     return '<section class="screw-precision-dialog" role="dialog" aria-modal="true" '+
       'aria-label="Minijuego de atornillado">'+
       '<header><div><small>TALLER 3D · FIJACIÓN</small><h3>Atornillar '+safe(label(...st.target.split(':')))+
@@ -661,6 +778,7 @@ function createAdventureGame(api){
       '<p>Fijaciones de '+safe(label(...st.target.split(':')))+': <b>'+
       progress.completed.length+'/'+holes.length+'</b> tornillos fijados. '+
       'Tornillos disponibles: '+stock('item:screws')+'.</p>'+
+      (st.target.startsWith('cooler:')?root.PC_PASTE_UI.spreadMarkup(pasteSpread):'')+
       '<div class="screw-anchor-map" role="group" aria-label="Puntos de anclaje del componente">'+
       '<div class="screw-part-outline"></div>'+anchors+'</div>'+
       '<p>Selecciona un agujero libre. Arrastra el tornillo hacia su centro '+
@@ -767,6 +885,7 @@ function createAdventureGame(api){
     ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:which+'-aula-1'});
     screwEngine=root.PC_SCREW_PRECISION.createEngine({seed:which+'-aula-1'});
     cpuEngine=root.PC_CPU_PRECISION.createEngine({seed:which+'-aula-1'});
+    pasteUi?.close();pasteSpread=null;screwSessions.clear();
     closeCpuPrecision();closeScrewPractice();
     ramPrecisionSession=null;ramPrecisionBypass=false;
     stopRamAnimation();ramCaptures={left:null,right:null};
@@ -779,7 +898,8 @@ function createAdventureGame(api){
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
-      screwPracticeEnabled:true,screwHistory:[],screwProgress:{}
+      screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
+      thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -809,6 +929,7 @@ function createAdventureGame(api){
     message('Demostración cancelada. Se conservan las compras.', 'ok');
   }
   function exit(){
+    pasteUi?.close();pasteSpread=null;screwSessions.clear();
     closeCpuPrecision();closeScrewPractice();
     stopRamAnimation();ramPrecisionSession=null;ramCaptures={left:null,right:null};
     api.stage?.([], '');
@@ -1022,6 +1143,7 @@ function createAdventureGame(api){
     }
     if(screwSession&&game.selected!==k)closeScrewPractice();
     if(cpuSession&&game.selected!==k)closeCpuPrecision();
+    if(game.selected!==k)pasteUi?.close();
     game.selected=k;
     game.openSections=['inventory','actions'];
     paint();
@@ -1064,13 +1186,20 @@ function createAdventureGame(api){
       const record=tracked('remove',item||'sin-seleccion',()=>performLegacy(override),
         ()=>was&&!st.installed[cat]);
       if(record.status==='success'&&screwSession)closeScrewPractice();
+      if(record.status==='success')
+        for(const key of [...screwSessions.keys()])
+          if(key.startsWith(cat+':'))screwSessions.delete(key);
       if(record.status==='success'&&game.screwProgress[cat]){
         // Retirar con destornillador libera los tornillos fijados.
         game.stock['item:screws']=(game.stock['item:screws']||0)+
           game.screwProgress[cat].completed.length;
         delete game.screwProgress[cat];
       }
-      if(record.status==='success'&&cat==='cpu')closeCpuPrecision();
+      if(record.status==='success'&&cat==='cpu'){
+        closeCpuPrecision();pasteUi?.close();pasteSpread=null;
+        game.thermalPaste=null;game.pasteReview=null;st.paste=0;
+      }
+      if(record.status==='success'&&cat==='cooler')game.pasteReview=null;
       if(record.status==='success'&&cat==='ram'){
         // Una retirada invalida la colocación física y cualquier sesión abierta.
         // La próxima instalación creará una práctica nueva automáticamente.
@@ -1304,6 +1433,9 @@ function createAdventureGame(api){
   }
   function apply(k){
     if(!game)return;
+    if(k==='item:paste'&&!pasteBypass&&game.thermalPasteEnabled){
+      openPastePractice();return null;
+    }
     const prior=game.used[k]||0;
     return tracked('apply',k||'sin-seleccion',()=>applyLegacy(k),
       ()=>(game.used[k]||0)>prior);
@@ -1325,6 +1457,7 @@ function createAdventureGame(api){
     if(!st.installed.cpu||st.installed.cooler){
       message('La pasta se aplica sobre la CPU, antes de fijar el disipador.');return;
     }
+    if(st.paste>0){message('Ya hay pasta aplicada sobre la CPU.');return;}
     if(!expend(k)){message('Ya no te queda pasta térmica. Compra otra aplicación.');return;}
     st.paste=1;
     message('Pasta térmica aplicada correctamente sobre la CPU.','ok');
@@ -1593,6 +1726,14 @@ function createAdventureGame(api){
       add('Retirar '+label(cat,id),'Primero apaga el equipo y abre la caja','remove');
     return '<div class="adv-suggestions">'+ideas.join('')+'</div>';
   }
+  function pastePracticeMarkup(){
+    if(!game||game.selected!=='item:paste')return '';
+    return '<div class="adv-ram-toggle"><button type="button" data-paste-toggle>'+
+      (game.thermalPasteEnabled?'Usar pasta clásica':'Activar jeringuilla')+
+      '</button><span>'+(game.thermalPasteEnabled?
+      'Predeterminado · la expansión sucede al atornillar el disipador':
+      'Aplicación clásica, sin simulación de presión')+'</span></div>';
+  }
   function cpuPrecisionMarkup(){
     if(!game?.selected?.startsWith('cpu:'))return '';
     return '<div class="adv-ram-toggle"><button type="button" data-cpu-toggle>'+
@@ -1813,7 +1954,7 @@ function createAdventureGame(api){
       '</div>'+
       peripherals+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
-      ramPrecisionMarkup()+screwPracticeMarkup()+cpuPrecisionMarkup()+
+      ramPrecisionMarkup()+screwPracticeMarkup()+cpuPrecisionMarkup()+pastePracticeMarkup()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Salida de vídeo al monitor</label>'+
@@ -1938,6 +2079,9 @@ function createAdventureGame(api){
   screwPopup?.addEventListener('click',event=>{
     const button=event.target.closest('button');
     if(!button||!screwSession)return;
+    if(button.hasAttribute('data-cooler-finish')){finishCoolerPractice(false);return;}
+    if(button.hasAttribute('data-cooler-clean')){finishCoolerPractice(true);return;}
+    if(game.pasteReview)return;
     if(button.hasAttribute('data-screw-cancel')){closeScrewPractice();paint();return;}
     if(button.dataset.screwHole!==undefined){screwPickHole(Number(button.dataset.screwHole));return;}
     if(button.dataset.screwTurn)screwTurn(Number(button.dataset.screwTurn));
@@ -2021,6 +2165,7 @@ function createAdventureGame(api){
     if(button.hasAttribute('data-ram-toggle')){toggleRamPrecision();return;}
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
+    if(button.hasAttribute('data-paste-toggle')){togglePastePractice();return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
@@ -2102,6 +2247,10 @@ function createAdventureGame(api){
     toggleRamPrecision,ramPrecisionStep,ramPrecisionState,ramPrecisionCapture,
     toggleScrewPractice,screwPracticeState,screwMove,screwTurn,
     toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
+    togglePastePractice,finishCoolerPractice,
+    pasteUi:{getState:()=>pasteUi?.getState()||null,
+      pump:down=>pasteUi?.pump(down),pointer:(x,y)=>pasteUi?.pointer(x,y),
+      tick:ms=>pasteUi?.tick(ms),confirm:()=>pasteUi?.confirm()},
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
