@@ -82,6 +82,7 @@ const key=(cat,id)=>cat+':'+id;
 const safe=val=>String(val).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function createAdventureGame(api){
   let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
+  let ramPrecisionEngine=null,ramPrecisionSession=null,ramPrecisionBypass=false;
   function operationSummary(){return operationEngine?.getSummary()||null;}
   function setRiskEnabled(enabled){
     if(!game)return false;
@@ -97,6 +98,10 @@ function createAdventureGame(api){
       const value=String(seed||'').trim();
       const next=root.PC_MISHAPS.createEngine({seed:value});
       game.riskSeed=value;mishaps=next;
+      // El minijuego usa un RNG SEPARADO; cambiar la semilla cancela la
+      // presentación abierta sin alterar incidencias ya registradas.
+      ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:value});
+      ramPrecisionSession=null;
       message('Semilla guardada: '+value+'. Secuencia reiniciada.','ok');
       return true;
     }catch(err){message('Semilla inválida: '+err.message);return false;}
@@ -246,7 +251,10 @@ function createAdventureGame(api){
       incidents:game.incidents.map(item=>({...item})),
       pendingReview:game.pendingReview,
       pendingRepairs:game.pendingSataRepair?['sataData']:[],
-      pendingLatent:game.pendingSataLatent?['sataData']:[]}};}
+      pendingLatent:game.pendingSataLatent?['sataData']:[]},
+    ramPrecision:{enabled:game.ramPrecisionEnabled,
+      attempts:game.ramPrecisionHistory.map(item=>({...item})),
+      active:ramPrecisionSession?.getState()||null}};}
 
   const panel=api.document.getElementById('adventurePanel');
   const field=id=>api.document.getElementById(id);
@@ -286,13 +294,16 @@ function createAdventureGame(api){
     clock=root.PC_TIME.createClock();
     operationEngine=root.PC_OPERATIONS.createEngine({clock});
     mishaps=root.PC_MISHAPS.createEngine({seed:which+'-aula-1'});
+    ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:which+'-aula-1'});
+    ramPrecisionSession=null;ramPrecisionBypass=false;
     game={
       caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
-      pendingReview:0,pendingSataRepair:false,pendingSataLatent:false
+      pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
+      ramPrecisionEnabled:false,ramPrecisionHistory:[]
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -456,8 +467,62 @@ function createAdventureGame(api){
   }
   function toggleInstallerUsb(){return api.state().usbConnected?
     disconnectInstallerUsb():connectInstallerUsb();}
+  function openRamPrecision(){
+    if(!game?.ramPrecisionEnabled||!root.PC_RAM_PRECISION)return false;
+    const st=api.state(),[cat,id]=String(game.selected||'').split(':');
+    if(cat!=='ram'||!st.installed.ram||st.ramSeated||
+       st.selected.ram!==id||st.power||st.caseClosed)return false;
+    if(!ramPrecisionSession)ramPrecisionSession=ramPrecisionEngine.begin();
+    game.openSections=['actions','mission'];
+    paint();return true;
+  }
+  function toggleRamPrecision(){
+    if(!game)return false;
+    game.ramPrecisionEnabled=!game.ramPrecisionEnabled;
+    if(!game.ramPrecisionEnabled)ramPrecisionSession=null;
+    message(game.ramPrecisionEnabled?
+      'Prueba de precisión RAM activada: al colocar un DIMM practicarás su asentamiento.':
+      'Prueba de precisión RAM desactivada: disponible el encaje clásico.','ok');
+    return game.ramPrecisionEnabled;
+  }
+  function ramPrecisionStep(kind){
+    if(!ramPrecisionSession||!game)return null;
+    let result=null;
+    if(kind==='flip'){ramPrecisionSession.flip();paint();return null;}
+    if(kind==='cancel'){
+      ramPrecisionSession=null;
+      message('Práctica cancelada. La RAM permanece sin asentar: puedes volver a intentarlo.','warn');
+      return null;
+    }
+    result=kind==='present'?ramPrecisionSession.present():
+      kind==='press'?ramPrecisionSession.press():null;
+    if(!result)return null;
+    if(result.step==='present'&&result.ok){paint();return result;}
+    const snapshot=ramPrecisionSession.getState();
+    game.ramPrecisionHistory.push({session:snapshot.id,component:game.selected,
+      ...snapshot.attempts.at(-1)});
+    if(result.penaltyMinutes)
+      clock.add('technical',result.penaltyMinutes,'ram-precision:'+result.code);
+    if(result.ok&&result.step==='press'){
+      const before=api.state().ramSeated;
+      if(!before&&api.state().installed.ram&&!api.state().power&&!api.state().caseClosed){
+        ramPrecisionBypass=true;
+        try{perform('fit');}finally{ramPrecisionBypass=false;}
+      }
+      if(api.state().ramSeated){
+        ramPrecisionSession=null;
+        message('RAM encajada con ambos cierres: '+result.message,'ok');
+      }else{
+        ramPrecisionSession=null;
+        message('La prueba terminó, pero el montaje técnico rechazó el encaje. Revisa los prerrequisitos.','warn');
+      }
+    }else message(result.message,result.ok?'ok':'warn');
+    return result;
+  }
+  function ramPrecisionState(){return ramPrecisionSession?.getState()||null;}
   function select(k){
     if(!owned(k)){message('No tienes ese objeto en el inventario.');return;}
+    if(ramPrecisionSession&&game.selected!==k)ramPrecisionSession=null;
     game.selected=k;
     game.openSections=['inventory','actions'];
     paint();
@@ -466,6 +531,11 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const verb=override||game.verb;
+    if(verb==='fit'&&!ramPrecisionBypass&&game.ramPrecisionEnabled&&
+      String(game.selected).startsWith('ram:')&&api.state().installed.ram&&
+      !api.state().ramSeated){
+      if(openRamPrecision())return null;
+    }
     if(verb==='route'){
       const st=api.state(),was=!!st.psuAccessRouted;
       return tracked('route','psu-cables',()=>performLegacy(override),
@@ -485,12 +555,24 @@ function createAdventureGame(api){
       cat==='item'&&id==='fan'?st.caseFans.filter(x=>x.installed).length:
       cat==='ram'&&st.installed.ram&&!st.ramSeated?false:
       !!st.installed[part];
-    const old=readResult();
-    return tracked(verb,k||'sin-seleccion',()=>performLegacy(override),()=>{
-      const now=verb==='fit'&&cat==='ram'&&old===true?
-        !!st.ramSeated:readResult();
+    const old=readResult(),wasRamInstalled=!!st.installed.ram,
+      wasRamSeated=!!st.ramSeated;
+    const record=tracked(verb,k||'sin-seleccion',()=>performLegacy(override),()=>{
+      // El DIMM tiene dos hitos físicos distintos: colocar y asentar.
+      // Colocarlo SIN cerrar pestañas no es un rechazo de la instalación.
+      if(verb==='fit'&&cat==='ram')
+        return wasRamInstalled?!wasRamSeated&&!!st.ramSeated:
+          !!st.installed.ram&&!st.ramSeated;
+      const now=readResult();
       return typeof old==='number'?now>old:!old&&!!now;
     });
+    // La primera colocación RAM continúa usando el handler técnico real,
+    // con consumo de inventario normal; el minijuego sustituye el clic
+    // posterior que asienta las dos pestañas, sin instalar por adelantado.
+    if(!ramPrecisionBypass&&game.ramPrecisionEnabled&&verb==='fit'&&
+       cat==='ram'&&record.status==='success'&&st.installed.ram&&!st.ramSeated)
+      openRamPrecision();
+    return record;
   }
   function performLegacy(override=null){
     if(!game)return;
@@ -966,6 +1048,46 @@ function createAdventureGame(api){
       add('Retirar '+label(cat,id),'Primero apaga el equipo y abre la caja','remove');
     return '<div class="adv-suggestions">'+ideas.join('')+'</div>';
   }
+  function ramPrecisionMarkup(){
+    if(!game?.selected?.startsWith('ram:'))return '';
+    const enabled=game.ramPrecisionEnabled,s=ramPrecisionState();
+    const toggle='<div class="adv-ram-toggle"><button type="button" data-ram-toggle>'+
+      (enabled?'Desactivar':'Activar')+' prueba de precisión RAM</button>'+
+      '<span>'+(enabled?'Activa · montaje educativo':'Opcional · montaje clásico disponible')+
+      '</span></div>';
+    if(!s)return toggle+(enabled&&api.state().installed.ram&&!api.state().ramSeated?
+      '<p class="muted">Pulsa «Encajar» para practicar el asentamiento del DIMM.</p>':'');
+    const illustration='<div class="adv-ram-scene" role="img" aria-label="'+
+      'Vista esquemática de RAM sobre la ranura DIMM; alinea ambas muescas">'+
+      '<div id="advRamStick" class="adv-ram-stick" style="'+
+      '--ram-offset:'+(s.alignment*2)+'px;--ram-depth:'+Math.round(s.approach*.46)+
+      'px;--ram-flip:'+(s.reversed?-1:1)+'">'+
+      '<span class="adv-ram-chips">▮ ▮ ▮ ▮ ▮</span><span class="adv-ram-key"></span>'+
+      '<span class="adv-ram-contacts"></span></div>'+
+      '<div class="adv-ram-socket"><span class="adv-ram-key"></span></div>'+
+      '<div class="adv-ram-clips"><span>◀</span><span>▶</span></div></div>';
+    const alignment=s.stage==='align'?
+      '<div class="adv-ram-controls"><button type="button" data-ram-flip>Girar RAM 180°</button>'+
+      '<label for="advRamAlign">Desplazamiento horizontal <output id="advRamAlignVal">'+
+      s.alignment+'</output><input type="range" id="advRamAlign" min="-30" max="30" step="1" value="'+s.alignment+'"></label>'+
+      '<label for="advRamApproach">Acercar a la ranura <output id="advRamApproachVal">'+
+      s.approach+'%</output><input type="range" id="advRamApproach" min="0" max="100" step="1" value="'+s.approach+'"></label>'+
+      '<button type="button" class="primary" data-ram-present>Presentar RAM alineada</button></div>':
+      '<div class="adv-ram-controls adv-ram-pressures">'+
+      '<p>Presiona ambos extremos hasta que las pestañas encajen. Escala didáctica de presión, no newtons.</p>'+
+      '<label for="advRamLeft">Extremo izquierdo <output id="advRamLeftVal">'+s.left+
+      '</output><input type="range" id="advRamLeft" min="0" max="100" step="1" value="'+s.left+'"></label>'+
+      '<label for="advRamRight">Extremo derecho <output id="advRamRightVal">'+s.right+
+      '</output><input type="range" id="advRamRight" min="0" max="100" step="1" value="'+s.right+'"></label>'+
+      '<p class="muted">Presión equilibrada y adecuada: zona central de ambas escalas. '+ 
+      'Si te alejas, podría no terminar de encajar.</p>'+
+      '<button type="button" class="primary" data-ram-press>Aplicar presión simultánea</button></div>';
+    return toggle+'<div class="adv-ram-game" role="group" aria-label="Minijuego de encajar RAM">'+
+      '<h3>Laboratorio DIMM · '+(s.stage==='align'?'1. Orientar y acercar':'2. Presionar extremos')+'</h3>'+
+      '<p class="muted">Observa la muesca y el hueco del zócalo; gira y aproxima el módulo antes de presionar.</p>'+
+      illustration+alignment+'<p class="adv-ram-attempts">Intentos de esta sesión: '+
+      s.attempts.length+'</p><button type="button" data-ram-cancel>Cancelar práctica</button></div>';
+  }
   function progressText(){
     const st=api.state();
     if(!st.installed.case)
@@ -1097,6 +1219,7 @@ function createAdventureGame(api){
       '</div>'+
       peripherals+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
+      ramPrecisionMarkup()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Salida de vídeo al monitor</label>'+
@@ -1177,6 +1300,11 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.hasAttribute('data-ram-toggle')){toggleRamPrecision();return;}
+    if(button.hasAttribute('data-ram-flip')){ramPrecisionStep('flip');return;}
+    if(button.hasAttribute('data-ram-present')){ramPrecisionStep('present');return;}
+    if(button.hasAttribute('data-ram-press')){ramPrecisionStep('press');return;}
+    if(button.hasAttribute('data-ram-cancel')){ramPrecisionStep('cancel');return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
     if(button.hasAttribute('data-demo-build')){demoBuild();return;}
     if(button.dataset.shopInfo){api.inspectPart?.(button.dataset.shopInfo);return;}
@@ -1211,6 +1339,25 @@ function createAdventureGame(api){
     else if(button.hasAttribute('data-close'))api.caseToggle();
     else if(button.hasAttribute('data-rear'))api.rearView();
     else if(button.hasAttribute('data-exit-mode'))exit();
+  });
+  panel.addEventListener('input',event=>{
+    if(!ramPrecisionSession||!game)return;
+    const el=event.target,id=el.id,value=Number(el.value);
+    if(id==='advRamAlign'){
+      ramPrecisionSession.setAlignment(value);
+      const output=query('#advRamAlignVal'),stick=query('#advRamStick');
+      if(output)output.textContent=String(value);
+      if(stick)stick.style.setProperty('--ram-offset',(value*2)+'px');
+    }else if(id==='advRamApproach'){
+      ramPrecisionSession.setApproach(value);
+      const output=query('#advRamApproachVal'),stick=query('#advRamStick');
+      if(output)output.textContent=value+'%';
+      if(stick)stick.style.setProperty('--ram-depth',Math.round(value*.46)+'px');
+    }else if(id==='advRamLeft'||id==='advRamRight'){
+      ramPrecisionSession.setPressure(id==='advRamLeft'?'left':'right',value);
+      const output=query(id==='advRamLeft'?'#advRamLeftVal':'#advRamRightVal');
+      if(output)output.textContent=String(value);
+    }
   });
   panel.addEventListener('change',event=>{
     if(!game)return;
@@ -1255,6 +1402,7 @@ function createAdventureGame(api){
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
     importCases,getCase,getExport,operationSummary,setSpeed,
     setRiskEnabled,setRiskSeed,toggleEsd,revealLatentSataOnPower,
+    toggleRamPrecision,ramPrecisionStep,ramPrecisionState,
     get active(){return !!game},get game(){return game}};
 }
 root.createAdventureGame=createAdventureGame;
