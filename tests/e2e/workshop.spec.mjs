@@ -805,3 +805,46 @@ test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({pag
   expect(data.report.incidents.at(-1).resolvedBy).toBe('sata_reconnect');
   expect(data.reworks).toBeGreaterThanOrEqual(1);
 });
+
+test('8.9 RAM precisión: girar, acercar, equilibrar extremos y asentar sin daños',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'ram','ddr5_16');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="ram:ddr5_16"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-ram-toggle]').evaluate(el=>el.click());
+  await page.locator('[data-suggest="fit"]:not([disabled])').first().evaluate(el=>el.click());
+  await expect(page.locator('.adv-ram-game')).toBeVisible();
+  let ram=await page.evaluate(()=>adventureGame.ramPrecisionState());
+  expect(ram.stage).toBe('align');
+  expect(ram.approach).toBe(0);
+  expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
+  const before=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
+  await page.locator('[data-ram-present]').evaluate(el=>el.click());
+  const after=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
+  expect(after-before).toBeCloseTo(.8,1);
+  ram=await page.evaluate(()=>adventureGame.ramPrecisionState());
+  if(ram.reversed)await page.locator('[data-ram-flip]').evaluate(el=>el.click());
+  const range=async(id,value)=>page.locator('#'+id).evaluate((el,v)=>{
+    el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));
+  },value);
+  await range('advRamAlign',0);
+  await range('advRamApproach',100);
+  await page.locator('[data-ram-present]').evaluate(el=>el.click());
+  await expect(page.locator('[data-ram-press]')).toBeVisible();
+  await range('advRamLeft',66);await range('advRamRight',95);
+  await page.locator('[data-ram-press]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
+  await range('advRamRight',66);
+  await page.locator('[data-ram-press]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.ramSeated)).toBe(true);
+  const result=await page.evaluate(()=>adventureGame.getExport().ramPrecision);
+  expect(result.active).toBeNull();
+  expect(result.attempts.map(x=>x.code)).toEqual([
+    ram.attempts[0].code,'too_strong','perfect_seat'
+  ]);
+});

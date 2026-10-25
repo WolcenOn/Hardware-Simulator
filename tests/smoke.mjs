@@ -19,7 +19,8 @@ const elements={};let errors=[];
 const get=id=>elements[id]||(elements[id]={
  id,innerHTML:'',textContent:'',scrollTop:0,value:'ssd',hidden:true,dataset:{},
  style:{setProperty(){}},classList:{add(){},remove(){},toggle(){}},
- addEventListener(){},querySelector(){return null},querySelectorAll(){return []},
+ addEventListener(type,fn){this.events??={};this.events[type]=fn;},
+ querySelector(){return null},querySelectorAll(){return []},
  getBoundingClientRect(){return {left:0,top:0,width:1200,height:600};}
 });
 const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
@@ -27,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -589,3 +590,46 @@ assert.equal(g.game.pendingSataLatent,false);
 assert.equal(g.game.pendingSataRepair,false);
 assert.equal(g.getExport().incidentSimulation.incidents[0].resolvedBy,'storage_removed');
 console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustitución');
+
+// 8.9: mini-juego RAM opcional: orientación, acercamiento y presión a dos lados.
+g.start('office');
+assert.equal(g.getExport().ramPrecision.enabled,false);
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('ram','ddr5_16');g.select('ram:ddr5_16');
+assert.equal(g.toggleRamPrecision(),true);
+const ramFit=g.perform('fit');
+assert.equal(ramFit.status,'success','Colocar DIMM sin asentar es válido');
+assert.equal(l.s.installed.ram,true);assert.equal(l.s.ramSeated,false);
+assert(g.ramPrecisionState(),'Debe abrirse el minijuego');
+const beforeRamMistake=g.getExport().simulatedTime.technical;
+const firstRamAttempt=g.ramPrecisionStep('present');
+assert.equal(firstRamAttempt.ok,false);
+assert.equal(g.getExport().simulatedTime.technical,beforeRamMistake+.8,
+  'Los intentos fallidos de destreza consumen tiempo aunque no monten');
+if(g.ramPrecisionState().reversed)g.ramPrecisionStep('flip');
+const ramInput=(id,value)=>get('adventurePanel').events.input({target:{id,value:String(value)}});
+ramInput('advRamAlign',0);ramInput('advRamApproach',100);
+assert.equal(g.ramPrecisionStep('present').code,'aligned');
+ramInput('advRamLeft',66);ramInput('advRamRight',95);
+assert.equal(g.ramPrecisionStep('press').code,'too_strong');
+assert.equal(l.s.ramSeated,false,'Nunca asentar con presión excesiva');
+ramInput('advRamRight',66);
+assert.equal(g.ramPrecisionStep('press').code,'perfect_seat');
+assert.equal(l.s.ramSeated,true);
+assert.equal(g.ramPrecisionState(),null);
+assert.equal(g.getExport().ramPrecision.attempts.length,3);
+assert.equal(g.getExport().ramPrecision.attempts.at(-1).code,'perfect_seat');
+// El modo clásico sigue funcionando al desactivar el prototipo.
+g.start('office');
+assert.equal(g.getExport().ramPrecision.enabled,false);
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('ram','ddr5_16');fit('ram:ddr5_16');
+assert.equal(g.ramPrecisionState(),null);
+assert.equal(l.s.ramSeated,false);
+assert.equal(g.perform('fit').status,'success');
+assert.equal(l.s.ramSeated,true);
+console.log('8.9 RAM precisión OK: orientación, acercamiento, dos presiones, tiempo y modo clásico');
