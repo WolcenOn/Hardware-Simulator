@@ -28,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -660,3 +660,63 @@ assert.equal(l.s.ramSeated,false);
 assert.equal(g.perform('fit').status,'success');
 assert.equal(l.s.ramSeated,true);
 console.log('8.9.1 RAM popup OK: osciladores, retrabajo, 3D y modo clásico');
+
+
+// 8.10 — minijuego de atornillado sobre el visor, sin gasto prematuro.
+assert(html.includes('id="screwPrecisionPopup"'));
+assert(html.includes('screwPrecision.js?v=8-10-0-screw-mini'));
+assert(html.includes('if(details.screwPractice)data.screwPractice=details.screwPractice'));
+g.start('office');
+assert.equal(g.getExport().screwPractice.enabled,true);
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+g.select('motherboard:b650');
+const withoutDriver=g.perform('screw');
+assert.equal(withoutDriver.status,'rejected','No abrir sin herramientas');
+assert.equal(get('screwPrecisionPopup').hidden,true);
+buy('item','screwdriver');buy('item','screws');
+g.select('motherboard:b650');
+const screwsBefore=g.game.stock['item:screws'];
+const opsBefore=g.operationSummary().history.length;
+const minutesBefore=g.getExport().simulatedTime.technical;
+assert.equal(g.perform('screw'),null,'La accion debe abrir popup, no fijar aun');
+assert.equal(get('screwPrecisionPopup').hidden,false);
+assert.equal(l.s.fixings.motherboard,false);
+assert.equal(g.game.stock['item:screws'],screwsBefore,'No gastar al abrir');
+assert(get('screwPrecisionPopup').innerHTML.includes('screw-alignment-board'));
+g.screwMove(90,90);
+assert.equal(g.screwTurn(1).code,'not_engaged');
+assert.equal(g.screwPracticeState().depth,0,'Giro en falso no hace avanzar');
+assert(Math.abs(g.getExport().simulatedTime.technical-minutesBefore-.2)<.000001);
+g.screwMove(50,50);
+for(let i=1;i<10;i++){
+  const step=g.screwTurn(1);
+  assert.equal(step.depth,i*10);
+  assert.equal(l.s.fixings.motherboard,false,'No fijar antes del 100%');
+}
+assert.equal(g.screwTurn(1).complete,true);
+assert.equal(l.s.fixings.motherboard,true);
+assert.equal(g.game.stock['item:screws'],screwsBefore-1,'Gastar solo un tornillo');
+assert.equal(g.operationSummary().history.length,opsBefore+1,
+ 'Registrar una sola operacion tecnica al finalizar');
+assert.equal(get('screwPrecisionPopup').hidden,true);
+assert.equal(g.getExport().screwPractice.attempts.length,11);
+// Reiniciar el encargo y cancelar: nunca se modifica la fijacion.
+g.start('office');buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('item','screwdriver');buy('item','screws');
+g.select('motherboard:b650');
+assert.equal(g.perform('screw'),null);
+const beforeCancel=g.game.stock['item:screws'];
+get('screwPrecisionPopup').events.click({target:{
+ closest(){return {hasAttribute:name=>name==='data-screw-cancel',dataset:{}}}
+}});
+assert.equal(get('screwPrecisionPopup').hidden,true);
+assert.equal(g.game.stock['item:screws'],beforeCancel);
+assert.equal(l.s.fixings.motherboard,false);
+assert.equal(g.toggleScrewPractice(),false);
+assert.equal(g.perform('screw').status,'success','Modo clasico sigue disponible');
+assert.equal(l.s.fixings.motherboard,true);
+console.log('8.10 tornillos OK: giro en falso, rueda, profundidad, cancelacion, modo clasico');

@@ -872,3 +872,47 @@ test('8.9.1 RAM: popup en el visor 3D y captura de marcadores oscilantes',async 
   await popup.locator('[data-ram-cancel]').first().evaluate(el=>el.click());
   expect(await page.evaluate(()=>state.ramSeated)).toBe(false);
 });
+
+
+test('8.10 tornillos: arrastrar sobre agujero y rueda hace avanzar la profundidad',async ({page})=>{
+  test.setTimeout(210_000);
+  await openGame(page);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'item','screwdriver');await buy(page,'item','screws');
+  await openSection(page,'inventory');
+  await page.locator('[data-select-item="motherboard:b650"]').first().evaluate(el=>el.click());
+  await openSection(page,'actions');
+  await page.locator('[data-suggest="screw"]').first().evaluate(el=>el.click());
+  const popup=page.locator('#screwPrecisionPopup');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('[role="dialog"]')).toBeVisible();
+  const board=popup.locator('.screw-alignment-board');
+  await expect(board).toBeVisible();
+  const initial=await page.evaluate(()=>adventureGame.screwPracticeState());
+  expect(initial.depth).toBe(0);
+  const screws=await page.evaluate(()=>adventureGame.game.stock['item:screws']);
+  // Mover de verdad el ratón: pointer capture y rueda sobre el área 3D.
+  const headBox=await popup.locator('[data-screw-head]').boundingBox();
+  expect(headBox).not.toBeNull();
+  await page.mouse.move(headBox.x+headBox.width/2,headBox.y+headBox.height/2);
+  await page.mouse.down();
+  await page.mouse.move(box.x+box.width*.88,box.y+box.height*.88,{steps:5});
+  await page.mouse.up();
+  await page.mouse.wheel(0,100);
+  expect(await page.evaluate(()=>adventureGame.screwPracticeState().depth)).toBe(0);
+  await expect(popup.locator('#screwFeedback')).toContainText('Giro en falso');
+  const movedHead=await popup.locator('[data-screw-head]').boundingBox();
+  await page.mouse.move(movedHead.x+movedHead.width/2,movedHead.y+movedHead.height/2);
+  await page.mouse.down();
+  await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5,{steps:5});
+  await page.mouse.up();
+  for(let i=0;i<10;i++)await page.mouse.wheel(0,100);
+  await expect(popup).toBeHidden();
+  expect(await page.evaluate(()=>state.fixings.motherboard)).toBe(true);
+  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(screws-1);
+  const attempts=await page.evaluate(()=>adventureGame.getExport().screwPractice.attempts);
+  expect(attempts[0].code).toBe('not_engaged');
+  expect(attempts.at(-1).code).toBe('seated');
+});

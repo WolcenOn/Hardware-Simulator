@@ -28,8 +28,10 @@ jobs:
           node --check js/operationEngine.js
           node --check js/mishapEngine.js
           node --check js/ramPrecision.js
+          node --check js/screwPrecision.js
           node --check tests/mishaps.test.mjs
           node --check tests/ramPrecision.test.mjs
+          node --check tests/screwPrecision.test.mjs
           node --check tests/operations.test.mjs
           node --check tests/time.test.mjs
       - name: Run operation and time unit tests
