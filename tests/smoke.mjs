@@ -883,16 +883,31 @@ function prepareThermalTest(){
   buy('item','screwdriver');buy('item','screws');
   g.select('cooler:air');
   assert.equal(g.perform('screw'),null);
-  assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'));
+  const screwMarkup=get('screwPrecisionPopup').innerHTML;
+  assert(screwMarkup.includes('thermalSpreadCells'));
+  assert(screwMarkup.includes('Pasta térmica · EN DIRECTO'));
+  assert(screwMarkup.indexOf('thermal-spread-panel')<screwMarkup.indexOf('screw-anchor-map'),
+    'Mapa de pasta en la cabecera, antes del área de tornillos');
+  assert(screwMarkup.includes('thermalCoverageBar'));
 }
 prepareThermalTest();
 const clickHole=n=>get('screwPrecisionPopup').events.click({
   target:{closest:()=>({hasAttribute:()=>false,dataset:{screwHole:String(n)}})}
 });
+let beforeLive=g.getExport().thermalPaste.spread.coverage;
 for(let depth=10;depth<=100;depth+=10){
   for(const corner of [0,3,1,2]){
     clickHole(corner);g.screwMove(50,50);
     assert.equal(g.screwTurn(1).depth,depth);
+    if(depth===10&&corner===0){
+      const during=g.getExport().thermalPaste.spread;
+      assert(during.coverage>beforeLive,
+        'La cobertura cambia tras el PRIMER giro, no al cerrar los cuatro');
+      assert.equal(during.screws[0],10);
+      assert.equal(l.s.fixings.cooler,false,'El cooler todavía no está fijado');
+      assert.equal(g.getExport().thermalPaste.review,null,
+        'El resultado final todavía no se ha calculado');
+    }
   }
 }
 const balancedPaste=g.getExport().thermalPaste.review;
@@ -969,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.12.2'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.12.3'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);

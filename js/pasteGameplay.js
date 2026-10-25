@@ -116,34 +116,119 @@ function create({popup,onConfirm,onCancel}){
   }
   return Object.freeze({open,close,tick,pump,pointer,confirm,getState:()=>session?.getState()||null});
 }
-function spreadMarkup(model){
-  if(!model)return '';
-  const s=model.getState();
-  return '<div class="thermal-spread-panel">'+
-    '<p><strong>Pasta bajo el disipador</strong> · cuatro zonas de presión</p>'+
-    '<svg id="thermalSpreadMap" viewBox="-20 -20 140 140" aria-label="Expansión de la pasta por presión">'+
-    '<rect x="0" y="0" width="100" height="100" fill="#758e95" stroke="#d8e8e4"/>'+
-    '<g id="thermalSpreadCells">'+cellsMarkup(s.cells)+'</g>'+
-    '<rect x="0" y="0" width="100" height="100" fill="none" stroke="#e5f6f2" stroke-width="1.5"/></svg>'+
-    '<div class="thermal-spread-numbers">'+
-    '<span>Cobertura: <b id="thermalCoverage">'+s.coverage+'%</b></span>'+
-    '<span>Rebose: <b id="thermalOverflow">'+s.overflow+'%</b></span>'+
-    '<span>Desequilibrio máximo: <b id="thermalImbalance">'+s.peakImbalance+'%</b></span>'+
-    '</div><small>Simulación educativa de difusión; no modela propiedades térmicas exactas.</small></div>';
+// El mapa se mantiene visible durante el apriete y utiliza los mismos
+// elementos SVG entre giros: CSS puede interpolar cada cambio de opacidad.
+const CORNERS=[[25,25],[75,25],[25,75],[75,75]];
+const svgNS='http://www.w3.org/2000/svg';
+function cellKey(p){return Math.round(p.x*1000)+':'+Math.round(p.y*1000);}
+function cellOpacity(mass){
+  return Math.max(.11,Math.min(.98,Math.sqrt(mass/.002)*.9)).toFixed(3);
 }
 function cellsMarkup(cells){
-  return cells.map(p=>'<rect x="'+(p.x*100).toFixed(1)+'" y="'+(p.y*100).toFixed(1)+
-    '" width="3.9" height="3.9" fill="#c7ebf2" opacity="'+
-    Math.min(.98,Math.max(.12,p.mass*700)).toFixed(2)+'"/>').join('');
+  return cells.map(p=>'<rect class="thermal-cell" data-thermal-cell="'+cellKey(p)+
+    '" x="'+(p.x*100).toFixed(1)+'" y="'+(p.y*100).toFixed(1)+
+    '" width="3.9" height="3.9" style="opacity:'+cellOpacity(p.mass)+'"/>').join('');
 }
-function updateSpread(popup,model){
-  if(!popup||!model)return;
+function cornersMarkup(s,activeIndex){
+  return CORNERS.map(([x,y],i)=>{
+    const active=i===activeIndex;
+    return '<g class="thermal-corner'+(active?' active':'')+'" data-thermal-corner="'+i+'">'+
+      '<circle cx="'+x+'" cy="'+y+'" r="10" class="thermal-corner-halo"/>'+
+      '<circle cx="'+x+'" cy="'+y+'" r="7.6" class="thermal-corner-disc"/>'+
+      '<text x="'+x+'" y="'+(y-1.3)+'" text-anchor="middle" class="thermal-corner-number">'+
+      (i+1)+'</text>'+
+      '<text x="'+x+'" y="'+(y+5.8)+'" text-anchor="middle" class="thermal-corner-depth" '+
+      'data-thermal-depth="'+i+'">'+s.screws[i]+'%</text></g>';
+  }).join('');
+}
+function spreadMarkup(model,activeIndex=0){
+  if(!model)return '';
+  const s=model.getState();
+  return '<div class="thermal-spread-panel thermal-live" role="region" '+
+    'aria-label="Pasta térmica expandiéndose en directo durante los tornillos">'+
+    '<div class="thermal-spread-heading">'+
+      '<strong><span class="thermal-live-dot">●</span> Pasta térmica · EN DIRECTO</strong>'+
+      '<span id="thermalTurnInfo">Tornillo '+(activeIndex+1)+' · '+s.screws[activeIndex]+'%</span>'+
+    '</div>'+
+    '<div class="thermal-spread-layout">'+
+      '<svg id="thermalSpreadMap" viewBox="-22 -22 144 144" '+
+        'aria-label="Pasta extendiéndose según la presión de los cuatro tornillos">'+
+        '<defs><filter id="thermalPasteSoft" x="-8%" y="-8%" width="116%" height="116%">'+
+          '<feGaussianBlur stdDeviation=".28"/></filter></defs>'+
+        '<rect x="-18" y="-18" width="136" height="136" rx="10" class="thermal-chip-frame"/>'+
+        '<rect x="0" y="0" width="100" height="100" class="thermal-chip-face"/>'+
+        '<g id="thermalSpreadCells" filter="url(#thermalPasteSoft)">'+cellsMarkup(s.cells)+'</g>'+
+        '<rect x="0" y="0" width="100" height="100" class="thermal-chip-edge"/>'+
+        '<g id="thermalCornerMarkers">'+cornersMarkup(s,activeIndex)+'</g>'+
+      '</svg>'+
+      '<div class="thermal-spread-readings" aria-live="polite" aria-atomic="false">'+
+        '<div><span>Cobertura actual</span><strong id="thermalCoverage">'+s.coverage+'%</strong>'+
+          '<div class="thermal-meter-track"><div id="thermalCoverageBar" class="thermal-meter-fill" '+
+          'style="width:'+s.coverage+'%"></div></div></div>'+
+        '<div><span>Rebose</span><strong id="thermalOverflow">'+s.overflow+'%</strong></div>'+
+        '<div><span>Desnivel máx.</span><strong id="thermalImbalance">'+s.peakImbalance+'%</strong></div>'+
+      '</div>'+
+    '</div>'+
+    '<small>La pasta clara se mueve con cada giro. Alterna los tornillos '+
+    'para repartir la presión de forma gradual. Modelo didáctico.</small>'+
+  '</div>';
+}
+function updateSpread(popup,model,activeIndex=0){
+  if(!popup||!model)return null;
   const s=model.getState(),cells=popup.querySelector('#thermalSpreadCells');
-  if(cells)cells.innerHTML=cellsMarkup(s.cells);
-  for(const [id,value]of [['thermalCoverage',s.coverage+'%'],
-    ['thermalOverflow',s.overflow+'%'],['thermalImbalance',s.peakImbalance+'%']]){
-    const node=popup.querySelector('#'+id);if(node)node.textContent=value;
+  if(cells){
+    const existing=new Map(Array.from(cells.querySelectorAll('[data-thermal-cell]'),
+      node=>[node.getAttribute('data-thermal-cell'),node]));
+    const keys=new Set(),added=[];
+    let canAppend=!!cells.ownerDocument?.createElementNS;
+    for(const p of s.cells){
+      const key=cellKey(p);keys.add(key);
+      const opacity=cellOpacity(p.mass);
+      const node=existing.get(key);
+      if(node){
+        node.style.opacity=opacity;
+      }else if(canAppend){
+        const fresh=cells.ownerDocument.createElementNS(svgNS,'rect');
+        fresh.setAttribute('class','thermal-cell');
+        fresh.setAttribute('data-thermal-cell',key);
+        fresh.setAttribute('x',(p.x*100).toFixed(1));
+        fresh.setAttribute('y',(p.y*100).toFixed(1));
+        fresh.setAttribute('width','3.9');
+        fresh.setAttribute('height','3.9');
+        fresh.style.opacity='0';
+        cells.appendChild(fresh);
+        added.push([fresh,opacity]);
+      }
+    }
+    if(!canAppend)cells.innerHTML=cellsMarkup(s.cells);
+    else {
+      for(const [key,node] of existing)if(!keys.has(key))node.style.opacity='0';
+      // Dos frames separan inserción y cambio de opacidad; con ello,
+      // las celdas recién ocupadas aparecen de forma fluida, no de golpe.
+      const reveal=()=>added.forEach(([node,opacity])=>{node.style.opacity=opacity;});
+      if(root.requestAnimationFrame){
+        root.requestAnimationFrame(()=>root.requestAnimationFrame(reveal));
+      }else reveal();
+    }
   }
+  for(const [id,value] of [
+    ['thermalCoverage',s.coverage+'%'],
+    ['thermalOverflow',s.overflow+'%'],
+    ['thermalImbalance',s.peakImbalance+'%'],
+    ['thermalTurnInfo','Tornillo '+(activeIndex+1)+' · '+s.screws[activeIndex]+'%']
+  ]){
+    const node=popup.querySelector('#'+id);
+    if(node)node.textContent=value;
+  }
+  const meter=popup.querySelector('#thermalCoverageBar');
+  if(meter)meter.style.width=s.coverage+'%';
+  for(let i=0;i<4;i++){
+    const marker=popup.querySelector('[data-thermal-corner="'+i+'"]');
+    marker?.classList?.toggle('active',i===activeIndex);
+    const depth=popup.querySelector('[data-thermal-depth="'+i+'"]');
+    if(depth)depth.textContent=s.screws[i]+'%';
+  }
+  return {coverage:s.coverage,overflow:s.overflow,activeIndex,screws:s.screws};
 }
 root.PC_PASTE_UI=Object.freeze({create,spreadMarkup,updateSpread});
 })(typeof window!=='undefined'?window:globalThis);

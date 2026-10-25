@@ -37,6 +37,7 @@ jobs:
           node --check tests/screwPrecision.test.mjs
           node --check tests/cpuPrecision.test.mjs
           node --check tests/thermalPaste.test.mjs
+          node --check tests/thermalPasteUI.test.mjs
           node --check tests/operations.test.mjs
           node --check tests/time.test.mjs
       - name: Run operation and time unit tests

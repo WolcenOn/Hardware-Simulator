@@ -1052,11 +1052,39 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.12.2');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.12.3');
+  const live=screws.locator('.thermal-live');
+  await expect(live).toBeVisible();
+  await expect(live).toContainText('EN DIRECTO');
   const initial=await page.evaluate(()=>adventureGame.getExport().thermalPaste.spread.coverage);
+  const firstRectCount=await screws.locator('#thermalSpreadCells rect').count();
+  // Un único giro válido, sin completar NINGÚN tornillo, ya expande la pasta
+  // y modifica visualmente el porcentaje, la barra y la silueta SVG.
+  await page.evaluate(()=>{adventureGame.screwMove(50,50);adventureGame.screwTurn(1)});
+  const afterOne=await page.evaluate(()=>adventureGame.getExport().thermalPaste.spread.coverage);
+  expect(afterOne).toBeGreaterThan(initial);
+  await expect(screws.locator('#thermalCoverage')).toHaveText(afterOne+'%');
+  await expect(screws.locator('#thermalCoverageBar')).toHaveAttribute('style',new RegExp(afterOne+'%'));
+  expect(await screws.locator('#thermalSpreadCells rect').count()).toBeGreaterThan(firstRectCount);
+  await expect(screws.locator('[data-thermal-depth="0"]')).toHaveText('10%');
+  expect(await page.evaluate(()=>state.fixings.cooler)).toBe(false);
+  expect(await page.evaluate(()=>adventureGame.getExport().thermalPaste.review)).toBe(null);
+  // Desplazarse hacia la zona donde se gira el tornillo NO debe esconder
+  // la visualización pegajosa que permanece arriba del mismo popup.
+  const pinned=await page.evaluate(()=>{
+    const dialog=document.querySelector('#screwPrecisionPopup .has-thermal-spread');
+    dialog.scrollTop=dialog.scrollHeight;
+    const bounds=dialog.getBoundingClientRect();
+    const live=dialog.querySelector('.thermal-live').getBoundingClientRect();
+    return {top:live.top,parentTop:bounds.top,bottom:live.bottom,parentBottom:bounds.bottom};
+  });
+  expect(pinned.top).toBeGreaterThanOrEqual(pinned.parentTop-2);
+  expect(pinned.bottom).toBeLessThanOrEqual(pinned.parentBottom+2);
   await page.evaluate(()=>{
     for(let depth=10;depth<=100;depth+=10){
       for(const corner of [0,3,1,2]){
+        // La primera esquina ya tiene un giro (10 %) de la prueba en directo.
+        if(depth===10&&corner===0)continue;
         const item=document.querySelector('[data-screw-hole="'+corner+'"]');
         item?.click();
         adventureGame.screwMove(50,50);
