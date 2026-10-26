@@ -1014,4 +1014,22 @@ assert.equal(g.game.selected,'cooler:air',
   'El disipador instalado se recupera sin requerir stock en inventario');
 assert.equal(g.game.awaitingCoolerTools,false);
 assert.equal(g.getExport().thermalPaste.application.status,'ready');
+// 8.12.4: distribución compacta visible sin superponer el mapa de pasta
+// a la alineación del tornillo. La geometría real se prueba en Playwright.
+const compactScrew=get('screwPrecisionPopup').innerHTML;
+assert(compactScrew.includes('cooler-screw-layout'),
+  'El disipador tiene una única cuadrícula compacta');
+assert(compactScrew.includes('cooler-pressure-column'));
+assert(compactScrew.includes('cooler-tool-column'));
+assert(compactScrew.indexOf('cooler-pressure-column')<
+  compactScrew.indexOf('screw-anchor-map'));
+assert(compactScrew.indexOf('screw-anchor-map')<
+  compactScrew.indexOf('cooler-tool-column'));
+assert(compactScrew.includes('Pasta térmica · EN DIRECTO'));
+assert(html.includes('.screw-precision-dialog.has-thermal-spread{'));
+assert(html.includes('grid-template-rows:auto minmax(0,1fr) auto'));
+assert(html.includes('height:min(600px,100%)'));
+assert(html.includes('position:static;top:auto;z-index:auto'),
+  'El monitor ya no es sticky y no tapa la alineación');
+console.log('8.12.4: ficha compacta dividida en dos columnas sin sticky');
 console.log('8.12.2: el minijuego se abre al encajar y se reanuda tras adquirir material');

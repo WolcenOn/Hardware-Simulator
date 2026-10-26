@@ -1134,6 +1134,49 @@ test('8.12.2 el disipador abre el minijuego al encajarlo con herramientas dispon
   await page.locator('[data-suggest="fit"]').first().evaluate(el=>el.click());
   await expect(page.locator('#screwPrecisionPopup')).toBeVisible();
   await expect(page.locator('#thermalSpreadMap')).toBeVisible();
+  // 8.12.4: comprobar superposición/scroll y contenido completo
+  // en móviles estrechos, tablet y escritorio; conservar las pruebas
+  // funcionales después de restaurar el viewport original.
+  const originalViewport=page.viewportSize();
+  for(const width of [320,360,650,850]){
+    await page.setViewportSize({width,height:780});
+    const sizes=await page.evaluate(()=>{
+      const popup=document.querySelector('#screwPrecisionPopup');
+      const dialog=popup.querySelector('.has-thermal-spread');
+      const main=dialog.querySelector('.cooler-screw-layout');
+      const left=main.querySelector('.cooler-pressure-column');
+      const right=main.querySelector('.cooler-tool-column');
+      const live=left.querySelector('.thermal-live');
+      const anchors=left.querySelector('.screw-anchor-map');
+      const board=right.querySelector('.screw-alignment-board');
+      const controls=right.querySelector('.screw-fallback-controls');
+      const footer=dialog.querySelector('footer');
+      const rect=node=>node.getBoundingClientRect();
+      return {
+        popupScroll:popup.scrollHeight-popup.clientHeight,
+        dialogScroll:dialog.scrollHeight-dialog.clientHeight,
+        leftScroll:left.scrollHeight-left.clientHeight,
+        rightScroll:right.scrollHeight-right.clientHeight,
+        columnsSeparated:rect(left).right<=rect(right).left+1,
+        pasteAboveAnchors:rect(live).bottom<=rect(anchors).top+1,
+        boardAboveButtons:rect(board).bottom<=rect(controls).top+1,
+        buttonsAboveFooter:rect(controls).bottom<=rect(footer).top+1,
+        footerInside:rect(footer).bottom<=rect(dialog).bottom+2,
+        noSticky:getComputedStyle(live).position==='static'
+      };
+    });
+    expect(sizes.dialogScroll,'Ficha no debe desplazarse a '+width+'px').toBeLessThanOrEqual(2);
+    expect(sizes.popupScroll,'Popup sin desplazamiento a '+width+'px').toBeLessThanOrEqual(2);
+    expect(sizes.leftScroll,'Columna izquierda completa a '+width+'px').toBeLessThanOrEqual(2);
+    expect(sizes.rightScroll,'Columna derecha completa a '+width+'px').toBeLessThanOrEqual(2);
+    expect(sizes.columnsSeparated).toBe(true);
+    expect(sizes.pasteAboveAnchors).toBe(true);
+    expect(sizes.boardAboveButtons).toBe(true);
+    expect(sizes.buttonsAboveFooter).toBe(true);
+    expect(sizes.footerInside).toBe(true);
+    expect(sizes.noSticky).toBe(true);
+  }
+  if(originalViewport)await page.setViewportSize(originalViewport);
   expect(await page.evaluate(()=>state.installed.cooler)).toBe(true);
   expect(await page.evaluate(()=>state.fixings.cooler)).toBe(false);
   await page.locator('#screwPrecisionPopup [data-screw-cancel]').first().evaluate(el=>el.click());
