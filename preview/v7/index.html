@@ -551,13 +551,114 @@ body.adventure-on #resetBtn{display:none!important}
   .thermal-live-dot,.thermal-corner.active .thermal-corner-halo{animation:none}
   .thermal-cell,.thermal-meter-fill{transition:none}
 }
+
+/* 8.12.4 — disipador compacto de dos columnas, sin scroll ni superposición. */
+.screw-precision-dialog.has-thermal-spread{
+  box-sizing:border-box;width:min(860px,100%);height:min(600px,100%);
+  max-height:100%;overflow:hidden;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  gap:.32rem;padding:clamp(.35rem,1.2vw,.65rem);
+}
+.screw-precision-dialog.has-thermal-spread header{min-width:0;align-items:center}
+.screw-precision-dialog.has-thermal-spread header h3{font-size:.95rem;margin:0}
+.screw-precision-dialog.has-thermal-spread header small{font-size:.68rem}
+.screw-precision-dialog.has-thermal-spread header button{min-height:30px;min-width:36px}
+.cooler-screw-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);
+  gap:.55rem;min-width:0;min-height:0;overflow:hidden}
+.cooler-pressure-column,.cooler-tool-column{display:flex;flex-direction:column;
+  gap:.3rem;min-height:0;min-width:0;overflow:hidden}
+.screw-precision-dialog.has-thermal-spread .thermal-live{
+  position:static;top:auto;z-index:auto;flex:0 1 auto;
+  min-height:0;box-shadow:none;padding:.3rem .4rem;
+  border-width:1px;margin:0;
+}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-heading{
+  font-size:.7rem;gap:.2rem;flex-wrap:wrap}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-layout{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.25rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-layout svg{
+  height:clamp(108px,19vh,152px);width:min(100%,156px);max-height:none}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings{gap:.2rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div{
+  padding:.16rem .26rem;gap:.15rem;min-width:0}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings span{font-size:.62rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings strong{font-size:.9rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div:first-child strong{font-size:1.18rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{
+  font-size:.64rem;line-height:1.2;margin:0}
+.screw-precision-dialog.has-thermal-spread .screw-anchor-map{
+  flex:1 1 95px;min-height:95px;height:auto;max-height:none}
+.screw-precision-dialog.has-thermal-spread .screw-anchor{width:28px;height:28px;min-height:28px}
+.cooler-screw-count{font-size:.72rem!important;line-height:1.15}
+.cooler-screw-tip{font-size:.72rem!important;line-height:1.2}
+.screw-precision-dialog.has-thermal-spread .screw-alignment-board{
+  flex:1 1 122px;min-height:85px;max-height:none;height:auto}
+.screw-precision-dialog.has-thermal-spread .screw-alignment-status{
+  font-size:.72rem!important;line-height:1.14;min-height:0}
+.screw-precision-dialog.has-thermal-spread .screw-depth-top{font-size:.74rem}
+.screw-precision-dialog.has-thermal-spread .screw-depth-track{height:17px;flex:none}
+.screw-precision-dialog.has-thermal-spread #screwFeedback{
+  font-size:.73rem;line-height:1.2;min-height:0}
+.screw-precision-dialog.has-thermal-spread .screw-fallback-controls{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem}
+.screw-precision-dialog.has-thermal-spread .screw-fallback-controls button{
+  min-height:31px;padding:.25rem .3rem;font-size:.76rem}
+.screw-precision-dialog.has-thermal-spread footer{
+  flex:none;display:flex;flex-wrap:nowrap;gap:.3rem;
+  font-size:.67rem;line-height:1.2;padding-top:.25rem;min-width:0}
+.screw-precision-dialog.has-thermal-spread footer span{min-width:0}
+.screw-precision-dialog.has-thermal-spread footer button{
+  flex:none;min-height:30px;padding:.24rem .45rem;font-size:.72rem}
+/* El resumen también debe ocupar una sola vista. */
+.screw-precision-dialog:has([data-cooler-finish]){
+  width:min(690px,100%);max-height:100%;overflow:hidden;
+  display:flex;flex-direction:column;gap:.35rem}
+.screw-precision-dialog:has([data-cooler-finish]) .thermal-live{
+  position:static;box-shadow:none;flex:1 1 auto;min-height:0;overflow:hidden}
+@media(max-width:650px){
+ .screw-precision-popup:has(.has-thermal-spread){align-items:center;overflow:hidden}
+ .screw-precision-dialog.has-thermal-spread{height:min(620px,100%);gap:.22rem;padding:.32rem}
+ .cooler-screw-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.3rem}
+ .cooler-pressure-column,.cooler-tool-column{gap:.19rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-live{padding:.2rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-heading{font-size:.62rem;gap:0}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-layout{
+   grid-template-columns:minmax(0,1fr);gap:.1rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-layout svg{
+   width:min(100%,113px);height:103px}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings{gap:.08rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div{
+   padding:.06rem .2rem;gap:.1rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings span{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings strong{font-size:.72rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div:first-child strong{font-size:.86rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-meter-track{height:5px}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread .screw-anchor-map{min-height:91px;flex:1 1 90px}
+ .screw-precision-dialog.has-thermal-spread .screw-anchor{width:25px;height:25px;min-height:25px}
+ .screw-precision-dialog.has-thermal-spread .screw-alignment-board{min-height:88px;flex:1 1 108px}
+ .screw-precision-dialog.has-thermal-spread .screw-hole{width:34px;height:34px}
+ .screw-precision-dialog.has-thermal-spread .screw-head{width:36px;height:36px}
+ .cooler-screw-count,.cooler-screw-tip{font-size:.64rem!important}
+ .screw-precision-dialog.has-thermal-spread .screw-alignment-status,
+ .screw-precision-dialog.has-thermal-spread #screwFeedback{font-size:.66rem!important}
+ .screw-precision-dialog.has-thermal-spread .screw-depth-top{font-size:.66rem}
+ .screw-precision-dialog.has-thermal-spread .screw-depth-track{height:13px}
+ .screw-precision-dialog.has-thermal-spread .screw-fallback-controls button{font-size:.68rem}
+ .screw-precision-dialog.has-thermal-spread footer{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread footer button{font-size:.65rem}
+}
+@media(max-width:370px){
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{display:none}
+ .screw-precision-dialog.has-thermal-spread footer span{font-size:.53rem}
+}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.12.3-alpha: pasta térmica en directo al apretar</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.12.4-alpha: panel compacto de pasta y tornillos</h1></div><div class="actions"><button id="adventureBtn" class="primary">Tienda y encargos</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <details id="teacherTools" class="panel teacher-tools"><summary><strong>Herramientas docentes · Caso práctico JSON</strong></summary>
 <p>El profesor puede redactar un encargo y su presupuesto, descargarlo en JSON o importar uno para resolverlo en «Tienda y encargos».</p>
 <div class="teacher-fields">
@@ -591,7 +692,7 @@ body.adventure-on #resetBtn{display:none!important}
 <div class="issue" id="peripheralStatus">Teclado, ratón y monitor sin conectar.</div><div class="title"><h2>Ficha técnica</h2><span id="selectedPartName">—</span></div><div id="specPanel"></div></section>
 <section><div class="panel"><div class="title"><h2 id="modeLabel">Modo montaje guiado</h2><span>monitor + BIOS</span></div><div class="actions"><button id="autoBuild" class="okbtn">Montaje recomendado (demo)</button><button id="powerBtn" class="primary">Encender PC</button><button id="biosBtn" class="warnbtn" title="Enciende el PC y abre UEFI si supera POST">Encender y entrar BIOS</button></div><div id="workshopFeedback" class="workshopFeedback" role="status" aria-live="polite">En un encargo, compra y conecta las piezas antes de encender. «Montaje recomendado» abre una demostración técnica independiente.</div></div><div class="panel" style="margin-top:1rem"><div id="resourceAlert" class="resourceAlert" role="status" aria-live="polite" hidden></div><div id="viewportWrap" class="viewportWrap"><canvas id="viewport"></canvas><div id="ramPrecisionPopup" class="ram-precision-popup" hidden></div><div id="screwPrecisionPopup" class="screw-precision-popup" hidden></div><div id="cpuPrecisionPopup" class="cpu-precision-popup" hidden></div><div id="pastePrecisionPopup" class="paste-precision-popup" hidden></div><div id="sceneHoverTip" class="sceneHoverTip" role="tooltip" hidden></div><aside id="partContextMenu" class="partContextMenu" role="dialog" aria-label="Acciones de pieza 3D" hidden></aside><aside id="partSpecSheet" class="partSpecSheet" role="dialog" aria-label="Ficha técnica de componente" hidden></aside><div id="fallback" class="fallback"></div><div class="hint">Dos mesas: selecciona las piezas compradas · rueda para zoom</div><div class="sceneActions"><button id="viewDesk" data-camera-view="general" aria-pressed="true">Vista general</button><button id="viewAssemblyDesk" data-camera-view="assembly" aria-pressed="false">Mesa de montaje</button><button id="viewStaging3d" data-camera-view="staging" aria-pressed="false">Mesa de piezas</button><button id="viewPeripherals" data-camera-view="peripherals" aria-pressed="false">Periféricos</button><button id="stagePrev" title="Página anterior de piezas">◀</button><span id="stageCount" class="stageCounter">Mesa 1/1</span><button id="stageNext" title="Página siguiente de piezas">▶</button><button id="viewMonitor3d" data-camera-view="monitor" aria-pressed="false">Monitor 3D</button><button id="viewIso" data-camera-view="tower" aria-pressed="false">Vista torre</button><button id="viewTop" data-camera-view="side" aria-pressed="false">Lateral</button><button id="viewRearCables" data-camera-view="rear" aria-pressed="false">Trasera / cables</button><button id="viewDriveBays" data-camera-view="drives" aria-pressed="false" title="Inspeccionar bahías: vista con cubierta de PSU oculta">Bahías HDD / SSD</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom -</button><button id="explodeBtn">Expandir</button></div></div><div class="monitor"><div class="monitorTop"><strong id="monitorTitle">Monitor virtual</strong><span><i id="ledPower" class="light"></i><i id="ledPost" class="light"></i><i id="ledBoot" class="light"></i></span></div><div id="biosPanel" class="biosPanel"><div class="title"><h2>BIOS/UEFI simulada</h2><span>configurable</span></div><div class="biosGrid"><div class="field"><label>Boot #1</label><select id="biosBoot"><option value="ssd">SSD/NVMe del sistema</option><option value="pxe">PXE Network</option><option value="usb">USB instalador</option></select></div><div class="field"><label>Modo SATA</label><select id="biosSata"><option value="AHCI">AHCI</option><option value="RAID">RAID</option><option value="IDE">IDE legado</option></select></div><div class="field"><label>Perfil memoria</label><select id="biosXmp"><option value="Auto">Auto/JEDEC</option><option value="EXPO">EXPO/XMP estable</option><option value="Aggressive">OC agresivo</option></select></div><div class="field"><label>Curva ventilador CPU</label><select id="biosFan"><option value="Balanced">Balanced</option><option value="Silent">Silent</option><option value="Performance">Performance</option></select></div><div class="field"><label>PCIe GPU</label><select id="biosPcie"><option value="Auto">Auto</option><option value="Gen4">Forzar Gen4</option><option value="Gen5">Forzar Gen5 only</option></select></div><div class="field"><label>Secure Boot</label><select id="biosSecure"><option value="on">Activado</option><option value="off">Desactivado</option></select></div><div class="field"><label>Firmware</label><select id="biosUefi"><option value="on">UEFI</option><option value="off">Legacy / CSM</option></select></div></div><div class="actions" style="margin-top:.7rem"><button id="saveBios" class="okbtn">Guardar BIOS</button><button id="biosDefaults" class="warnbtn">Valores seguros</button></div></div><div id="osPanel" class="osPanel" aria-label="Arranque e instalación ficticios"><div class="title"><h2>Arranque e instalación ficticia</h2><span>USB / disco / SO</span></div><div class="field"><label for="osUsbImage">Imagen del USB</label><select id="osUsbImage"><option value="none">Sin imagen de arranque</option><option value="novadesk">NovaDesk 11 · UEFI y Secure Boot</option><option value="libreforge">LibreForge · Entorno libre</option><option value="terminalis">Terminalis · Consola educativa</option></select></div><div class="actions"><button id="osUsbToggle">Conectar USB instalador</button><button id="osInstallBtn" class="okbtn">Instalar SO en el disco</button></div><p class="osHelp">En encargos, compra y prepara una memoria en la tienda y conéctala desde «Preparar y conectar USB» del panel lateral. En la demo técnica puedes elegir la imagen directamente. No se modifica ningún disco real.</p><div id="osStatus" class="issue" role="status" aria-live="polite">No se ha configurado un medio de arranque.</div></div><div id="screen" class="screen"></div><div class="meters"><div class="meter"><span>CPU <b id="cpuLoadText">0%</b></span><div class="bar"><i id="cpuBar"></i></div></div><div class="meter"><span>GPU <b id="gpuLoadText">0%</b></span><div class="bar"><i id="gpuBar"></i></div></div><div class="meter"><span>PSU <b id="psuLoadText">0%</b></span><div class="bar"><i id="psuBar"></i></div></div><div class="meter"><span>Temp <b id="tempLoadText">35°C</b></span><div class="bar"><i id="tempBar"></i></div></div></div></div></div></section>
 <aside class="panel"><div class="title"><h2>Inspector IA</h2><span>diagnóstico</span></div><div class="status"><div><span>Alim.</span><strong id="powerStatus">Apagado</strong></div><div><span>POST</span><strong id="postStatus">Pendiente</strong></div><div><span>Boot</span><strong id="bootStatus">Pendiente</strong></div><div><span>Watts</span><strong id="wattsStatus">0 W</strong></div><div><span>CPU</span><strong id="tempStatus">35 °C</strong></div><div><span>Compat.</span><strong id="compatStatus">—</strong></div></div><h3>Conectores y reglas</h3><div id="compatPanel"></div><h3>Consumo por componente</h3><div id="powerBreakdown" role="status"></div><h3>Banco de errores</h3><select id="faultSelect"></select><div class="tools"><button id="injectFault" class="warnbtn">Inyectar</button><button id="randomFault" class="warnbtn">Aleatorio</button></div><div id="activeFaults"></div><h3>Correcciones</h3><div class="tools" id="fixButtons"></div><h3>Herramientas</h3><div class="tools"><button data-tool="visual">Inspección</button><button data-tool="beep">Pitidos</button><button data-tool="multimeter">Multímetro</button><button data-tool="smart">SMART</button><button data-tool="stress">Test estrés</button><button data-tool="bios">BIOS</button></div><h3>Bitácora</h3><ol id="eventLog"></ol></aside>
-</main><p class="foot">Versión 8.12.3-alpha: distribución de pasta visible y animada durante cada giro; apriete equilibrado por esquinas.</p>
+</main><p class="foot">Versión 8.12.4-alpha: pasta y tornillos en dos columnas, sin superposición ni desplazamiento del popup.</p>
 <script src="./js/hardwareExpansion.js?v=8-4-1-gameplay-e2e"></script>
 <script src="./js/osEmulation.js?v=8-5-0-os-emulator"></script>
 <script src="./js/classroom.js?v=8-6-0-classroom"></script>
@@ -603,7 +704,7 @@ body.adventure-on #resetBtn{display:none!important}
 <script src="./js/thermalPaste.js?v=8-12-0-paste-pressure"></script>
 <script src="./js/pasteGameplay.js?v=8-12-3-live-spread"></script>
 <script src="./js/operationEngine.js?v=8-8-2-latent-sata"></script>
-<script src="./js/adventureMode.js?v=8-12-3-live-spread"></script>
+<script src="./js/adventureMode.js?v=8-12-4-compact-cooler"></script>
 <script src="./js/partInspector.js?v=8-4-4-front-io"></script>
 <script>
 const $=id=>document.getElementById(id);

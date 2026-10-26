@@ -838,16 +838,24 @@ function createAdventureGame(api){
       '" role="dialog" aria-modal="true" aria-label="Minijuego de atornillado">'+
       '<header><div><small>TALLER 3D · FIJACIÓN</small><h3>Atornillar '+safe(label(...st.target.split(':')))+
       '</h3></div><button type="button" data-screw-cancel aria-label="Cerrar atornillado">✕</button></header>'+
-      // Situar el monitor de pasta ARRIBA, visible durante la interacción:
-      // la sección pegajosa permanece visible al desplazarse hacia el tornillo.
-      (st.target.startsWith('cooler:')?root.PC_PASTE_UI.spreadMarkup(pasteSpread,screwHoleIndex):'')+
-      '<p>Fijaciones de '+safe(label(...st.target.split(':')))+': <b>'+
-      progress.completed.length+'/'+holes.length+'</b> tornillos fijados. '+
-      'Tornillos disponibles: '+stock('item:screws')+'.</p>'+
+      // En el disipador los cuatro tornillos y la pasta comparten un
+      // tablero de dos columnas: nada flotante, pegajoso ni superpuesto.
+      (st.target.startsWith('cooler:')&&pasteSpread?
+        '<div class="cooler-screw-layout"><div class="cooler-pressure-column">'+
+        root.PC_PASTE_UI.spreadMarkup(pasteSpread,screwHoleIndex):'')+
+      (st.target.startsWith('cooler:')&&pasteSpread?'':'<p>Fijaciones de '+
+        safe(label(...st.target.split(':')))+': <b>'+progress.completed.length+
+        '/'+holes.length+'</b> tornillos fijados. Tornillos disponibles: '+
+        stock('item:screws')+'.</p>')+
       '<div class="screw-anchor-map" role="group" aria-label="Puntos de anclaje del componente">'+
       '<div class="screw-part-outline"></div>'+anchors+'</div>'+
-      '<p>Selecciona un agujero libre. Arrastra el tornillo hacia su centro '+
-      'y gira la rueda hacia abajo para enroscar.</p>'+
+      (st.target.startsWith('cooler:')&&pasteSpread?
+        '</div><div class="cooler-tool-column">'+
+        '<p class="cooler-screw-count"><b>'+progress.completed.length+'/'+holes.length+
+        '</b> fijados · '+stock('item:screws')+' tornillos disponibles</p>'+
+        '<p class="cooler-screw-tip">Elige esquina, centra el tornillo y gira la rueda.</p>':
+        '<p>Selecciona un agujero libre. Arrastra el tornillo hacia su centro '+
+        'y gira la rueda hacia abajo para enroscar.</p>')+
       '<div class="screw-alignment-board" aria-label="Área para alinear el tornillo">'+
       '<div class="screw-hole" aria-hidden="true"><span>+</span></div>'+
       '<div class="screw-head" data-screw-head role="button" tabindex="0" '+
@@ -864,6 +872,7 @@ function createAdventureGame(api){
       '<button type="button" data-screw-turn="1">Enroscar ↻</button>'+
       '<button type="button" data-screw-turn="-1">Aflojar ↺</button>'+
       '</div>'+
+      (st.target.startsWith('cooler:')&&pasteSpread?'</div></div>':'')+
       '<footer><span>Giro en falso: +0,2 min virtuales · sin gasto de tornillo</span>'+
       '<button type="button" data-screw-cancel>Cancelar práctica</button></footer>'+
       '</section>';
@@ -2099,7 +2108,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.3</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.4</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
       section('mission','Encargo y progreso',mission)+
       usbTools+
