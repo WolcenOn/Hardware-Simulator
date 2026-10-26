@@ -12,18 +12,26 @@ async function openSection(page, name) {
   await expect(details).toHaveAttribute('open', '');
 }
 
-async function buy(page, category, id) {
-  await openSection(page, 'shop');
-  const categoryControl=page.locator('#advShopCategory');
-  await categoryControl.selectOption(category);
-  await expect(categoryControl).toHaveValue(category);
-  const button=page.locator(`[data-buy="${category}:${id}"]`);
+async function openStore(page,category='case'){
+  await page.locator('#storeBtn').evaluate(el=>el.click());
+  const store=page.locator('#adventureStorePage');
+  await expect(store).toBeVisible();
+  await store.locator('[data-store-category="'+category+'"]').evaluate(el=>el.click());
+  await expect(store.locator('#advShopCategory')).toHaveValue(category);
+  return store;
+}
+async function buy(page,category,id){
+  const store=await openStore(page,category);
+  const button=store.locator('[data-store-buy="'+category+':'+id+'"]').first();
   await expect(button).toBeVisible();
   await expect(button).toBeEnabled();
-  // El renderizador WebGL puede mover la caja del botón entre actionability checks.
-  // Validamos visible/habilitado y ejecutamos el mismo click DOM real del handler.
   await button.evaluate(el=>el.click());
-  await expect(page.locator('#adventurePanel')).toContainText('Comprado:');
+  // Comprar el último material de un disipador pendiente puede devolver
+  // automáticamente al montaje y abrir el minijuego de tornillos.
+  if(await store.isVisible()){
+    await expect(store).toContainText('Comprado:');
+    await store.locator('[data-store-back]').evaluate(el=>el.click());
+  }
 }
 
 async function fit(page, item) {
@@ -104,17 +112,17 @@ test('teclado y ratón se conectan y desconectan desde accesos directos', async 
 
 test('el catálogo ofrece refrigeración líquida, RGB y varios colores de caja', async ({ page }) => {
   await openGame(page);
-  await openSection(page,'shop');
-  await page.locator('#advShopCategory').selectOption('cooler');
-  await expect(page.locator('[data-buy="cooler:aio240"]')).toBeVisible();
-  await expect(page.locator('[data-buy="cooler:aio360"]')).toBeVisible();
-  await page.locator('#advShopCategory').selectOption('case');
-  await expect(page.locator('[data-buy="case:towerWhite"]')).toBeVisible();
-  await expect(page.locator('[data-buy="case:towerGraphite"]')).toBeVisible();
-  await page.locator('#advShopCategory').selectOption('motherboard');
-  await expect(page.locator('[data-buy="motherboard:x670e"]')).toBeVisible();
-  await page.locator('#advShopCategory').selectOption('item');
-  await expect(page.locator('[data-buy="item:rgbStrip"]')).toBeVisible();
+  let store=await openStore(page,'cooler');
+  await expect(store.locator('[data-store-buy="cooler:aio240"]')).toBeVisible();
+  await expect(store.locator('[data-store-buy="cooler:aio360"]')).toBeVisible();
+  store=await openStore(page,'case');
+  await expect(store.locator('[data-store-buy="case:towerWhite"]')).toBeVisible();
+  await expect(store.locator('[data-store-buy="case:towerGraphite"]')).toBeVisible();
+  store=await openStore(page,'motherboard');
+  await expect(store.locator('[data-store-buy="motherboard:x670e"]')).toBeVisible();
+  store=await openStore(page,'item');
+  await expect(store.locator('[data-store-buy="item:rgbStrip"]')).toBeVisible();
+  await store.locator('[data-store-back]').evaluate(el=>el.click());
 });
 
 test('el panel lateral conserva las cajas y selectores dentro de su ancho', async ({ page }) => {
@@ -543,13 +551,13 @@ test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco inst
 test('USB de tienda: preparar y conectar a USB-A real',async ({page})=>{
   test.setTimeout(210_000);
   await openGame(page);
-  await openSection(page,'shop');
-  await page.locator('#advShopCategory').selectOption('item');
+  const store=await openStore(page,'item');
   for(const id of ['osusb','usbNova','usbLibre','usbTerminal'])
-    await expect(page.locator('[data-buy="item:'+id+'"]').first()).toBeVisible();
-  await expect(page.locator('[data-buy="item:usbNova"]').first().locator('..')).toContainText('39');
-  await expect(page.locator('[data-buy="item:usbLibre"]').first().locator('..')).toContainText('24');
-  await expect(page.locator('[data-buy="item:usbTerminal"]').first().locator('..')).toContainText('19');
+    await expect(store.locator('[data-store-buy="item:'+id+'"]').first()).toBeVisible();
+  for(const [id,price] of [['usbNova','39'],['usbLibre','24'],['usbTerminal','19']])
+    await expect(store.locator('[data-store-buy="item:'+id+'"]').first()
+      .locator('..')).toContainText(price);
+  await store.locator('[data-store-back]').evaluate(el=>el.click());
   await buy(page,'case','tower');await fit(page,'case:tower');
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
@@ -1035,9 +1043,9 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   expect(await page.evaluate(()=>state.paste)).toBe(1);
   // Regresión 8.12.1: la pasta acabada no debe dejar al usuario
   // atrapado con el consumible gastado ni esconder la colocación del disipador.
+  await expect(page.locator('#adventureStorePage')).toBeVisible();
   await expect(page.locator('#advShopCategory')).toHaveValue('cooler');
-  await expect(page.locator('#adventurePanel [data-section="shop"]')).toHaveAttribute('open','');
-  await expect(page.locator('[data-thermal-next]')).toBeVisible();
+  await expect(page.locator('[data-thermal-next]')).toHaveCount(1);
   await buy(page,'cooler','air');
   await expect(page.locator('#adventurePanel [data-section="actions"]')).toHaveAttribute('open','');
   await expect(page.locator('[data-suggest="fit"]:not([disabled])')).toBeVisible();
@@ -1052,7 +1060,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.12.3');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.13.0');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1184,4 +1192,32 @@ test('8.12.2 el disipador abre el minijuego al encajarlo con herramientas dispon
   await expect(page.locator('[data-cooler-start]')).toBeVisible();
   await page.locator('[data-cooler-start]').first().evaluate(el=>el.click());
   await expect(page.locator('#screwPrecisionPopup')).toBeVisible();
+});
+
+test('8.13 la tienda es una pantalla independiente con fichas previas y vendedor de consumibles', async ({page})=>{
+  await openGame(page);
+  const store=await openStore(page,'cpu');
+  await expect(store.locator('.store-categories button')).toHaveCount(9);
+  await expect(store.locator('.store-seller')).toContainText('Vendedor');
+  await expect(store.locator('.store-seller')).toContainText('tornillos');
+  await store.locator('[data-store-info="cpu:r7600"]').evaluate(el=>el.click());
+  await expect(store.locator('#storeDetail')).toContainText('Zócalo');
+  await expect(store.locator('#storeDetail')).toContainText('AM5');
+  await expect(store.locator('#storeDetail')).toContainText('Comprueba tú mismo');
+  await expect(store.locator('#storeDetail')).not.toContainText('Es compatible con tu placa');
+  await openStore(page,'case');
+  await store.locator('[data-store-buy="case:tower"]').evaluate(el=>el.click());
+  await expect(store.locator('#storeStatus')).toContainText('Comprado:');
+  const stateInShop=await page.evaluate(()=>({
+    spent:adventureGame.game.spent,
+    units:adventureGame.game.stock['case:tower']
+  }));
+  await store.locator('[data-store-back]').evaluate(el=>el.click());
+  await expect(page.locator('#adventurePanel')).toBeVisible();
+  expect(await page.evaluate(()=>adventureGame.game.stock['case:tower']))
+    .toBe(stateInShop.units);
+  expect(await page.evaluate(()=>adventureGame.game.spent))
+    .toBe(stateInShop.spent);
+  await openSection(page,'inventory');
+  await expect(page.locator('[data-select-item="case:tower"]')).toBeVisible();
 });

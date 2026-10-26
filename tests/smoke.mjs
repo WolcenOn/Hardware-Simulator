@@ -984,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.12.3'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.13.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1033,3 +1033,58 @@ assert(html.includes('position:static;top:auto;z-index:auto'),
   'El monitor ya no es sticky y no tapa la alineación');
 console.log('8.12.4: ficha compacta dividida en dos columnas sin sticky');
 console.log('8.12.2: el minijuego se abre al encajar y se reanuda tras adquirir material');
+
+
+// 8.13.0: tienda independiente con compras compartidas con el taller.
+g.start('office');
+assert.equal(g.openStore(),true);
+const storeHTML=get('adventureStorePage').innerHTML;
+assert(storeHTML.includes('Tienda de componentes'));
+assert(storeHTML.includes('data-store-category="motherboard"'));
+assert(storeHTML.includes('data-store-category="cpu"'));
+assert(storeHTML.includes('data-store-category="item"'));
+assert(storeHTML.includes('data-store-info="case:tower"'));
+assert(storeHTML.includes('data-store-buy="case:tower"'));
+assert(storeHTML.includes('Álex · Vendedor de la tienda'));
+assert(storeHTML.includes('¿Me falta material?'));
+assert(!storeHTML.includes('Este procesador es incompatible'));
+assert(!get('adventurePanel').innerHTML.includes('data-buy="case:tower"'),
+  'No se debe comprar en el panel lateral');
+assert(get('adventurePanel').innerHTML.includes('data-open-store'));
+const facts=g.storeFacts('cpu','r7600');
+assert(facts.some(([key,value])=>key==='Zócalo'&&value==='AM5'),
+  'Ficha de procesador accesible ANTES de comprarlo');
+const boardFacts=g.storeFacts('motherboard','b650');
+assert(boardFacts.some(([key,value])=>key==='Memoria compatible declarada'&&value==='DDR5'));
+const coolerFacts=g.storeFacts('cooler','aio240');
+assert(coolerFacts.some(([key,value])=>key==='Dimensiones'&&value.includes('240')),
+  'La ficha previa del disipador debe indicar sus dimensiones declaradas');
+const hints=g.sellerMessages().map(row=>row.join(' ').toLowerCase());
+assert(hints.some(h=>h.includes('tornillos')),'El vendedor recuerda tornillos');
+assert(hints.some(h=>h.includes('destornillador')),'El vendedor recuerda herramientas');
+assert(!hints.some(h=>h.includes('am5')||h.includes('ddr5')||h.includes('incompatible')),
+  'El vendedor no resuelve compatibilidades a los alumnos');
+const beforePurchase=g.game.spent;
+const storeClick=get('adventureStorePage').events.click;
+storeClick({target:{closest:()=>({
+  dataset:{storeInfo:'cpu:r7600'},hasAttribute:()=>false
+})}});
+assert(get('adventureStorePage').innerHTML.includes('Zócalo'));
+assert(get('adventureStorePage').innerHTML.includes('Comprueba tú mismo'));
+storeClick({target:{closest:()=>({
+  dataset:{storeBuy:'case:tower'},hasAttribute:()=>false
+})}});
+assert.equal(g.game.stock['case:tower'],1);
+assert(g.game.spent>beforePurchase);
+assert(get('adventureStorePage').innerHTML.includes('En inventario: 1'));
+assert.equal(g.closeStore(),true);
+assert.equal(g.game.stock['case:tower'],1,'La compra continúa disponible tras salir de la tienda');
+g.select('case:tower');
+assert.equal(g.perform('fit').status,'success');
+assert.equal(l.s.installed.case,true);
+g.openStore('item');
+assert.equal(g.game.shopCategory,'item');
+assert(get('adventureStorePage').innerHTML.includes('data-store-buy="item:paste"'));
+g.setStoreCategory('cpu');
+assert(get('adventureStorePage').innerHTML.includes('data-store-buy="cpu:r7600"'));
+console.log('8.13: tienda independiente, fichas previas, vendedor y presupuesto verificados');

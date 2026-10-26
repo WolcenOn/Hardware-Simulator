@@ -57,6 +57,38 @@ const LABELS={
 const CATEGORIES={case:'Caja',motherboard:'Placa',cpu:'CPU',ram:'RAM',
   cooler:'Disipador',storage:'Disco',gpu:'GPU',psu:'Fuente',
   item:'Herramientas y accesorios'};
+const SHOP_ICONS={case:'🖥️',motherboard:'🧩',cpu:'⚙️',ram:'📏',
+  cooler:'❄️',storage:'💾',gpu:'🎮',psu:'🔌',item:'🧰'};
+// Datos técnicos didácticos ya usados por las fichas del visor 3D.
+// La tienda muestra estos datos, sin calcular la compatibilidad.
+const STORE_SPECIAL={
+  'case:tower':{sizeMm:'453 × 230 × 466 mm',desc:'Torre ATX negra con PSU inferior.'},
+  'case:towerWhite':{sizeMm:'453 × 230 × 466 mm',desc:'Misma torre en acabado blanco.'},
+  'case:towerGraphite':{sizeMm:'453 × 230 × 466 mm',desc:'Misma torre con pintura grafito.'},
+  'cooler:stock':{sizeMm:'90 × 90 × 55 mm',desc:'Ventilador de serie; menos margen térmico.'},
+  'cooler:twinTower':{sizeMm:'140 × 125 × 160 mm',desc:'Dos bloques de aletas de aluminio.'},
+  'cooler:aio240':{sizeMm:'240 × 120 mm',desc:'Radiador doble, bomba y tubos; requiere CPU_FAN.'},
+  'cooler:aio360':{sizeMm:'360 × 120 mm',desc:'Radiador triple y bomba; requiere CPU_FAN.'},
+  'cooler:air':{desc:'Requiere pasta térmica y conexión CPU_FAN.'},
+  'item:paste':{desc:'Aplicar sobre la CPU antes de fijar el disipador.'},
+  'item:rgbStrip':{desc:'Instalar en chasis abierto, apagado.'},
+  'item:screws':{desc:'Se consumen al fijar componentes instalados.'},
+  'item:screwdriver':{desc:'Herramienta reutilizable de montaje.'},
+  'item:ioShield':{desc:'Debe colocarse antes de instalar la placa.'},
+  'item:sataCable':{interface:'SATA',desc:'Datos desde placa al disco SATA.'},
+  'item:hdmi':{desc:'Conecta la salida de vídeo elegida al monitor.'},
+  'item:fan':{sizeMm:'120 mm',desc:'Requiere conexión SYS_FAN.'},
+  'item:osusb':{desc:'Instalador de sistema; requiere Boot #1 USB en BIOS.'},
+  'item:keyboard':{desc:'Necesario para la BIOS y la instalación.'},
+  'item:mouse':{desc:'Dispositivo de entrada USB.'}
+};
+const SHOP_FIELDS={socket:'Zócalo',chipset:'Chipset',ram:'Memoria compatible declarada',
+  type:'Tipo',sizeMm:'Dimensiones',interface:'Interfaz',peak:'Consumo máximo indicado (W)',
+  watts:'Consumo indicado (W)',igpu:'Gráficos integrados',capacity:'Capacidad',
+  capacityGb:'Capacidad (GB)',memory:'Memoria',vram:'Memoria gráfica',
+  power:'Potencia',wattage:'Potencia (W)',efficiency:'Eficiencia',
+  formFactor:'Formato',format:'Formato',pins:'Conectores',slots:'Ranuras / puertos',
+  size:'Tamaño',connectors:'Conexiones',tdp:'TDP indicado (W)',desc:'Descripción'};
 const CONNECTIONS=[
   ['atx24','Placa · ATX 24 pines'],['eps','CPU · EPS 8 pines'],
   ['frontpanel','Caja · POWER SW'],
@@ -282,6 +314,7 @@ function createAdventureGame(api){
       activeHole:screwSession?screwHoleIndex:null}};}
 
   const panel=api.document.getElementById('adventurePanel');
+  const storePage=api.document.getElementById('adventureStorePage');
   const ramPopup=api.document.getElementById('ramPrecisionPopup');
   const screwPopup=api.document.getElementById('screwPrecisionPopup');
   const pastePopup=api.document.getElementById('pastePrecisionPopup');
@@ -329,6 +362,7 @@ function createAdventureGame(api){
     }
     game.shopCategory='cooler';
     game.openSections=['shop','actions'];
+    openStore('cooler');
     message('Pasta preparada. Compra un disipador en Tienda → Disipador; después podrás encajarlo.','ok');
     return false;
   }
@@ -683,6 +717,7 @@ function createAdventureGame(api){
     if(missing.length){
       game.awaitingCoolerTools=true;
       game.shopCategory='item';
+      openStore('item');
       game.openSections=['shop','actions'];
       message('Disipador encajado. Para iniciar el minijuego de presión compra '+
         missing.join(' y ')+' en Tienda → Material; la práctica se abrirá al tenerlos.','warn');
@@ -978,10 +1013,11 @@ function createAdventureGame(api){
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
       thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
-      awaitingCoolerTools:false
+      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials'
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
+    api.document.body.classList.remove('adventure-store-on');
     message('Nuevo encargo: '+CASES[which].client+'. Compra componentes y herramientas antes de montar.','ok');
     api.render();
   }
@@ -1013,6 +1049,7 @@ function createAdventureGame(api){
     stopRamAnimation();ramPrecisionSession=null;ramCaptures={left:null,right:null};
     api.stage?.([], '');
     api.document.body.classList.remove('adventure-on');
+    api.document.body.classList.remove('adventure-store-on');
     const state=api.state();
     state.adventureMode=false;
     game=null;
@@ -1110,8 +1147,10 @@ function createAdventureGame(api){
     // disipador sin perderlo por haber cambiado la selección a «tornillos».
     if(game.awaitingCoolerTools&&
       (k==='item:screwdriver'||k==='item:screws')&&
-      owned('item:screwdriver')&&has('item:screws'))
+      owned('item:screwdriver')&&has('item:screws')){
+      closeStore();
       continueCoolerMount();
+    }
   }
   function prepareUsb(osId){
     if(!game)return false;
@@ -1730,20 +1769,164 @@ function createAdventureGame(api){
     message(ok?'¡Entrega aceptada por '+job.client+'!':
       'Entrega rechazada: hay '+checks.filter(x=>!x[1]).length+' requisitos sin cumplir.',ok?'ok':'warn');
   }
+  function storeFacts(cat,id){
+    const model=api.catalog[{
+      motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',
+      gpu:'gpus',psu:'psus',cooler:'coolers',case:'cases',
+      item:'items'}[cat]]?.[id]||STORE_SPECIAL[key(cat,id)]||{};
+    // Datos declarados por el catálogo, no veredicto de compatibilidad.
+    const facts=[];
+    function add(k,v){
+      if(v==null||v==='')return;
+      if(typeof v==='object'){
+        for(const [sub,val] of Object.entries(v)){
+          if(['string','number','boolean'].includes(typeof val))
+            facts.push([k+' · '+sub,String(val)]);
+        }
+      }else facts.push([SHOP_FIELDS[k]||k,typeof v==='boolean'?(v?'Sí':'No'):String(v)]);
+    }
+    for(const [k,v]of Object.entries(model))
+      if(!['name','id','image','icon','compatibility','compatible'].includes(k))add(k,v);
+    if(cat==='item'&&id==='paste')facts.push(['Formato','1 aplicación de pasta térmica']);
+    if(cat==='item'&&id==='screws')facts.push(['Contenido','10 tornillos de montaje']);
+    if(cat==='item'&&id==='screwdriver')facts.push(['Herramienta','Destornillador para fijaciones']);
+    return facts;
+  }
+  function sellerMessages(){
+    const st=api.state(),tips=[];
+    const have=k=>owned('item:'+k);
+    if(!have('screwdriver'))
+      tips.push(['🪛','¿Tienes destornillador?','Lo necesitarás para algunas fijaciones.']);
+    if(!has('item:screws'))
+      tips.push(['🔩','Revisa los tornillos','Hay componentes que necesitan varias fijaciones.']);
+    if((st.installed.cpu||owned('cpu:r7600')||Object.keys(game.stock).some(k=>k.startsWith('cpu:')))&&
+      !has('item:paste')&&!st.paste)
+      tips.push(['🧴','No olvides la pasta térmica','Suele utilizarse antes de colocar el disipador.']);
+    if(st.installed.motherboard&&!st.ioShield&&!have('ioShield'))
+      tips.push(['🛡️','Revisa la chapa I/O','¿La has preparado para el montaje?']);
+    if(st.installed.storage&&String(st.selected.storage||'').toLowerCase().includes('sata')&&
+      !have('sataCable'))
+      tips.push(['🔗','¿Tienes cable SATA?','Revisa también el cableado de alimentación.']);
+    if(!tips.length)tips.push(['✅','Material básico previsto',
+      'Revisa las fichas de cada componente antes de comprar.']);
+    return tips.slice(0,4);
+  }
+  function storeProductCards(){
+    const query=(game.storeQuery||'').trim().toLocaleLowerCase('es');
+    const entries=(OFFERS[game.shopCategory]||[]).filter(([id])=>
+      !query||label(game.shopCategory,id).toLocaleLowerCase('es').includes(query)||
+      id.toLocaleLowerCase('es').includes(query));
+    if(!entries.length)return '<p class="store-empty">No hay productos con ese nombre en esta categoría.</p>';
+    return entries.map(([id,cost])=>{
+      const cat=game.shopCategory,k=key(cat,id),facts=storeFacts(cat,id),
+        available=stock(k),affordable=cost<=game.budget-game.spent;
+      return '<article class="store-product">'+
+        '<div class="store-product-icon" aria-hidden="true">'+SHOP_ICONS[cat]+'</div>'+
+        '<div class="store-product-main"><h3>'+safe(label(cat,id))+'</h3>'+
+        '<p>'+safe(CATEGORIES[cat])+'</p>'+
+        (facts.length?'<small>'+safe(facts.slice(0,2).map(([a,b])=>a+': '+b).join(' · '))+'</small>':
+        '<small>Abre la ficha para examinar los datos disponibles.</small>')+
+        (available?'<span class="store-owned">En inventario: '+available+'</span>':'')+
+        '</div><div class="store-product-actions">'+
+        '<strong class="store-price">'+format(cost)+'</strong>'+
+        '<button type="button" data-store-info="'+safe(k)+'">Ficha técnica</button>'+
+        '<button type="button" class="primary" data-store-buy="'+safe(k)+'"'+
+        (affordable?'':' disabled')+'>Comprar</button></div></article>';
+    }).join('');
+  }
+  function storeDetailMarkup(){
+    if(!game.storeInfo)return '<div class="store-detail-empty">'+
+      '<span aria-hidden="true">📋</span><h3>Ficha del componente</h3>'+
+      '<p>Selecciona «Ficha técnica» en un producto para consultar sus características antes de comprar.</p>'+
+      '<p>Compara por tu cuenta zócalo, dimensiones, tipo de memoria y conexiones.</p></div>';
+    const [cat,id]=game.storeInfo.split(':'),facts=storeFacts(cat,id),
+      title=label(cat,id),amount=price(cat,id);
+    return '<div class="store-detail-head"><span aria-hidden="true">'+SHOP_ICONS[cat]+'</span>'+
+      '<button type="button" data-store-close-info aria-label="Cerrar ficha">✕</button></div>'+
+      '<h3>'+safe(title)+'</h3>'+
+      '<p class="store-detail-price">'+format(amount)+'</p>'+
+      '<p class="store-facts-note">Datos del catálogo educativo. Comprueba tú mismo '+
+      'la compatibilidad con los demás componentes de tu equipo.</p>'+
+      (facts.length?'<dl class="store-facts">'+facts.map(([a,b])=>
+        '<div><dt>'+safe(a)+'</dt><dd>'+safe(b)+'</dd></div>').join('')+'</dl>':
+        '<p>No se han declarado especificaciones adicionales para este artículo.</p>')+
+      '<button type="button" class="primary" data-store-buy="'+safe(game.storeInfo)+'"'+
+      (amount>game.budget-game.spent?' disabled':'')+'>Comprar por '+format(amount)+'</button>';
+  }
+  function renderStore(){
+    if(!storePage)return;
+    if(!game){storePage.hidden=true;storePage.innerHTML='';return;}
+    storePage.hidden=false;
+    const remaining=game.budget-game.spent;
+    storePage.innerHTML='<div class="store-page-head"><div>'+
+      '<small>HARDWARE SIMULATOR · ALMACÉN DEL TALLER</small>'+
+      '<h2>🛒 Tienda de componentes</h2>'+
+      '<p>Compra con el presupuesto de tu encargo. Las compras aparecen en la mesa auxiliar del taller.</p>'+
+      '</div><div class="store-page-actions">'+
+      '<div class="store-money"><span>Presupuesto disponible</span><strong>'+format(remaining)+
+      '</strong><small>Gastado: '+format(game.spent)+' / '+format(game.budget)+'</small></div>'+
+      '<button type="button" class="primary" data-store-back>← Volver al taller</button></div></div>'+
+      '<nav class="store-categories" aria-label="Categorías de componentes">'+
+      Object.keys(OFFERS).map(cat=>
+        '<button type="button" data-store-category="'+cat+'" class="'+
+        (cat===game.shopCategory?'active':'')+'" aria-pressed="'+
+        (cat===game.shopCategory)+'"><span aria-hidden="true">'+SHOP_ICONS[cat]+'</span>'+
+        '<strong>'+safe(CATEGORIES[cat])+'</strong><small>'+OFFERS[cat].length+' productos</small></button>'
+      ).join('')+'</nav>'+
+      '<div class="store-content"><section class="store-catalogue">'+
+      '<div class="store-searchbar"><label for="advShopCategory">Departamento</label>'+
+      '<select id="advShopCategory">'+Object.keys(OFFERS).map(cat=>
+        '<option value="'+cat+'"'+(cat===game.shopCategory?' selected':'')+'>'+
+        safe(CATEGORIES[cat])+'</option>').join('')+'</select>'+
+      '<label for="storeSearch">Buscar</label><input id="storeSearch" type="search" '+
+      'placeholder="Nombre del componente..." value="'+safe(game.storeQuery)+'"></div>'+
+      '<div id="storeItems" class="store-products">'+storeProductCards()+'</div></section>'+
+      '<aside class="store-side"><section class="store-seller" aria-label="Vendedor virtual">'+
+      '<div class="store-seller-heading"><span aria-hidden="true">🧑‍💼</span>'+
+      '<div><strong>Álex · Vendedor de la tienda</strong>'+
+      '<small>Consejos de material, no soluciones</small></div></div>'+
+      '<p>«Te recuerdo herramientas y consumibles. Elegir componentes compatibles '+
+      'es parte de tu práctica».</p>'+
+      '<div class="store-seller-questions" role="group" aria-label="Preguntar al vendedor">'+
+      '<button type="button" data-seller-topic="materials" aria-pressed="'+
+      (game.sellerTopic!=='process')+'">¿Me falta material?</button>'+
+      '<button type="button" data-seller-topic="process" aria-pressed="'+
+      (game.sellerTopic==='process')+'">¿Cómo compro?</button></div>'+
+      (game.sellerTopic==='process'?
+        '<div class="store-seller-reply">«Abre la ficha técnica, compara las '+
+        'características con tus otras piezas y pulsa Comprar. Al regresar al '+
+        'taller verás lo adquirido en Inventario».</div>':
+        '<ul>'+sellerMessages().map(([icon,headline,body])=>
+          '<li><span aria-hidden="true">'+icon+'</span><div><strong>'+safe(headline)+
+          '</strong><small>'+safe(body)+'</small></div></li>').join('')+'</ul>')+
+      '</section><section class="store-detail" id="storeDetail" aria-label="Ficha previa a compra">'+
+      storeDetailMarkup()+'</section></aside></div>'+
+      '<p class="store-status" role="status" id="storeStatus">'+
+      safe(game.lastFeedback?.text||'Consulta las fichas y selecciona tus artículos.')+'</p>';
+  }
+  function openStore(category=null){
+    if(!game)return false;
+    if(category&&OFFERS[category])game.shopCategory=category;
+    game.storeInfo=null;game.storeQuery='';
+    api.document.body.classList.add('adventure-store-on');
+    renderStore();
+    return true;
+  }
+  function closeStore(){
+    api.document.body.classList.remove('adventure-store-on');
+    paint();
+    return true;
+  }
+  function setStoreCategory(category){
+    if(!game||!OFFERS[category])return false;
+    game.shopCategory=category;game.storeQuery='';game.storeInfo=null;
+    renderStore();return true;
+  }
   function shopMarkup(){
-    const cat=game.shopCategory;
-    const entries=OFFERS[cat]||[];
-    return '<label class="adventure-label">Departamento de la tienda</label>'+
-      '<select id="advShopCategory">'+Object.keys(OFFERS).map(k=>
-        '<option value="'+k+'"'+(k===cat?' selected':'')+'>'+safe(CATEGORIES[k])+'</option>').join('')+
-      '</select><div class="adv-list">'+entries.map(([id,cost])=>
-        '<div class="adv-card"><div><strong>'+safe(label(cat,id))+'</strong>'+
-        '<small>'+safe(cat==='item'?'Herramienta/consumible':CATEGORIES[cat])+'</small></div>'+
-        '<div class="adv-shop-opts"><button type="button" data-shop-info="'+
-        safe(key(cat,id))+'">Ficha</button>'+
-        '<button type="button" data-buy="'+safe(key(cat,id))+'"'+
-        (cost>game.budget-game.spent?' disabled':'')+'>'+
-        format(cost)+'</button></div></div>').join('')+'</div>';
+    return '<p class="muted">Todos los componentes, sus fichas y el vendedor '+
+      'están en la pantalla independiente de la tienda.</p>'+
+      '<button type="button" class="primary" data-open-store>'+
+      '🛒 Entrar en la tienda de componentes</button>';
   }
   function inventoryMarkup(){
     const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
@@ -2018,7 +2201,7 @@ function createAdventureGame(api){
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
       '<p class="adv-current">Selección: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguna')+'</b></p>'+
       exchangeMarkup();
-    const shop='<p class="muted">Compra una caja para empezar. Todos los precios son ficticios.</p>'+shopMarkup();
+    const shop=shopMarkup();
     const stActions=api.state();
     const peripherals=
       '<div class="adv-connectivity">'+
@@ -2108,8 +2291,9 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.12.4</span></div>'+
-      '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción.</p>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.13.0</span></div>'+
+      '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
+      '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
       usbTools+
       section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
@@ -2124,6 +2308,7 @@ function createAdventureGame(api){
     paintRamPopup();
     paintScrewPopup();
     paintCpuPopup();
+    renderStore();
   }
   // El inventario también se puede arrastrar hasta los anclajes verdes
   // del 3D. Nunca instala piezas que no se hayan comprado.
@@ -2288,6 +2473,7 @@ function createAdventureGame(api){
       return;
     }
     const button=event.target.closest('button');if(!button||!game)return;
+    if(button.hasAttribute('data-open-store')){openStore();return;}
     if(button.hasAttribute('data-ram-toggle')){toggleRamPrecision();return;}
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
@@ -2329,23 +2515,48 @@ function createAdventureGame(api){
     else if(button.hasAttribute('data-rear'))api.rearView();
     else if(button.hasAttribute('data-exit-mode'))exit();
   });
+  storePage?.addEventListener('click',event=>{
+    const button=event.target.closest('button');
+    if(!button||!game)return;
+    if(button.hasAttribute('data-store-back')){closeStore();return;}
+    if(button.dataset.sellerTopic){
+      if(['materials','process'].includes(button.dataset.sellerTopic)){
+        game.sellerTopic=button.dataset.sellerTopic;renderStore();
+      }
+      return;
+    }
+    if(button.dataset.storeCategory){setStoreCategory(button.dataset.storeCategory);return;}
+    if(button.hasAttribute('data-store-close-info')){
+      game.storeInfo=null;renderStore();return;
+    }
+    if(button.dataset.storeInfo){
+      const k=button.dataset.storeInfo;
+      if(!Object.hasOwn(OFFERS,k.split(':')[0])||
+        price(...k.split(':'))==null)return;
+      game.storeInfo=k;renderStore();
+      // En móvil la ficha va debajo del catálogo: traerla a la vista
+      // al pulsar «Ficha técnica» para que parezca una acción inmediata.
+      if(root.matchMedia?.('(max-width:850px)')?.matches)
+        storePage.querySelector('#storeDetail')?.scrollIntoView?.({block:'start'});
+      return;
+    }
+    if(button.dataset.storeBuy){
+      const [cat,id]=button.dataset.storeBuy.split(':');
+      if(price(cat,id)!=null)purchase(cat,id);
+    }
+  });
+  storePage?.addEventListener('change',event=>{
+    if(event.target.id==='advShopCategory')setStoreCategory(event.target.value);
+  });
+  storePage?.addEventListener('input',event=>{
+    if(!game||event.target.id!=='storeSearch')return;
+    game.storeQuery=event.target.value;
+    const results=storePage.querySelector('#storeItems');
+    if(results)results.innerHTML=storeProductCards();
+  });
   panel.addEventListener('change',event=>{
     if(!game)return;
-    if(event.target.id==='advShopCategory'){
-      // Conservar el <select> durante su propio evento change. Pintar de nuevo
-      // todo el panel lo destruía antes de que Playwright terminase selectOption,
-      // dejando categorías antiguas o botones de compra desaparecidos.
-      game.shopCategory=event.target.value;
-      const body=panel.querySelector('[data-section="shop"] .adv-accordion-body');
-      const previous=body?.querySelector('.adv-list');
-      if(previous){
-        const scratch=api.document.createElement('div');
-        scratch.innerHTML=shopMarkup();
-        const updated=scratch.querySelector('.adv-list');
-        if(updated)previous.replaceWith(updated);
-      }
-    }
-    else if(event.target.id==='advClient')start(event.target.value);
+    if(event.target.id==='advClient')start(event.target.value);
     else if(event.target.id==='advConnection'){game.connection=event.target.value;}
     else if(event.target.id==='advWorkSpeed')setSpeed(event.target.value);
     else if(event.target.id==='advRiskMode'){
@@ -2366,7 +2577,8 @@ function createAdventureGame(api){
       paint();
     }
   });
-  return {start,exit,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
+  return {start,exit,openStore,closeStore,setStoreCategory,renderStore,
+    storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
