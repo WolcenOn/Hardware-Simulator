@@ -1,0 +1,1716 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hardware Simulator | 3D AI PC Lab</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<style>
+:root{--ink:#edf6ff;--muted:#9bb0c9;--line:#2a405f;--cyan:#50e6ff;--green:#3df59f;--red:#ff5c77;--amber:#ffd166}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 12% 8%,#156dff38,transparent 28%),linear-gradient(135deg,#050914,#101827 60%,#06111f);color:var(--ink)}header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 2rem}h1{margin:.1rem 0;font-size:clamp(1.45rem,3vw,2.5rem)}.eyebrow{margin:0;color:var(--cyan);font-weight:900;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem}button,select{border:1px solid #5a7194;border-radius:13px;background:#0d1728;color:var(--ink);padding:.55rem .68rem;font-weight:800}button{cursor:pointer}.active,.primary{background:linear-gradient(135deg,#4964ff,#16c7e8)}.danger{background:#9b233d}.okbtn{background:#0c2a23}.warnbtn{background:#352811}.done{background:#123f31!important;color:#9cffd4!important;border-color:var(--green)!important}.layout{display:grid;grid-template-columns:minmax(260px,300px) minmax(0,1fr) minmax(280px,320px);gap:1rem;padding:0 2rem 2rem}.panel{background:#101a2cee;border:1px solid #324b6c;border-radius:24px;padding:1rem;box-shadow:0 20px 40px #0008}.title{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid #314865;padding-bottom:.65rem;margin-bottom:.85rem}.title h2{margin:0;font-size:1.1rem}.title span,.muted{color:var(--muted)}.actions,.tools{display:flex;flex-wrap:wrap;gap:.5rem}.tools{display:grid;grid-template-columns:1fr 1fr;margin:.55rem 0}.field{margin:.5rem 0}.field label{display:block;color:var(--muted);font-weight:900;font-size:.74rem;text-transform:uppercase;margin-bottom:.2rem}select{width:100%}.card{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;border:1px solid var(--line);border-radius:15px;background:#0c1628;padding:.55rem;margin:.45rem 0}.card.on{border-color:#2fba7f;background:#0b261f}.card.bad{border-color:#a84a56;background:#31131d}.card strong{display:block;font-size:.86rem}.card small{color:var(--muted)}.spec,.issue{border:1px solid var(--line);border-radius:14px;background:#0c1628;padding:.55rem;margin:.4rem 0;font-size:.82rem}.spec strong{display:block;color:var(--cyan)}.issue.ok{border-color:#267f5b;background:#09251d}.issue.warn{border-color:#a98332;background:#30260e}.issue.error{border-color:#9e4050;background:#30131d}.viewportWrap{position:relative;height:640px;border:1px solid #2d4566;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 25%,#1d355988,#050914);touch-action:none;user-select:none}.resourceAlert{margin:.6rem 0;padding:.65rem .8rem;background:#392112;border:1px solid #ce8752;border-radius:12px;color:#ffe0c2;font-size:.82rem;overflow-wrap:anywhere}
+.resourceAlert[hidden]{display:none}
+.actionNotice{margin:.5rem 0;padding:.55rem .7rem;border-radius:12px;border:1px solid #577691;background:#142539;color:#c4e6ff;font-size:.81rem}
+.actionNotice.warn{border-color:#a98332;background:#30260e;color:#ffe4a6}
+button:disabled{opacity:.53;cursor:not-allowed}
+.viewportWrap canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;touch-action:none}.fallback{position:absolute;inset:0;z-index:0;display:grid;place-items:center;pointer-events:none;padding:1rem}.hint,.sceneActions{position:absolute;z-index:2}.hint{left:.8rem;top:.8rem;background:#050914aa;border:1px solid #355174;border-radius:99px;padding:.35rem .55rem;font-size:.75rem;color:#bff7ff}.sceneActions{right:.8rem;top:.8rem;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}.monitor{margin-top:1rem;background:#050914;border:1px solid #31506f;border-radius:20px;padding:.85rem}.monitorTop{display:flex;justify-content:space-between;border-bottom:1px solid #203955;padding-bottom:.5rem;margin-bottom:.65rem}.light{display:inline-block;width:10px;height:10px;border-radius:50%;background:#374151;margin-left:.3rem}.light.on{background:var(--green);box-shadow:0 0 12px var(--green)}.screen{font-family:ui-monospace,monospace;color:#bfffea;font-size:.78rem;white-space:pre-wrap;line-height:1.42;min-height:170px}.osPanel{border:1px solid #274461;background:#091829;border-radius:16px;padding:.75rem;margin:.65rem 0}.osPanel .title{margin-bottom:.45rem}.osHelp{font-size:.74rem;color:var(--muted);line-height:1.5}.biosPanel{display:none;border:1px solid #274461;border-radius:16px;background:#071326;padding:.75rem;margin:.65rem 0}.biosGrid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}.biosGrid .field{margin:0}.meters{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.7rem}.meter{background:#091326;border:1px solid #203955;border-radius:13px;padding:.45rem}.meter span{display:flex;justify-content:space-between;color:var(--muted);font-size:.68rem;font-weight:900}.bar{height:9px;background:#111827;border-radius:99px;overflow:hidden;margin-top:.3rem}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));width:var(--w,0%)}.status{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}.status div{border:1px solid var(--line);border-radius:15px;background:#0c1628;padding:.6rem}.status span{display:block;color:var(--muted);font-size:.68rem;font-weight:900;text-transform:uppercase}.oktxt{color:var(--green)}.errtxt{color:var(--red)}.warntxt{color:var(--amber)}.tag{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:.25rem .45rem;margin:.15rem;background:#0c1628;font-size:.75rem}.tag.bad{border-color:#a84a56;background:#31131d}.tag.ok{border-color:#2fba7f;background:#0b261f}ol{max-height:210px;overflow:auto}.logok{color:var(--green)}.logwarn{color:var(--amber)}.logerror{color:var(--red)}.foot{text-align:center;color:var(--muted);padding:0 2rem 2rem}@media(max-width:1120px){.layout{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.viewportWrap{height:500px}.biosGrid{grid-template-columns:1fr}}
+.fan-config{display:grid;gap:.38rem;margin:.55rem 0}
+.fan-row{padding:.5rem;border:1px solid #365067;border-radius:.6rem;background:#10212b;display:grid;gap:.4rem}
+.fan-row small{color:#9cbbc6}
+.fan-row .tools{margin:.05rem 0}
+.card[data-drag-part]{cursor:grab}
+.card[data-drag-part]:active{cursor:grabbing}
+#dragHint{font-size:.79rem;line-height:1.5}
+
+#adventurePanel{display:none;align-self:start;position:sticky;top:12px;
+  max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-gutter:stable}
+.adv-accordion{border:1px solid #395673;border-radius:12px;margin:.5rem 0;
+  background:#0c1b2c;overflow:hidden}
+.adv-accordion>summary{cursor:pointer;list-style:none;display:flex;gap:.5rem;
+  align-items:center;justify-content:space-between;padding:.8rem;font-size:.86rem;
+  font-weight:850;user-select:none;position:relative}
+.adv-accordion>summary::before{content:"▸";color:#71d1f3;margin-right:.12rem}
+.adv-accordion[open]>summary::before{content:"▾"}
+.adv-accordion>summary::-webkit-details-marker{display:none}
+.adv-accordion>summary em{font-style:normal;border-radius:20px;
+  padding:.15rem .45rem;background:#203d4b;color:#a3f5ec;font-size:.7rem}
+.adv-accordion[open]>summary{background:#17364b;border-bottom:1px solid #355c70}
+.adv-accordion-body{padding:.55rem .66rem .85rem}
+.adv-stage-tip{background:#0d4037;color:#cafff0;border:1px solid #267d6d;
+  border-radius:10px;padding:.65rem;font-size:.8rem;line-height:1.45}
+.adv-guide{background:#23324a;border-left:3px solid #56cbd3;
+  border-radius:6px;padding:.7rem;font-size:.83rem;line-height:1.5}
+.stageCounter{display:inline-flex;align-items:center;padding:.3rem .55rem;background:#142e3b;border-radius:8px;font-weight:800;color:#bfeeea;font-size:.72rem;white-space:nowrap}
+.adv-suggestions{display:grid;gap:.45rem;margin:.5rem 0 1rem}
+.adv-suggest{display:block;width:100%;text-align:left;
+  background:#16443a;border-color:#3b907b}
+.adv-suggest b,.adv-suggest small{display:block}
+.adv-suggest small{color:#b2daca;font-size:.73rem;margin-top:.15rem}
+@media(max-width:1120px){
+  #adventurePanel{position:static;max-height:none;overflow:visible}
+}
+body.adventure-on #adventurePanel{display:block}
+body.adventure-on #legacyPanel,
+body.adventure-on #fixButtons,
+body.adventure-on #injectFault,
+body.adventure-on #randomFault,
+body.adventure-on #assemblyBtn,
+body.adventure-on #diagnosticBtn,
+body.adventure-on #resetBtn{display:none!important}
+.adv-usb-tools{margin:.65rem 0 1rem;padding:.7rem;border:1px solid #2c8b90;border-radius:14px;background:linear-gradient(135deg,#0b2730,#14203b)}.adv-usb-tools .tools{margin:.5rem 0}.adv-usb-tools button[data-connect-usb]{background:#125641;border-color:#2fbb89}.adv-usb-tools button[data-prepare-usb]{width:100%;margin-top:.4rem;background:#25435c}.adv-usb-tools button:disabled{opacity:.54;cursor:not-allowed}.adv-ledger{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;padding:.65rem;background:#0c2a2b;border:1px solid #27675b;border-radius:12px;margin:.6rem 0;font-size:.78rem}
+.adv-ledger span:last-child{grid-column:span 2;color:#a2ffd5}
+.adv-story{line-height:1.48;font-size:.85rem;color:#c9d9e5;background:#12253b;padding:.7rem;border-radius:12px}
+.adventure-label{display:block;margin:.6rem 0 .22rem;color:#9bd0d6;font-size:.75rem;font-weight:850}
+.adv-list{max-height:200px;overflow:auto;display:grid;gap:.4rem;margin:.6rem 0 1rem}
+.adv-card{display:flex;gap:.35rem;align-items:center;justify-content:space-between;padding:.48rem;background:#09182a;border:1px solid #34506b;border-radius:12px}
+.adv-card div{min-width:0;flex:1}.adv-card strong{display:block;font-size:.77rem}.adv-card small{color:#98b3c9;font-size:.7rem}
+.adv-card button{min-width:68px;font-size:.74rem}
+.adv-inventory-grid,.adv-verbs{display:grid;grid-template-columns:1fr 1fr;gap:.33rem;margin:.55rem 0}
+.adv-inventory{display:flex;justify-content:space-between;text-align:left;gap:.25rem;font-size:.73rem;align-items:center}
+.adv-inventory.chosen,.adv-verbs .chosen{background:#146358;border-color:#7fffd2}
+.adv-inventory span{color:#b2ffdb;white-space:nowrap}
+.adv-current{font-size:.77rem;color:#bbd5e8}
+.adv-actions{display:grid;gap:.4rem;grid-template-columns:1fr 1fr;margin:.6rem 0}
+.adv-actions button:first-child{grid-column:span 2}
+.adv-deliver{width:100%;margin:.5rem 0}
+.adv-log{max-height:155px;overflow:auto;border:1px solid #35546b;border-radius:12px;padding:.45rem;font-size:.76rem}
+.adv-log p{margin:.32rem}
+.adv-report{background:#0b2430;border:1px solid #5b8494;border-radius:12px;padding:.6rem;font-size:.8rem;line-height:1.7}
+#adventurePanel h3{font-size:.9rem;margin:1rem 0 .45rem}
+.adv-inventory-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:.3rem}
+.adv-inventory-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.35rem;align-items:stretch;padding:.22rem;border-radius:9px;background:#0d1e30}
+.adv-inventory-line .adv-inventory{min-width:0}
+.adv-inventory-line>button:last-child{font-size:.72rem;white-space:nowrap;border-color:#506b7a}
+.adv-exchange{padding:.6rem;margin:.6rem 0 1rem;border:1px solid #4c7282;border-radius:12px;background:#102b38}
+.adv-exchange select{width:100%;margin:.35rem 0}
+.adv-exchange>button{width:100%;margin-top:.3rem}
+
+@media(max-width:1120px){.adv-list{max-height:250px}}
+
+.partContextMenu,.partSpecSheet{position:absolute;z-index:9;
+ background:#0a1929f2;border:1px solid #5c8a9c;border-radius:15px;
+ box-shadow:0 18px 52px #000b;color:#e8f6ff;pointer-events:auto}
+.partContextMenu[hidden],.partSpecSheet[hidden]{display:none!important}
+.partContextMenu{max-height:min(415px,75%);overflow:auto;padding:.75rem;
+ min-width:220px;backdrop-filter:blur(8px)}
+.partSpecSheet{top:3.9rem;right:.7rem;bottom:.7rem;width:min(440px,95%);
+ overflow:auto;padding:1rem;backdrop-filter:blur(12px)}
+.part-inspector-title{display:flex;align-items:center;justify-content:space-between;
+ gap:.7rem;padding-bottom:.45rem;border-bottom:1px solid #365668}
+.part-inspector-title h3{font-size:.99rem;line-height:1.3;margin:.2rem 0}
+.part-inspector-title>button{font-size:.77rem;padding:.35rem .55rem}
+.part-context-sub{font-size:.76rem;color:#a2bdc9;margin:.55rem 0}
+.part-context-actions{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.part-context-actions button{font-size:.77rem;padding:.42rem}
+.part-context-actions button:first-child{grid-column:span 2;background:#1b5260}
+.part-status-preview{margin-top:.55rem}
+.part-check{border:1px solid #294454;background:#132334;
+ border-radius:8px;padding:.43rem;margin:.25rem 0;font-size:.76rem}
+.part-check b{display:block}.part-check span{font-weight:750;float:right}
+.part-check small{display:block;clear:both;margin-top:.2rem;color:#a4b7c5}
+.part-check.ok{border-color:#23664e}.part-check.ok span{color:#88e5b3}
+.part-check.warn{border-color:#9d6c3a}.part-check.warn span{color:#ffca8a}
+.part-check.info span{color:#9ce6f5}
+.partSpecSheet h4{margin:1rem 0 .4rem;color:#b3f6e8}
+.part-specs{margin:0;padding:0}.part-specs>div{display:grid;
+ grid-template-columns:minmax(85px,1fr) minmax(120px,1.7fr);
+ gap:.6rem;padding:.36rem;border-bottom:1px solid #243d50;font-size:.78rem}
+.part-specs dt{color:#aac2d4}.part-specs dd{margin:0;overflow-wrap:anywhere}
+.adv-shop-opts{display:flex;flex-direction:column;gap:.25rem;min-width:74px}
+.adv-shop-opts button{font-size:.7rem;padding:.4rem}
+.part-mounted-row{display:grid;grid-template-columns:1fr auto;
+ width:100%;margin:.34rem 0;text-align:left;gap:.22rem .65rem;background:#102c3b}
+.part-mounted-row span.ok{color:#9cedc5;font-size:.72rem}
+.part-mounted-row span.warn{color:#ffd189;font-size:.72rem}
+
+/* v8.3.1: evitar controles solapados en el lateral de aventura.
+   El select global 100% se desbordaba por padding/border (content-box);
+   la regla .adv-card div aplicaba flex:1 también a los botones Ficha/Comprar. */
+#adventurePanel,#adventurePanel *{box-sizing:border-box;min-width:0}
+#adventurePanel{isolation:isolate}
+#adventurePanel .adv-accordion{max-width:100%;min-width:0}
+#adventurePanel .adv-accordion>summary{gap:.35rem;line-height:1.35;overflow-wrap:anywhere}
+#adventurePanel .adv-accordion>summary span{flex:1;min-width:0;overflow-wrap:anywhere}
+#adventurePanel .adv-accordion>summary em{flex:0 0 auto;max-width:40%}
+#adventurePanel .adv-accordion-body{min-width:0;max-width:100%}
+#adventurePanel .adv-accordion-body>*,#adventurePanel select,
+#adventurePanel button{max-width:100%;box-sizing:border-box}
+#adventurePanel select{width:100%}
+#adventurePanel .adv-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.35rem}
+#adventurePanel .adv-card>div:first-child{min-width:0;overflow-wrap:anywhere}
+#adventurePanel .adv-card .adv-shop-opts{min-width:0;max-width:83px;flex:none;display:grid;gap:.25rem}
+#adventurePanel .adv-card .adv-shop-opts button{min-width:0;width:100%;font-size:.73rem}
+#adventurePanel .adv-inventory-line{grid-template-columns:minmax(0,1fr) minmax(66px,auto)}
+#adventurePanel .adv-inventory-line .adv-inventory{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#adventurePanel .adv-inventory span{white-space:normal;overflow-wrap:anywhere;font-size:.7rem}
+#adventurePanel .adv-inventory-line>button:last-child{max-width:88px;white-space:normal}
+#adventurePanel .adv-verbs,#adventurePanel .adv-actions,#adventurePanel .adv-ledger{
+  grid-template-columns:repeat(2,minmax(0,1fr))}
+#adventurePanel .adv-verbs button,#adventurePanel .adv-actions button{
+  white-space:normal;overflow-wrap:anywhere}
+#adventurePanel .adv-operation-clock{border:1px solid #365971;background:#0c2737;border-radius:9px;padding:.5rem;margin-top:.6rem;font-size:.8rem}#adventurePanel .adv-operation-clock select{margin:.3rem 0;max-width:200px}#adventurePanel .adv-operation-clock p{margin:.2rem 0;color:#a7d9df}
+#adventurePanel .adv-ledger span,#adventurePanel .adv-story,
+#adventurePanel .adv-guide,#adventurePanel .adv-current,
+#adventurePanel .adv-report,#adventurePanel .part-mounted-row small{
+  overflow-wrap:anywhere;word-break:normal}
+#adventurePanel .part-mounted-row{grid-template-columns:minmax(0,1fr) auto}
+#adventurePanel .part-mounted-row span{white-space:normal;text-align:right}
+.part-context-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.part-context-actions button{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+.part-action-feedback{padding:.58rem .68rem;border-radius:9px;font-size:.8rem;line-height:1.45;
+  overflow-wrap:anywhere;border:1px solid #c3904d;background:#352814;color:#ffe5b1}
+.part-action-feedback.ok{border-color:#287c5c;background:#0e392b;color:#aeffd7}
+.partSpecSheet{z-index:11}
+@media(max-width:480px){
+ #adventurePanel .adv-card{grid-template-columns:minmax(0,1fr) 76px}
+ #adventurePanel .adv-inventory-line{grid-template-columns:minmax(0,1fr) 74px}
+ #adventurePanel .adv-verbs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+.part-mounted-row small{grid-column:span 2;color:#afc2d3;
+ font-size:.72rem;font-weight:500;line-height:1.45}
+@media(max-width:650px){
+ .partSpecSheet{inset:.5rem;width:auto}
+ .partContextMenu{max-height:50%;font-size:.85rem}
+ .partContextMenu .part-status-preview{display:none}
+}
+
+.workshopFeedback{padding:.7rem .85rem;margin:.6rem 0 0;
+ border:1px solid #346785;background:#0d2739;border-radius:10px;
+ font-size:.81rem;line-height:1.48;color:#d9f5ff;overflow-wrap:anywhere}
+.workshopFeedback[data-level=warn]{border-color:#a0793e;background:#372914;color:#ffe3ac}
+.workshopFeedback[data-level=error]{border-color:#c85e60;background:#401b27;color:#ffe7e8}
+.workshopFeedback[data-level=ok]{border-color:#307d5d;background:#12382b;color:#baf9d5}
+.adv-quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem;margin:.65rem 0}
+.adv-quick-actions button{min-width:0;white-space:normal;line-height:1.35}
+.adv-demo-build{width:100%;white-space:normal;margin:.5rem 0;overflow-wrap:anywhere}
+.sceneHoverTip{position:absolute;z-index:8;pointer-events:none;max-width:min(286px,85%);
+ background:#061521ee;border:1px solid #78cce5;border-radius:9px;
+ color:#eafaff;box-shadow:0 8px 25px #0009;padding:.5rem .7rem;
+ font-weight:700;font-size:.81rem;line-height:1.36;overflow-wrap:anywhere;
+ backdrop-filter:blur(5px)}
+.sceneHoverTip[hidden]{display:none!important}
+.adv-risk-panel{margin-top:.6rem;padding:.6rem;border-top:1px solid #35576d;display:grid;gap:.38rem}.adv-risk-panel label{font-size:.78rem;color:#c2deea}.adv-risk-panel select,.adv-risk-panel input{width:100%;padding:.42rem;border-radius:7px;border:1px solid #456679;background:#0d2234;color:#e8f5ff}.adv-risk-panel input{min-width:100px;flex:1}.adv-risk-panel button{padding:.4rem .6rem}#advRiskStatus{font-size:.76rem;color:#b5dce6;margin:.25rem 0}.teacher-tools{margin:0 1rem 1rem;padding:.9rem}.teacher-tools summary{cursor:pointer}.teacher-tools[open]{border-color:#53c1cb}
+.teacher-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.55rem;margin:.7rem 0}.teacher-fields label{font-size:.8rem;color:#bce6ef;display:grid;gap:.3rem}.teacher-fields input,.teacher-fields select,.teacher-fields textarea{max-width:100%;width:100%;padding:.5rem;background:#0e2235;color:#fff;border:1px solid #40647a;border-radius:7px}.teacher-fields .teacher-wide{grid-column:1/-1}.file-label{display:inline-flex;align-items:center;padding:.45rem .7rem;border:1px solid #52788d;border-radius:8px;cursor:pointer}.teacher-tools input[type=file]{max-width:240px}
+/* Cámaras independientes: los accesos activos se identifican sin mover
+   los controles de la vista sobre el área 3D. */
+.sceneActions button[data-camera-view][aria-pressed="true"]{
+  background:#174e58;border-color:#6de5dd;color:#e9fffc;
+  box-shadow:inset 0 0 0 1px #58beba;
+}
+.sceneActions button[data-camera-view]{white-space:normal}
+@media(max-width:650px){
+ .sceneActions{left:.4rem;right:.4rem;top:.4rem;max-height:122px;overflow:auto;
+   background:#071728d9;padding:.3rem;border-radius:12px}
+ .sceneActions button{padding:.35rem .4rem;font-size:.70rem}
+}
+
+
+/* 8.9.1 — Popup del minijuego DIMM sobre la cámara 3D. */
+.adv-ram-toggle{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.65rem 0;
+  border:1px solid #355b72;border-radius:9px;padding:.6rem;background:#0d2434}
+.adv-ram-toggle span{font-size:.76rem;color:#bad8e5}
+.ram-precision-popup[hidden]{display:none!important}
+.ram-precision-popup{position:absolute;inset:0;z-index:30;
+  display:flex;justify-content:center;align-items:center;overflow:auto;
+  padding:clamp(.4rem,2vw,1.2rem);background:#071521c9;backdrop-filter:blur(4px)}
+.ram-precision-dialog{box-sizing:border-box;width:min(640px,100%);max-height:100%;
+  overflow-y:auto;overscroll-behavior:contain;
+  color:#e4f4fc;background:linear-gradient(150deg,#193a4b,#0b2132);
+  border:2px solid #72cdb8;border-radius:15px;
+  box-shadow:0 12px 45px #000c;padding:clamp(.55rem,2vw,1.05rem);
+  display:grid;gap:.65rem}
+.ram-precision-dialog header{position:static;display:flex;align-items:flex-start;
+  justify-content:space-between;gap:.75rem;margin:0;padding:0;
+  background:transparent;border:0;box-shadow:none}
+.ram-precision-dialog header small{color:#9ce7dd;letter-spacing:.08em;font-weight:700}
+.ram-precision-dialog h3{font-size:1.07rem;line-height:1.25;margin:.15rem 0;color:#e2fcf7}
+.ram-precision-dialog p{margin:0;font-size:.8rem}
+.ram-precision-dialog footer{display:flex;justify-content:space-between;
+  flex-wrap:wrap;align-items:center;gap:.4rem;padding-top:.3rem;
+  border-top:1px solid #355a68;font-size:.74rem;color:#d7e6ef}
+.ram-precision-dialog button{white-space:normal;min-height:35px}
+.ram-precision-dialog button:focus-visible,
+.ram-precision-dialog input:focus-visible{outline:3px solid #99ece4;outline-offset:2px}
+.adv-ram-scene{position:relative;overflow:hidden;height:135px;flex-shrink:0;
+  border:1px solid #547f91;border-radius:10px;
+  background:repeating-linear-gradient(0deg,#102d3b,#102d3b 19px,#143342 20px)}
+.adv-ram-stick{position:absolute;left:calc(50% + var(--ram-offset));top:calc(8px + var(--ram-depth));
+  transform:translateX(-50%) scaleX(var(--ram-flip));width:78%;height:38px;
+  border:2px solid #6bc6a9;border-radius:6px 6px 2px 2px;background:#186a50;
+  display:flex;align-items:center;justify-content:center;z-index:2;transition:left .12s,top .12s,transform .14s}
+.adv-ram-chips{font-size:19px;letter-spacing:.35rem;color:#093b33;white-space:nowrap}
+.adv-ram-contacts{position:absolute;bottom:-8px;left:2%;right:2%;height:8px;
+  background:repeating-linear-gradient(90deg,#cfb96e 0px,#cfb96e 4px,#2d493f 5px,#2d493f 8px)}
+.adv-ram-key{position:absolute;bottom:-8px;left:33%;width:11px;height:13px;
+  background:#112e3d;z-index:3;border:1px solid #b9d9e6}
+.adv-ram-socket{position:absolute;left:11%;right:11%;bottom:20px;height:18px;
+  background:#313e53;border:2px solid #9aafbc;border-radius:3px}
+.adv-ram-socket .adv-ram-key{bottom:0;height:18px;left:33%;background:#658ba0;border:0}
+.adv-ram-clips{position:absolute;bottom:11px;left:8%;right:8%;display:flex;
+  justify-content:space-between;color:#cde4ee;font-size:1.2rem;pointer-events:none}
+.adv-ram-controls{display:grid;gap:.45rem}
+.adv-ram-controls label{display:grid;gap:.2rem;font-size:.84rem;color:#d8edf4}
+.adv-ram-controls input[type=range]{width:100%;accent-color:#69d8b4;min-height:25px}
+.adv-ram-controls output{font-variant-numeric:tabular-nums;color:#a8efd9}
+.ram-pressure-controls{display:grid;gap:.55rem}
+.ram-pressure-meter{display:grid;gap:.35rem;padding:.5rem .55rem;
+  border:1px solid #496a7b;border-radius:9px;background:#092135}
+.ram-pressure-head{display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:.25rem;font-size:.82rem}
+.ram-pressure-head output{color:#d2f9e6;font-variant-numeric:tabular-nums}
+.ram-pressure-track{position:relative;height:26px;margin:0 8px;border:1px solid #d3e4e7;
+  border-radius:7px;background:linear-gradient(90deg,#d15450 0%,#d15450 44%,
+  #e7b452 45%,#e7b452 57%,#49bd83 58%,#49bd83 74%,
+  #e7b452 75%,#e7b452 85%,#d15450 86%,#d15450 100%);
+  box-shadow:inset 0 2px 7px #0007}
+.ram-pressure-needle{position:absolute;top:-7px;bottom:-7px;
+  transform:translateX(-50%);width:4px;background:white;
+  border:1px solid #122331;border-radius:2px;box-shadow:0 0 0 2px #143447,0 0 10px #fff8}
+.ram-pressure-meter button[disabled]{opacity:.8;cursor:default}
+@media(max-width:650px){
+ .ram-precision-popup{padding:.25rem;align-items:flex-start}
+ .ram-precision-dialog{max-height:100%;padding:.5rem;gap:.35rem}
+ .adv-ram-scene{height:100px}
+ .adv-ram-chips{font-size:15px;letter-spacing:.12rem}
+ .ram-pressure-track{height:20px}
+ .ram-pressure-meter{padding:.35rem}
+}
+@media(prefers-reduced-motion:reduce){
+ .adv-ram-stick{transition:none}
+}
+
+/* 8.10 — Tornillo por arrastre y rueda, superpuesto al visor 3D. */
+.screw-precision-popup[hidden]{display:none!important}
+.screw-precision-popup{position:absolute;inset:0;z-index:31;display:flex;
+  align-items:center;justify-content:center;overflow:auto;padding:clamp(.3rem,2vw,1rem);
+  background:#071521d9;backdrop-filter:blur(4px)}
+.screw-precision-dialog{box-sizing:border-box;width:min(620px,100%);max-height:100%;
+  overflow:auto;padding:clamp(.55rem,2vw,1rem);border:2px solid #68c1d0;
+  border-radius:15px;background:linear-gradient(155deg,#15384b,#091c2d);
+  color:#e4f3fa;display:grid;gap:.55rem;box-shadow:0 12px 45px #000a}
+.screw-precision-dialog header{position:static;margin:0;padding:0;background:none;
+  border:0;box-shadow:none;display:flex;justify-content:space-between;align-items:start;gap:.5rem}
+.screw-precision-dialog header small{color:#86e6ed;font-weight:700;letter-spacing:.09em}
+.screw-precision-dialog h3{font-size:1.03rem;margin:.2rem 0}
+.screw-precision-dialog p{margin:0;font-size:.83rem}
+.screw-precision-dialog footer{display:flex;gap:.4rem;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;font-size:.73rem;color:#c5e3ee;
+  border-top:1px solid #2f637a;padding-top:.45rem}
+.screw-precision-dialog button{white-space:normal;min-height:33px}
+.screw-alignment-board{position:relative;height:210px;max-width:100%;border:1px solid #649ab1;
+  overflow:hidden;border-radius:12px;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#31546c 0%,#1b3a51 25%,#102a3e 75%);
+  box-shadow:inset 0 0 18px #0008}
+.screw-alignment-board:before,.screw-alignment-board:after{
+  content:"";position:absolute;background:#91b9c145;pointer-events:none}
+.screw-alignment-board:before{height:1px;left:0;right:0;top:50%}
+.screw-alignment-board:after{width:1px;top:0;bottom:0;left:50%}
+.screw-hole{position:absolute;left:50%;top:50%;width:42px;height:42px;
+  transform:translate(-50%,-50%);border:5px solid #6aa59a;border-radius:50%;
+  background:radial-gradient(circle,#0a1525 30%,#142e36 85%);
+  display:grid;place-items:center;box-shadow:0 0 0 8px #72a79c35}
+.screw-hole span{color:#a2bcbe88;font-weight:bold;font-size:25px}
+.screw-head{position:absolute;left:20%;top:20%;width:43px;height:43px;
+  display:grid;place-items:center;transform:translate(-50%,-50%);border-radius:50%;
+  border:3px solid #e7eff5;background:radial-gradient(circle at 28% 22%,#a4b7c8,#486178 70%);
+  box-shadow:0 4px 11px #000d;cursor:grab;user-select:none;touch-action:none;z-index:2}
+.screw-head span{font-weight:900;font-size:28px;line-height:1;color:#122537}
+.screw-head:active{cursor:grabbing}
+.screw-head:focus-visible,.screw-precision-dialog button:focus-visible{
+  outline:3px solid #8aefd5;outline-offset:3px}
+.screw-alignment-status{font-size:.82rem!important;font-weight:700;color:#c7e9f3}
+.screw-depth-top{display:flex;justify-content:space-between;gap:.5rem;font-size:.83rem}
+.screw-depth-track{height:24px;overflow:hidden;border-radius:6px;
+  border:1px solid #6091ad;background:#11202e}
+.screw-depth-track div{height:100%;background:linear-gradient(90deg,#d49a56,#6cd2a6);
+  transition:width .10s ease}
+#screwFeedback{min-height:1.4em;color:#d5f0f1}
+.screw-fallback-controls{display:flex;gap:.45rem;flex-wrap:wrap}
+.screw-fallback-controls button{flex:1}
+@media(max-width:650px){
+  .screw-precision-popup{padding:.2rem;align-items:flex-start}
+  .screw-precision-dialog{max-height:100%;gap:.32rem;padding:.5rem}
+  .screw-alignment-board{height:160px}
+}
+@media(prefers-reduced-motion:reduce){
+  .screw-depth-track div{transition:none}
+}
+
+/* 8.10.1 — diagrama de fijaciones individuales por componente. */
+.screw-anchor-map{position:relative;flex-shrink:0;min-height:145px;
+ border:1px solid #5c91a7;border-radius:12px;overflow:hidden;
+ background:radial-gradient(ellipse at center,#244c61 0%,#0e2739 78%)}
+.screw-part-outline{position:absolute;left:11%;right:11%;top:9%;bottom:9%;
+ border:3px solid #638a9d;border-radius:9px;background:
+ repeating-linear-gradient(45deg,#1b415333 0,#1b415333 6px,#18344744 7px,#18344744 12px);
+ box-shadow:inset 0 0 18px #06152277;pointer-events:none}
+.screw-anchor{position:absolute;transform:translate(-50%,-50%);z-index:2;
+ width:29px;height:29px;padding:0;border-radius:50%;display:grid;place-items:center;
+ color:#d7f3ff;border:2px solid #92bacc;background:#203d52;font-size:17px;line-height:1;
+ box-shadow:0 2px 10px #0008}
+.screw-anchor.current{border:3px solid #ffcf79;background:#59402c;
+ box-shadow:0 0 0 5px #eab56555,0 3px 12px #0008}
+.screw-anchor.completed{border:2px solid #80e0ae;background:#126c53;color:#d8ffed;opacity:1}
+.screw-anchor:disabled{cursor:default;opacity:1}
+.screw-anchor:focus-visible{outline:3px solid #e9f7fe;outline-offset:3px}
+.screw-precision-dialog .screw-fixing-count{font-size:.84rem;color:#c8f5f0}
+.screw-precision-dialog .screw-alignment-board{height:162px}
+@media(max-width:650px){.screw-anchor-map{min-height:100px}
+ .screw-anchor{width:26px;height:26px}
+ .screw-precision-dialog .screw-alignment-board{height:125px}}
+
+/* 8.11 — práctica CPU: muesca, zócalo y palanca con oscilador de fuerza. */
+.cpu-precision-popup[hidden]{display:none!important}
+.cpu-precision-popup{position:absolute;inset:0;z-index:32;display:flex;
+  align-items:center;justify-content:center;overflow:auto;
+  padding:clamp(.3rem,2vw,1rem);background:#061523d9;backdrop-filter:blur(4px)}
+.cpu-precision-dialog{box-sizing:border-box;width:min(610px,100%);max-height:100%;
+  overflow:auto;display:grid;gap:.6rem;padding:clamp(.6rem,2vw,1rem);
+  border-radius:15px;border:2px solid #74c9bb;
+  background:linear-gradient(155deg,#193c4c,#0c2536);color:#e9f6fd;
+  box-shadow:0 15px 48px #000b}
+.cpu-precision-dialog header{position:static;display:flex;justify-content:space-between;
+  align-items:flex-start;gap:.6rem;padding:0;margin:0;background:none;border:0;box-shadow:none}
+.cpu-precision-dialog header small{font-weight:800;color:#90efe2;letter-spacing:.09em}
+.cpu-precision-dialog h3{font-size:1.05rem;margin:.2rem 0}
+.cpu-precision-dialog p{margin:0;font-size:.84rem}
+.cpu-precision-dialog button{min-height:36px;white-space:normal}
+.cpu-precision-dialog footer{display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:.5rem;border-top:1px solid #3d6a80;padding-top:.5rem;
+  font-size:.75rem;color:#c6e4ee}
+.cpu-precision-scene{position:relative;height:210px;overflow:hidden;
+  touch-action:none;border:1px solid #5d93a9;border-radius:11px;
+  background:repeating-linear-gradient(0deg,#0e2b3b,#0e2b3b 19px,#133749 20px)}
+.cpu-socket{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:154px;height:154px;border:9px solid #778d95;border-radius:10px;
+  background:#1b3035;box-shadow:0 0 0 7px #334b5b,0 0 18px #050b15;
+  display:grid;place-items:center}
+.cpu-socket:after{content:"";position:absolute;inset:16px;
+  border:1px dashed #c8c3a1aa;border-radius:4px}
+.cpu-socket-triangle,.cpu-corner-marker{position:absolute;
+  left:2px;top:0;z-index:4;color:#ffe18a;font-size:20px;line-height:1;
+  text-shadow:0 1px 3px #000}
+.cpu-socket-text{font-size:.72rem;letter-spacing:.1em;font-weight:800;color:#a1bec4}
+.cpu-piece{position:absolute;width:118px;height:118px;display:grid;place-items:center;
+  border:7px solid #afbeac;border-radius:7px;
+  background:linear-gradient(135deg,#bdc9c3,#748f8a);
+  box-shadow:0 8px 17px #000b;z-index:3;cursor:grab;touch-action:none;
+  user-select:none;color:#213e36;font-weight:900;letter-spacing:.2em;font-size:1.25rem}
+.cpu-piece:active{cursor:grabbing}
+.cpu-piece:focus-visible,.cpu-precision-dialog button:focus-visible,
+.cpu-precision-dialog input:focus-visible{outline:3px solid #ffda8f;outline-offset:3px}
+.cpu-corner-marker{left:1px;top:0;color:#f3cd65;font-size:18px}
+.cpu-retention-lid{position:absolute;right:calc(50% - 105px);top:calc(50% - 97px);
+  width:194px;height:15px;border:3px solid #8b9b9e;background:#97adb0;
+  border-radius:5px;transform-origin:right center;transform:rotate(-10deg);
+  pointer-events:none;z-index:5;opacity:.78}
+.cpu-retention-lid.close{transform:rotate(0deg);height:10px;background:#9db8ba}
+.cpu-precision-controls{display:grid;gap:.55rem}
+.cpu-align-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
+.cpu-align-grid label{display:grid;gap:.25rem;color:#daedf4;font-size:.8rem}
+.cpu-align-grid label:last-child{grid-column:1/-1}
+.cpu-align-grid output{font-variant-numeric:tabular-nums;color:#b4f4dd}
+.cpu-align-grid input[type=range]{width:100%;accent-color:#76dbc1;min-height:28px}
+.cpu-lever-controls{display:grid;gap:.55rem}
+.cpu-force-scale{position:relative;height:32px;margin:4px 8px;
+  border-radius:8px;border:1px solid #c7e2e9;
+  background:linear-gradient(90deg,#c34d50 0%,#c34d50 44%,
+    #d6ad55 45%,#d6ad55 57%,#49ba86 58%,#49ba86 74%,
+    #d6ad55 75%,#d6ad55 85%,#c34d50 86%,#c34d50 100%)}
+.cpu-force-needle{position:absolute;top:-7px;bottom:-7px;width:4px;
+  transform:translateX(-50%);background:#fff;border:1px solid #17354c;
+  box-shadow:0 0 0 2px #163349,0 0 11px #fff9}
+.cpu-force-head{display:flex;justify-content:space-between;gap:.5rem;font-size:.83rem}
+.cpu-force-head output{font-variant-numeric:tabular-nums;color:#c5ffdf}
+.cpu-lever-controls small{color:#bed7df}
+.cpu-feedback{min-height:1.5em;color:#dbf4e7}
+@media(max-width:650px){
+ .cpu-precision-popup{align-items:flex-start;padding:.22rem}
+ .cpu-precision-dialog{gap:.36rem;max-height:100%;padding:.5rem}
+ .cpu-precision-scene{height:170px}
+ .cpu-socket{width:125px;height:125px}
+ .cpu-piece{width:96px;height:96px}
+ .cpu-retention-lid{display:none}
+}
+@media(prefers-reduced-motion:reduce){.cpu-piece{transition:none}}
+
+/* 8.12 — jeringuilla, indicador graduado y difusión durante los tornillos. */
+.paste-precision-popup[hidden]{display:none!important}
+.paste-precision-popup{position:absolute;inset:0;z-index:34;display:flex;
+ align-items:center;justify-content:center;overflow:auto;padding:.45rem;
+ background:#071526e8;backdrop-filter:blur(4px)}
+.paste-precision-dialog{box-sizing:border-box;width:min(650px,100%);
+ max-height:100%;overflow:auto;display:grid;gap:.55rem;padding:.85rem;
+ border:2px solid #8ad3c9;border-radius:14px;color:#e4f5f8;
+ background:linear-gradient(160deg,#17384a,#081d2d);box-shadow:0 12px 35px #0009}
+.paste-precision-dialog header{display:flex;align-items:start;justify-content:space-between;
+ background:none;position:static;padding:0;box-shadow:none;border:0;margin:0}
+.paste-precision-dialog h3{font-size:1.05rem;margin:.2rem 0}
+.paste-precision-dialog p{margin:0;font-size:.85rem}
+.paste-workbench{display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:1rem;align-items:center}
+.paste-chip{position:relative;width:min(100%,255px);aspect-ratio:1;
+ margin:auto;border:6px solid #8bada8;border-radius:12px;touch-action:none;
+ user-select:none;cursor:crosshair;overflow:hidden;background:#8da9a8}
+.paste-chip svg{width:100%;height:100%;display:block;pointer-events:none}
+.paste-nozzle{position:absolute;transform:translate(-50%,-50%);
+ z-index:3;pointer-events:none;font-size:31px;color:#152e40;
+ text-shadow:0 0 3px white,1px 1px 2px white}
+.paste-syringe{display:flex;align-items:center;flex-direction:column;gap:.45rem;
+ min-width:0;font-size:.75rem;text-align:center}
+.paste-capacity{position:relative;width:68px;height:175px;
+ border:4px solid #8faab8;border-radius:8px;background:#e1f4f53b;overflow:visible}
+.paste-fill{position:absolute;left:0;right:0;bottom:0;background:#a7d7e0;
+ border-radius:3px;transition:height .08s linear}
+.paste-tick{position:absolute;left:-22px;color:#edf7f4;line-height:1;
+ font-variant-numeric:tabular-nums;font-weight:800}
+.paste-tick:after{content:'';display:block;position:absolute;width:9px;
+ left:15px;top:50%;border-top:1px solid #355461}
+.paste-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.paste-actions button{flex:1}
+.paste-syringe output{font-variant-numeric:tabular-nums}
+.thermal-spread-panel{display:grid;gap:.3rem;border:1px solid #4b9f9e;
+ border-radius:10px;background:#0c2a36;padding:.45rem}
+.thermal-spread-panel p{margin:0;font-size:.82rem}
+.thermal-spread-map,.thermal-spread-panel svg{width:min(100%,210px);
+ max-height:165px;justify-self:center;display:block}
+.thermal-spread-numbers{display:flex;justify-content:center;gap:.55rem;
+ flex-wrap:wrap;font-size:.74rem}
+.thermal-spread-numbers span{background:#143f4d;border-radius:5px;padding:.25rem}
+.thermal-spread-panel small{color:#b5d4d9;font-size:.68rem;text-align:center}
+@media(max-width:650px){.paste-precision-popup{padding:.2rem;align-items:flex-start}
+ .paste-precision-dialog{padding:.5rem;gap:.3rem}
+ .paste-workbench{grid-template-columns:minmax(0,1fr) 96px;gap:.4rem}
+ .paste-capacity{height:130px;width:55px}
+ .thermal-spread-panel svg{max-height:110px}}
+@media(prefers-reduced-motion:reduce){.paste-fill{transition:none}}
+
+/* 8.12.2: siguiente paso visible incluso al seleccionar herramientas. */
+.adv-thermal-next{padding:.8rem;border:2px solid #5daea4;border-radius:12px;
+ background:linear-gradient(135deg,#103d46,#183149);display:grid;gap:.5rem;
+ margin:.7rem 0;color:#dcf8f6}
+.adv-thermal-next p{margin:0;font-size:.82rem;line-height:1.5}
+.adv-thermal-next button{width:100%;min-height:43px;white-space:normal}
+
+/* 8.12.3 — la pasta permanece a la vista y fluye con CADA giro. */
+.screw-precision-dialog.has-thermal-spread{gap:.34rem;overscroll-behavior:contain}
+.screw-precision-dialog.has-thermal-spread .thermal-live{
+  position:sticky;top:0;z-index:8;
+  background:linear-gradient(145deg,#123f4b,#0a2938 85%);
+  box-shadow:0 5px 18px #000b;
+  border:2px solid #70c3ba;padding:.45rem .6rem;
+}
+.thermal-spread-heading{display:flex;justify-content:space-between;
+  gap:.4rem;align-items:center;font-size:.76rem}
+.thermal-spread-heading strong{color:#e9ffff}
+.thermal-live-dot{color:#56f5a1;display:inline-block;
+  animation:thermal-live-blink 1.4s ease-in-out infinite}
+#thermalTurnInfo{color:#bee8dc;font-variant-numeric:tabular-nums;font-weight:700}
+.thermal-spread-layout{display:grid;grid-template-columns:minmax(140px,1fr) minmax(130px,1fr);
+  gap:.4rem;align-items:center}
+.thermal-spread-panel .thermal-spread-layout svg{
+  display:block;justify-self:center;
+  width:min(100%,166px);height:150px;max-height:none;
+  border-radius:10px;background:#123444}
+.thermal-chip-frame{fill:#122e3b;stroke:#557c80;stroke-width:1}
+.thermal-chip-face{fill:#8cacae;stroke:#dee9df;stroke-width:1.6}
+.thermal-chip-edge{fill:none;stroke:#cdeae7;stroke-width:1.5;pointer-events:none}
+.thermal-cell{fill:#d1f5f7;stroke:#f4ffff;stroke-opacity:.12;stroke-width:.15;
+  transition:opacity 440ms cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.thermal-corner-halo{fill:#64aeac24;stroke:#397b79;stroke-width:.7;
+  transform-box:fill-box;transform-origin:center}
+.thermal-corner-disc{fill:#1c4651;stroke:#dbf7e7;stroke-width:.9}
+.thermal-corner-number{fill:#fff;font-size:5.1px;font-weight:bold;pointer-events:none}
+.thermal-corner-depth{fill:#affadb;font-size:4.3px;font-weight:900;pointer-events:none}
+.thermal-corner.active .thermal-corner-disc{fill:#08664f;stroke:#99ffd6;stroke-width:1.6}
+.thermal-corner.active .thermal-corner-halo{stroke:#53ffbb;stroke-width:1.6;
+  animation:thermal-pulse 900ms ease-in-out infinite alternate}
+.thermal-spread-readings{display:grid;gap:.35rem;font-variant-numeric:tabular-nums}
+.thermal-spread-readings>div{display:grid;grid-template-columns:1fr auto;
+  align-items:baseline;gap:.25rem;padding:.35rem;
+  border:1px solid #476b7a;border-radius:6px;background:#0b2635}
+.thermal-spread-readings span{font-size:.67rem;color:#d1e8ee}
+.thermal-spread-readings strong{color:#f0ffff;font-size:1.08rem}
+.thermal-spread-readings>div:first-child strong{color:#93f0cc;font-size:1.45rem}
+.thermal-meter-track{grid-column:1/-1;height:7px;background:#244c54;
+  border-radius:9px;overflow:hidden}
+.thermal-meter-fill{height:100%;background:linear-gradient(90deg,#4bcbb5,#c2fff1);
+  border-radius:9px;transition:width 440ms ease}
+.screw-precision-dialog .thermal-spread-panel small{
+  font-size:.68rem;color:#bbe7e2;text-align:left}
+@keyframes thermal-live-blink{50%{opacity:.45}}
+@keyframes thermal-pulse{to{transform:scale(1.22);opacity:.48}}
+@media(max-width:650px){
+  .screw-precision-dialog.has-thermal-spread .thermal-live{padding:.25rem .35rem}
+  .thermal-spread-heading{font-size:.66rem}
+  .thermal-spread-layout{grid-template-columns:minmax(106px,1fr) minmax(115px,1fr);gap:.25rem}
+  .thermal-spread-panel .thermal-spread-layout svg{height:115px;width:min(100%,127px);max-height:none}
+  .thermal-spread-readings>div{padding:.2rem .3rem}
+  .thermal-spread-readings strong{font-size:.9rem}
+  .thermal-spread-readings>div:first-child strong{font-size:1.15rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .thermal-live-dot,.thermal-corner.active .thermal-corner-halo{animation:none}
+  .thermal-cell,.thermal-meter-fill{transition:none}
+}
+
+/* 8.12.4 — disipador compacto de dos columnas, sin scroll ni superposición. */
+.screw-precision-dialog.has-thermal-spread{
+  box-sizing:border-box;width:min(860px,100%);height:min(600px,100%);
+  max-height:100%;overflow:hidden;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  gap:.32rem;padding:clamp(.35rem,1.2vw,.65rem);
+}
+.screw-precision-dialog.has-thermal-spread header{min-width:0;align-items:center}
+.screw-precision-dialog.has-thermal-spread header h3{font-size:.95rem;margin:0}
+.screw-precision-dialog.has-thermal-spread header small{font-size:.68rem}
+.screw-precision-dialog.has-thermal-spread header button{min-height:30px;min-width:36px}
+.cooler-screw-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);
+  gap:.55rem;min-width:0;min-height:0;overflow:hidden}
+.cooler-pressure-column,.cooler-tool-column{display:flex;flex-direction:column;
+  gap:.3rem;min-height:0;min-width:0;overflow:hidden}
+.screw-precision-dialog.has-thermal-spread .thermal-live{
+  position:static;top:auto;z-index:auto;flex:0 1 auto;
+  min-height:0;box-shadow:none;padding:.3rem .4rem;
+  border-width:1px;margin:0;
+}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-heading{
+  font-size:.7rem;gap:.2rem;flex-wrap:wrap}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-layout{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.25rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-layout svg{
+  height:clamp(108px,19vh,152px);width:min(100%,156px);max-height:none}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings{gap:.2rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div{
+  padding:.16rem .26rem;gap:.15rem;min-width:0}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings span{font-size:.62rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings strong{font-size:.9rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div:first-child strong{font-size:1.18rem}
+.screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{
+  font-size:.64rem;line-height:1.2;margin:0}
+.screw-precision-dialog.has-thermal-spread .screw-anchor-map{
+  flex:1 1 95px;min-height:95px;height:auto;max-height:none}
+.screw-precision-dialog.has-thermal-spread .screw-anchor{width:28px;height:28px;min-height:28px}
+.cooler-screw-count{font-size:.72rem!important;line-height:1.15}
+.cooler-screw-tip{font-size:.72rem!important;line-height:1.2}
+.screw-precision-dialog.has-thermal-spread .screw-alignment-board{
+  flex:1 1 122px;min-height:85px;max-height:none;height:auto}
+.screw-precision-dialog.has-thermal-spread .screw-alignment-status{
+  font-size:.72rem!important;line-height:1.14;min-height:0}
+.screw-precision-dialog.has-thermal-spread .screw-depth-top{font-size:.74rem}
+.screw-precision-dialog.has-thermal-spread .screw-depth-track{height:17px;flex:none}
+.screw-precision-dialog.has-thermal-spread #screwFeedback{
+  font-size:.73rem;line-height:1.2;min-height:0}
+.screw-precision-dialog.has-thermal-spread .screw-fallback-controls{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem}
+.screw-precision-dialog.has-thermal-spread .screw-fallback-controls button{
+  min-height:31px;padding:.25rem .3rem;font-size:.76rem}
+.screw-precision-dialog.has-thermal-spread footer{
+  flex:none;display:flex;flex-wrap:nowrap;gap:.3rem;
+  font-size:.67rem;line-height:1.2;padding-top:.25rem;min-width:0}
+.screw-precision-dialog.has-thermal-spread footer span{min-width:0}
+.screw-precision-dialog.has-thermal-spread footer button{
+  flex:none;min-height:30px;padding:.24rem .45rem;font-size:.72rem}
+/* El resumen también debe ocupar una sola vista. */
+.screw-precision-dialog:has([data-cooler-finish]){
+  width:min(690px,100%);max-height:100%;overflow:hidden;
+  display:flex;flex-direction:column;gap:.35rem}
+.screw-precision-dialog:has([data-cooler-finish]) .thermal-live{
+  position:static;box-shadow:none;flex:1 1 auto;min-height:0;overflow:hidden}
+@media(max-width:650px){
+ .screw-precision-popup:has(.has-thermal-spread){align-items:center;overflow:hidden}
+ .screw-precision-dialog.has-thermal-spread{height:min(620px,100%);gap:.22rem;padding:.32rem}
+ .cooler-screw-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.3rem}
+ .cooler-pressure-column,.cooler-tool-column{gap:.19rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-live{padding:.2rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-heading{font-size:.62rem;gap:0}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-layout{
+   grid-template-columns:minmax(0,1fr);gap:.1rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-layout svg{
+   width:min(100%,113px);height:103px}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings{gap:.08rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div{
+   padding:.06rem .2rem;gap:.1rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings span{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings strong{font-size:.72rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-readings>div:first-child strong{font-size:.86rem}
+ .screw-precision-dialog.has-thermal-spread .thermal-meter-track{height:5px}
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread .screw-anchor-map{min-height:91px;flex:1 1 90px}
+ .screw-precision-dialog.has-thermal-spread .screw-anchor{width:25px;height:25px;min-height:25px}
+ .screw-precision-dialog.has-thermal-spread .screw-alignment-board{min-height:88px;flex:1 1 108px}
+ .screw-precision-dialog.has-thermal-spread .screw-hole{width:34px;height:34px}
+ .screw-precision-dialog.has-thermal-spread .screw-head{width:36px;height:36px}
+ .cooler-screw-count,.cooler-screw-tip{font-size:.64rem!important}
+ .screw-precision-dialog.has-thermal-spread .screw-alignment-status,
+ .screw-precision-dialog.has-thermal-spread #screwFeedback{font-size:.66rem!important}
+ .screw-precision-dialog.has-thermal-spread .screw-depth-top{font-size:.66rem}
+ .screw-precision-dialog.has-thermal-spread .screw-depth-track{height:13px}
+ .screw-precision-dialog.has-thermal-spread .screw-fallback-controls button{font-size:.68rem}
+ .screw-precision-dialog.has-thermal-spread footer{font-size:.57rem}
+ .screw-precision-dialog.has-thermal-spread footer button{font-size:.65rem}
+}
+@media(max-width:370px){
+ .screw-precision-dialog.has-thermal-spread .thermal-spread-panel small{display:none}
+ .screw-precision-dialog.has-thermal-spread footer span{font-size:.53rem}
+}
+
+/* 8.13 — pantalla propia de tienda, manteniendo intacto el encargo. */
+#storeBtn{border-color:#44bfa8;background:#123d41;color:#d6ffeb}
+#adventureStorePage{display:none}
+body.adventure-on.adventure-store-on main.layout{display:none!important}
+body.adventure-on.adventure-store-on #adventureStorePage{display:block}
+body.adventure-on.adventure-store-on #storeBtn{background:#1b725a;border-color:#9affd9}
+.store-page{width:min(1500px,calc(100% - 2rem));margin:1rem auto 3rem;min-height:68vh}
+.store-page button{white-space:normal}
+.store-page-head{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;
+ padding:1.5rem;border:1px solid #327078;border-radius:18px;
+ background:linear-gradient(128deg,#153b50,#0c2937 75%);
+ box-shadow:0 10px 35px #0005}
+.store-page-head small{font-size:.72rem;color:#a1decd;letter-spacing:.11em;font-weight:700}
+.store-page-head h2{font-size:clamp(1.55rem,3vw,2.5rem);margin:.4rem 0;color:#eafff6}
+.store-page-head p{max-width:57ch;font-size:.88rem;color:#c6dbe6;line-height:1.45;margin:.35rem 0}
+.store-page-actions{display:flex;align-items:center;gap:1rem}
+.store-page-actions button{min-height:44px;min-width:135px}
+.store-money{display:grid;gap:.16rem;min-width:150px}
+.store-money span{font-size:.72rem;color:#a7cbd0}
+.store-money strong{font-size:1.5rem;color:#c1ffe0;font-variant-numeric:tabular-nums}
+.store-money small{font-size:.7rem;letter-spacing:normal;color:#a7cbd0}
+.store-categories{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:.5rem;margin:1rem 0}
+.store-categories button{display:grid;justify-items:center;align-content:center;gap:.2rem;
+ min-height:95px;padding:.5rem .22rem;color:#cddfeb;background:#112437;
+ border:1px solid #3d5c70;border-radius:12px;cursor:pointer}
+.store-categories button span{font-size:1.9rem;line-height:1.1}
+.store-categories button strong{font-size:.71rem;line-height:1.2;text-align:center}
+.store-categories button small{font-size:.61rem;color:#a3bccc}
+.store-categories button.active,.store-categories button[aria-pressed=true]{
+ background:linear-gradient(145deg,#1b6059,#134650);border:2px solid #83e6bf;color:#fff}
+.store-categories button:hover{border-color:#77dac5}
+.store-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,350px);
+ align-items:start;gap:1rem}
+.store-catalogue,.store-seller,.store-detail{background:#102438;border:1px solid #34536b;
+ border-radius:14px;padding:1rem;box-shadow:0 9px 18px #0003}
+.store-searchbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.9rem}
+.store-searchbar label{font-size:.74rem;font-weight:700;color:#b3dce4}
+.store-searchbar select,.store-searchbar input{min-width:0;background:#142f42;color:#e8f8f8;
+ border:1px solid #4b8792;border-radius:8px;padding:.6rem .7rem}
+.store-searchbar select{min-width:155px}
+.store-searchbar input{flex:1 1 150px}
+.store-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.store-product{display:grid;grid-template-columns:48px minmax(0,1fr);
+ gap:.55rem;background:#142b41;border:1px solid #385872;border-radius:12px;padding:.8rem;
+ min-width:0;align-content:start}
+.store-product-icon{font-size:1.8rem;background:#214b53;width:48px;height:48px;
+ display:grid;place-items:center;border-radius:11px}
+.store-product-main{min-width:0}
+.store-product-main h3{font-size:.93rem;margin:0 0 .22rem;line-height:1.25}
+.store-product-main p,.store-product-main small{display:block;font-size:.72rem;
+ color:#bbd5e1;line-height:1.35;margin:.16rem 0;overflow-wrap:anywhere}
+.store-owned{display:inline-block;border-radius:12px;background:#164d3d;
+ padding:.12rem .4rem;font-size:.68rem;color:#9aefcf;margin-top:.3rem}
+.store-product-actions{grid-column:1/-1;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.store-product-actions button{min-height:35px;flex:1;font-size:.77rem;padding:.4rem .5rem}
+.store-price{font-size:1.12rem;color:#e4fff2;flex:1;white-space:nowrap}
+.store-side{display:grid;gap:1rem}
+.store-seller{border-color:#397a67;background:linear-gradient(155deg,#163c41,#102b35)}
+.store-seller-heading{display:flex;gap:.7rem;align-items:center}
+.store-seller-heading>span{font-size:2.6rem;padding:.2rem .5rem;background:#20534d;
+ border-radius:13px}
+.store-seller-heading div{display:grid;gap:.15rem}
+.store-seller-heading strong{font-size:.97rem}
+.store-seller-heading small{font-size:.7rem;color:#a8ddcb}
+.store-seller p{font-size:.77rem;line-height:1.45;color:#d9f2e7}
+ .store-seller-questions{display:flex;flex-wrap:wrap;gap:.3rem;margin:.7rem 0}
+.store-seller-questions button{flex:1;min-height:34px;padding:.35rem .4rem;
+ font-size:.7rem;border:1px solid #529c84;background:#1d4b46;color:#dcfff0}
+.store-seller-questions button[aria-pressed=true]{background:#286c55;border-color:#afffd7}
+.store-seller-reply{padding:.65rem;border-radius:8px;border:1px solid #377c6d;
+ font-size:.79rem;line-height:1.5;color:#d3f8e2;background:#133c3d}
+.store-seller ul{padding:0;margin:.5rem 0 0;display:grid;gap:.55rem;list-style:none}
+.store-seller li{display:flex;gap:.65rem;background:#1a4247;padding:.6rem;border-radius:9px}
+.store-seller li>span{font-size:1.4rem}
+.store-seller li div{display:grid;gap:.22rem}
+.store-seller li strong{font-size:.76rem;color:#e7ffee}
+.store-seller li small{font-size:.72rem;line-height:1.4;color:#b2dccc}
+.store-detail{border-color:#4c7690}
+.store-detail h3{font-size:1.05rem;line-height:1.2}
+.store-detail-head{display:flex;justify-content:space-between;align-items:center}
+.store-detail-head>span,.store-detail-empty>span{font-size:2.1rem}
+.store-detail-head button{min-height:34px}
+.store-detail-empty{display:grid;gap:.5rem;text-align:center;justify-items:center;padding:1rem}
+.store-detail-empty h3,.store-detail-empty p{margin:0}
+.store-detail-empty p,.store-facts-note{font-size:.77rem;color:#b8d5dd;line-height:1.5}
+.store-detail-price{font-size:1.4rem;color:#b3ffdc;font-weight:800;margin:.5rem 0}
+.store-facts{display:grid;gap:0;margin:.6rem 0 1rem}
+.store-facts>div{display:grid;grid-template-columns:minmax(90px,1fr) minmax(0,1.4fr);
+ gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #355365}
+.store-facts dt{font-size:.75rem;color:#9fcbd7}
+.store-facts dd{margin:0;font-size:.79rem;overflow-wrap:anywhere;color:#e8f5ff}
+.store-detail>button.primary{width:100%}
+.store-status{font-size:.78rem;color:#a3f4cd;margin:1rem 0}
+.adv-stage-tip button[data-open-store]{margin:.35rem 0 0;display:block;width:100%}
+.store-empty{padding:1rem;color:#b5cdd6}
+@media(max-width:1180px){.store-categories{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:850px){.store-content{grid-template-columns:minmax(0,1fr)}
+ .store-side{display:contents}
+ .store-seller{order:-1}
+ .store-detail{order:1;scroll-margin-top:.5rem}
+ .store-page-head{flex-wrap:wrap}
+ .store-page-actions{width:100%;justify-content:space-between}}
+@media(max-width:620px){.store-page{width:calc(100% - .6rem);margin:.4rem auto 1.5rem}
+ .store-page-head{padding:.8rem}.store-page-actions{flex-wrap:wrap}
+ .store-categories{grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem}
+ .store-categories button{min-height:76px}
+ .store-categories button span{font-size:1.4rem}
+ .store-content,.store-side,.store-products{grid-template-columns:minmax(0,1fr)}
+ .store-catalogue,.store-seller,.store-detail{padding:.7rem}
+ .store-product{grid-template-columns:42px minmax(0,1fr)}
+ .store-product-icon{width:42px;height:42px}
+ .store-searchbar label{display:none}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.13.0-alpha: tienda independiente y asesor de material</h1></div><div class="actions"><button id="adventureBtn" class="primary">Taller y encargos</button><button id="storeBtn" class="store-nav-btn">🛒 Tienda</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<details id="teacherTools" class="panel teacher-tools"><summary><strong>Herramientas docentes · Caso práctico JSON</strong></summary>
+<p>El profesor puede redactar un encargo y su presupuesto, descargarlo en JSON o importar uno para resolverlo en «Tienda y encargos».</p>
+<div class="teacher-fields">
+<label>Título del caso<input id="teacherTitle" maxlength="100" value="Equipo para aula de diseño"></label>
+<label>Cliente<input id="teacherClient" maxlength="100" value="Departamento de informática"></label>
+<label>Presupuesto (€)<input id="teacherBudget" type="number" min="100" max="10000" step="1" value="950"></label>
+<label>RAM mínima (GB)<select id="teacherRam"><option>8</option><option selected>16</option><option>32</option><option>64</option></select></label>
+<label>Almacenamiento<select id="teacherStorage"><option value="ssd">SSD</option><option value="nvme">NVMe obligatorio</option><option value="any">Cualquier disco</option></select></label>
+<label>GPU dedicada<select id="teacherGpu"><option value="false">Opcional</option><option value="true">Obligatoria</option></select></label>
+<label>Temperatura máxima (°C)<input id="teacherTemp" type="number" min="60" max="100" value="90"></label>
+<label class="teacher-wide">Enunciado<textarea id="teacherStory" rows="3" maxlength="1600">Se necesita un PC equilibrado que arranque un sistema ficticio y cumpla el presupuesto.</textarea></label></div>
+<div class="actions"><button id="downloadCaseJson">Descargar caso JSON</button><button id="applyTeacherCase" class="okbtn">Usar este caso</button><label for="importCaseJson" class="file-label">Importar caso JSON</label><input id="importCaseJson" type="file" accept=".json,application/json"></div>
+<p id="teacherStatus" class="issue" role="status">Esquema: pc-lab.teacher-case.v1 · datos locales, sin subir archivos.</p></details>
+<section id="adventureStorePage" class="store-page" aria-label="Tienda del taller"></section>
+<main class="layout">
+<section id="adventurePanel" class="panel"></section>
+<section id="legacyPanel" class="panel"><div class="title"><h2>Catálogo</h2><span>elige piezas</span></div><div id="selectors"></div><div class="title"><h2>Montaje</h2><span>estado</span></div><div id="installList"></div><div class="title"><h2>Proceso de montaje</h2><span>secuencia y dificultad</span></div>
+<div class="issue warn" id="assemblyEffort">Esfuerzo: 0 pasos</div><div id="actionNotice" class="actionNotice" role="status">Puedes montar piezas y conectar hardware con la caja abierta y el PC apagado.</div>
+<div class="actions"><button id="caseToggle">Abrir / cerrar caja</button>
+<button id="routePsu" class="warnbtn">Ordenar mazos PSU</button></div>
+<div class="tools"><button id="ioShieldAction">Instalar chapa I/O</button>
+<button id="ioShieldRemove" class="warnbtn">Desmontar placa para colocar chapa</button>
+<button id="gpuPowerQuick" class="okbtn">Conectar GPU 8p/12VHPWR</button></div>
+<div class="title"><h2>Ventiladores de caja</h2><span>120 mm · SYS_FAN</span></div>
+<div id="caseFanList" class="fan-config"></div>
+<div class="issue" id="thermalSummary">Flujo de aire y temperatura</div>
+<div class="issue" id="dragHint">Distribución inspirada en torre ATX: placa vertical, GPU horizontal, PSU inferior, HDD en bahía superior y SSD SATA en adaptador de bahía inferior. Usa «Bahías HDD / SSD» para inspeccionar su montaje.</div>
+<div class="title"><h2>Conexiones externas</h2><span>USB / vídeo</span></div>
+<div class="tools"><button id="keyboardToggle">Conectar teclado USB</button>
+<button id="mouseToggle">Conectar ratón USB</button>
+<button id="monitorToggle">Conectar HDMI / DP</button></div>
+<div class="issue" id="peripheralStatus">Teclado, ratón y monitor sin conectar.</div><div class="title"><h2>Ficha técnica</h2><span id="selectedPartName">—</span></div><div id="specPanel"></div></section>
+<section><div class="panel"><div class="title"><h2 id="modeLabel">Modo montaje guiado</h2><span>monitor + BIOS</span></div><div class="actions"><button id="autoBuild" class="okbtn">Montaje recomendado (demo)</button><button id="powerBtn" class="primary">Encender PC</button><button id="biosBtn" class="warnbtn" title="Enciende el PC y abre UEFI si supera POST">Encender y entrar BIOS</button></div><div id="workshopFeedback" class="workshopFeedback" role="status" aria-live="polite">En un encargo, compra y conecta las piezas antes de encender. «Montaje recomendado» abre una demostración técnica independiente.</div></div><div class="panel" style="margin-top:1rem"><div id="resourceAlert" class="resourceAlert" role="status" aria-live="polite" hidden></div><div id="viewportWrap" class="viewportWrap"><canvas id="viewport"></canvas><div id="ramPrecisionPopup" class="ram-precision-popup" hidden></div><div id="screwPrecisionPopup" class="screw-precision-popup" hidden></div><div id="cpuPrecisionPopup" class="cpu-precision-popup" hidden></div><div id="pastePrecisionPopup" class="paste-precision-popup" hidden></div><div id="sceneHoverTip" class="sceneHoverTip" role="tooltip" hidden></div><aside id="partContextMenu" class="partContextMenu" role="dialog" aria-label="Acciones de pieza 3D" hidden></aside><aside id="partSpecSheet" class="partSpecSheet" role="dialog" aria-label="Ficha técnica de componente" hidden></aside><div id="fallback" class="fallback"></div><div class="hint">Dos mesas: selecciona las piezas compradas · rueda para zoom</div><div class="sceneActions"><button id="viewDesk" data-camera-view="general" aria-pressed="true">Vista general</button><button id="viewAssemblyDesk" data-camera-view="assembly" aria-pressed="false">Mesa de montaje</button><button id="viewStaging3d" data-camera-view="staging" aria-pressed="false">Mesa de piezas</button><button id="viewPeripherals" data-camera-view="peripherals" aria-pressed="false">Periféricos</button><button id="stagePrev" title="Página anterior de piezas">◀</button><span id="stageCount" class="stageCounter">Mesa 1/1</span><button id="stageNext" title="Página siguiente de piezas">▶</button><button id="viewMonitor3d" data-camera-view="monitor" aria-pressed="false">Monitor 3D</button><button id="viewIso" data-camera-view="tower" aria-pressed="false">Vista torre</button><button id="viewTop" data-camera-view="side" aria-pressed="false">Lateral</button><button id="viewRearCables" data-camera-view="rear" aria-pressed="false">Trasera / cables</button><button id="viewDriveBays" data-camera-view="drives" aria-pressed="false" title="Inspeccionar bahías: vista con cubierta de PSU oculta">Bahías HDD / SSD</button><button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom -</button><button id="explodeBtn">Expandir</button></div></div><div class="monitor"><div class="monitorTop"><strong id="monitorTitle">Monitor virtual</strong><span><i id="ledPower" class="light"></i><i id="ledPost" class="light"></i><i id="ledBoot" class="light"></i></span></div><div id="biosPanel" class="biosPanel"><div class="title"><h2>BIOS/UEFI simulada</h2><span>configurable</span></div><div class="biosGrid"><div class="field"><label>Boot #1</label><select id="biosBoot"><option value="ssd">SSD/NVMe del sistema</option><option value="pxe">PXE Network</option><option value="usb">USB instalador</option></select></div><div class="field"><label>Modo SATA</label><select id="biosSata"><option value="AHCI">AHCI</option><option value="RAID">RAID</option><option value="IDE">IDE legado</option></select></div><div class="field"><label>Perfil memoria</label><select id="biosXmp"><option value="Auto">Auto/JEDEC</option><option value="EXPO">EXPO/XMP estable</option><option value="Aggressive">OC agresivo</option></select></div><div class="field"><label>Curva ventilador CPU</label><select id="biosFan"><option value="Balanced">Balanced</option><option value="Silent">Silent</option><option value="Performance">Performance</option></select></div><div class="field"><label>PCIe GPU</label><select id="biosPcie"><option value="Auto">Auto</option><option value="Gen4">Forzar Gen4</option><option value="Gen5">Forzar Gen5 only</option></select></div><div class="field"><label>Secure Boot</label><select id="biosSecure"><option value="on">Activado</option><option value="off">Desactivado</option></select></div><div class="field"><label>Firmware</label><select id="biosUefi"><option value="on">UEFI</option><option value="off">Legacy / CSM</option></select></div></div><div class="actions" style="margin-top:.7rem"><button id="saveBios" class="okbtn">Guardar BIOS</button><button id="biosDefaults" class="warnbtn">Valores seguros</button></div></div><div id="osPanel" class="osPanel" aria-label="Arranque e instalación ficticios"><div class="title"><h2>Arranque e instalación ficticia</h2><span>USB / disco / SO</span></div><div class="field"><label for="osUsbImage">Imagen del USB</label><select id="osUsbImage"><option value="none">Sin imagen de arranque</option><option value="novadesk">NovaDesk 11 · UEFI y Secure Boot</option><option value="libreforge">LibreForge · Entorno libre</option><option value="terminalis">Terminalis · Consola educativa</option></select></div><div class="actions"><button id="osUsbToggle">Conectar USB instalador</button><button id="osInstallBtn" class="okbtn">Instalar SO en el disco</button></div><p class="osHelp">En encargos, compra y prepara una memoria en la tienda y conéctala desde «Preparar y conectar USB» del panel lateral. En la demo técnica puedes elegir la imagen directamente. No se modifica ningún disco real.</p><div id="osStatus" class="issue" role="status" aria-live="polite">No se ha configurado un medio de arranque.</div></div><div id="screen" class="screen"></div><div class="meters"><div class="meter"><span>CPU <b id="cpuLoadText">0%</b></span><div class="bar"><i id="cpuBar"></i></div></div><div class="meter"><span>GPU <b id="gpuLoadText">0%</b></span><div class="bar"><i id="gpuBar"></i></div></div><div class="meter"><span>PSU <b id="psuLoadText">0%</b></span><div class="bar"><i id="psuBar"></i></div></div><div class="meter"><span>Temp <b id="tempLoadText">35°C</b></span><div class="bar"><i id="tempBar"></i></div></div></div></div></div></section>
+<aside class="panel"><div class="title"><h2>Inspector IA</h2><span>diagnóstico</span></div><div class="status"><div><span>Alim.</span><strong id="powerStatus">Apagado</strong></div><div><span>POST</span><strong id="postStatus">Pendiente</strong></div><div><span>Boot</span><strong id="bootStatus">Pendiente</strong></div><div><span>Watts</span><strong id="wattsStatus">0 W</strong></div><div><span>CPU</span><strong id="tempStatus">35 °C</strong></div><div><span>Compat.</span><strong id="compatStatus">—</strong></div></div><h3>Conectores y reglas</h3><div id="compatPanel"></div><h3>Consumo por componente</h3><div id="powerBreakdown" role="status"></div><h3>Banco de errores</h3><select id="faultSelect"></select><div class="tools"><button id="injectFault" class="warnbtn">Inyectar</button><button id="randomFault" class="warnbtn">Aleatorio</button></div><div id="activeFaults"></div><h3>Correcciones</h3><div class="tools" id="fixButtons"></div><h3>Herramientas</h3><div class="tools"><button data-tool="visual">Inspección</button><button data-tool="beep">Pitidos</button><button data-tool="multimeter">Multímetro</button><button data-tool="smart">SMART</button><button data-tool="stress">Test estrés</button><button data-tool="bios">BIOS</button></div><h3>Bitácora</h3><ol id="eventLog"></ol></aside>
+</main><p class="foot">Versión 8.13.0-alpha: tienda en pantalla independiente, categorías ilustradas y fichas antes de comprar.</p>
+<script src="./js/hardwareExpansion.js?v=8-4-1-gameplay-e2e"></script>
+<script src="./js/osEmulation.js?v=8-5-0-os-emulator"></script>
+<script src="./js/classroom.js?v=8-6-0-classroom"></script>
+<script src="./js/timeEngine.js?v=8-7-1-operation-lifecycle"></script>
+<script src="./js/mishapEngine.js?v=8-8-2-latent-sata"></script>
+<script src="./js/ramPrecision.js?v=8-9-1-ram-popup"></script>
+<script src="./js/screwPrecision.js?v=8-10-1-multi-screws"></script>
+<script src="./js/cpuPrecision.js?v=8-11-0-cpu-socket"></script>
+<script src="./js/thermalPaste.js?v=8-12-0-paste-pressure"></script>
+<script src="./js/pasteGameplay.js?v=8-12-3-live-spread"></script>
+<script src="./js/operationEngine.js?v=8-8-2-latent-sata"></script>
+<script src="./js/adventureMode.js?v=8-13-0-store-page"></script>
+<script src="./js/partInspector.js?v=8-4-4-front-io"></script>
+<script>
+const $=id=>document.getElementById(id);
+const catalog={motherboards:{b650:{name:'B650 ATX AM5',sizeMm:'305 × 244 mm',socket:'AM5',ram:'DDR5',chipset:'B650',slots:{dimm:4,pcieX16:1,m2:2,sata:4},desc:'Placa AMD AM5 con DDR5, M.2 y SATA.'},a520:{name:'A520 mATX AM4',sizeMm:'226 × 221 mm',socket:'AM4',ram:'DDR4',chipset:'A520',slots:{dimm:2,pcieX16:1,m2:1,sata:4},desc:'Placa AMD AM4 con DDR4.'},z790:{name:'Z790 ATX LGA1700',sizeMm:'305 × 244 mm',socket:'LGA1700',ram:'DDR5',chipset:'Z790',slots:{dimm:4,pcieX16:2,m2:4,sata:6},desc:'Placa Intel LGA1700 DDR5.'}},cpus:{r7600:{name:'Ryzen 5 7600',socket:'AM5',peak:88,igpu:true,desc:'CPU AM5.'},r5600:{name:'Ryzen 5 5600',socket:'AM4',peak:78,igpu:false,desc:'CPU AM4 sin iGPU.'},i513600k:{name:'Core i5-13600K',socket:'LGA1700',peak:181,igpu:true,desc:'CPU Intel potente.'}},ram:{ddr4_16:{name:'16 GB DDR4',type:'DDR4',watts:5,desc:'RAM DDR4.'},ddr5_16:{name:'16 GB DDR5',type:'DDR5',watts:8,desc:'RAM DDR5.'},ddr5_32:{name:'32 GB DDR5',type:'DDR5',watts:10,desc:'DDR5 alta capacidad.'}},storage:{sataSSD:{name:'SSD SATA 1 TB',sizeMm:'100 × 69,9 × 7 mm',interface:'SATA',watts:6,desc:'Requiere SATA datos y power.'},nvmeSSD:{name:'SSD NVMe M.2',sizeMm:'80 × 22 mm',interface:'M2_NVME',watts:8,desc:'Va directo a M.2.'},hdd:{name:'HDD SATA 2 TB',sizeMm:'147 × 101,6 × 26 mm',interface:'SATA',watts:9,desc:'Disco mecánico.'}},gpus:{none:{name:'Sin GPU',pcie:false,watts:0,power:[],gen:0,desc:'Usa iGPU si existe.'},rx7600:{name:'Radeon RX 7600',sizeMm:'245 × 134 × 49 mm',pcie:true,watts:165,power:['PCIE_8'],gen:4,desc:'GPU PCIe 4.0 con 8 pines.'},rtx4070:{name:'GeForce RTX 4070',sizeMm:'267 × 134 × 51 mm',pcie:true,watts:220,power:['12VHPWR'],gen:4,desc:'GPU PCIe 4.0 con 12VHPWR.'}},psus:{psu450:{name:'PSU 450W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:450,connectors:{PCIE_8:1,'12VHPWR':0},desc:'Fuente básica.'},psu650:{name:'PSU 650W',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:650,connectors:{PCIE_8:2,'12VHPWR':0},desc:'Fuente media.'},psu850:{name:'PSU 850W ATX 3.0',sizeMm:'150 × 140 × 86 mm (ATX representativa)',max:850,connectors:{PCIE_8:3,'12VHPWR':1},desc:'Fuente moderna.'}}};
+// Completar el catálogo con piezas compatibles y modelos deliberadamente incompatibles.
+for(const [group,models] of Object.entries(window.PC_HARDWARE_EXPANSION||{}))
+  Object.assign(catalog[group],models);
+for(const board of Object.values(catalog.motherboards))
+  board.videoOutputs??=['HDMI'];
+for(const cpu of Object.values(catalog.cpus))
+  if(cpu.igpu&&!cpu.igpuName)cpu.igpuName=cpu.socket==='LGA1700'?'Intel UHD 770':'AMD Radeon Graphics';
+const categories={motherboard:'Placa base',cpu:'Procesador',ram:'RAM',storage:'Almacenamiento',gpu:'GPU',psu:'Fuente'};
+const faults={video:{name:'Cable de vídeo desconectado',fix:'connect_monitor',beep:'ok',msg:'Monitor sin señal de vídeo.'},keyboard:{name:'Teclado USB desconectado',fix:'connect_keyboard',beep:'ok',msg:'No es posible manejar la BIOS.'},mouse:{name:'Ratón USB desconectado',fix:'connect_mouse',beep:'ok',msg:'No se detecta el ratón USB.'},atx24:{name:'ATX 24 pines desconectado',fix:'connect_atx24',beep:'cpu',msg:'La placa no recibe alimentación principal.'},frontpanel:{name:'POWER SW / F_PANEL desconectado',fix:'connect_frontpanel',beep:'cpu',msg:'El botón de encendido no llega a la placa.'},ram:{name:'RAM mal encajada',fix:'seat_ram',beep:'memory',msg:'No hay vídeo. LED DRAM.'},eps:{name:'EPS CPU sin conectar',fix:'connect_eps',beep:'cpu',msg:'No hay POST. LED CPU.'},sata:{name:'SATA de datos suelto',fix:'connect_sata',beep:'ok',msg:'No bootable device.'},satap:{name:'Alimentación SATA olvidada',fix:'connect_sata_power',beep:'ok',msg:'El disco no enciende.'},paste:{name:'Pasta térmica mal aplicada',fix:'good_paste',beep:'ok',msg:'CPU supera 100 °C.'},fan:{name:'CPU_FAN desconectado',fix:'connect_fan',beep:'ok',msg:'CPU fan error.'},gpu:{name:'Alimentación GPU olvidada',fix:'gpu_power',beep:'gpu',msg:'No hay imagen. LED VGA.'},disk:{name:'Disco con sectores defectuosos',fix:'replace_disk',beep:'ok',msg:'Arranque lento y cuelgues.'},boot:{name:'Orden de arranque incorrecto',fix:'fix_boot',beep:'ok',msg:'Intenta arrancar desde red/USB.'},bios_sata:{name:'BIOS: modo SATA incorrecto',fix:'bios_defaults',beep:'ok',msg:'El SO no arranca por cambio AHCI/RAID/IDE.'},bios_xmp:{name:'BIOS: OC de RAM inestable',fix:'bios_defaults',beep:'memory',msg:'Pantallazos y errores de memoria por XMP/EXPO agresivo.'},bios_fan:{name:'BIOS: curva de ventilador Silent',fix:'bios_defaults',beep:'ok',msg:'Sobrecalentamiento bajo carga por curva silenciosa.'},bios_pcie:{name:'BIOS: PCIe forzado incompatible',fix:'bios_defaults',beep:'gpu',msg:'LED VGA: GPU no inicializa con modo PCIe forzado.'}};
+const fixes={connect_monitor:'Conectar cable de monitor',connect_keyboard:'Conectar teclado USB',connect_mouse:'Conectar ratón USB',route_psu:'Apartar y asegurar mazos PSU',remove_gpu:'Extraer GPU temporalmente',connect_atx24:'Conectar ATX 24 pines',connect_frontpanel:'Conectar POWER SW (F_PANEL)',seat_ram:'Encajar RAM',connect_eps:'Conectar EPS',connect_sata:'Conectar SATA datos',connect_sata_power:'Conectar alimentación SATA',good_paste:'Aplicar pasta térmica',connect_fan:'Conectar CPU_FAN',gpu_power:'Conectar alimentación GPU',replace_disk:'Sustituir disco',fix_boot:'Corregir orden boot',bios_defaults:'BIOS valores seguros'};
+let state,audioCtx,soundEnabled=true,bootEpoch=0,adventureGame=null,adventureActionContext=false,partInspector=null;
+function safeBios(){return{boot:'ssd',bootOrder:['ssd','usb','pxe'],sata:'AHCI',xmp:'Auto',fan:'Balanced',pcie:'Auto',secure:'on',uefi:'on'}}
+const BOOT_LABELS={ssd:'SSD/NVMe',usb:'USB',pxe:'PXE (red)'};
+function outputAvailable(e=evalState()){
+  const hasGPU=!!state.installed.gpu&&state.selected.gpu!=='none';
+  const gpuOk=hasGPU&&(!p('gpu').power.length||state.gpuPower);
+  const integrated=!!state.installed.motherboard&&!!state.installed.cpu&&
+    !!p('cpu').igpu&&!!p('motherboard').videoOutputs?.length;
+  const port=state.videoPort||'auto';
+  const signal=port==='motherboard'?integrated:
+    port==='gpu'?gpuOk:
+    hasGPU?gpuOk:integrated;
+  return !!((state.power||state.lastPowerFailure)&&state.monitorCable&&
+    state.installed?.motherboard&&state.atx24&&signal);
+}
+function moveBoot(index,delta=-1){
+  if(!state.power||!state.bios||(!state.keyboardConnected&&!state.mouseConnected)||!outputAvailable()){
+    addLog('warn','Conecta teclado y vídeo y abre BIOS para ordenar el arranque.');
+    return render();
+  }
+  const list=[...(state.biosCfg.bootOrder||['ssd','usb','pxe'])];
+  if(index<0||index>=list.length)return;
+  const next=Math.max(0,Math.min(list.length-1,index+delta));
+  [list[index],list[next]]=[list[next],list[index]];
+  state.biosCfg.bootOrder=list;
+  state.biosCfg.boot=list[0];
+  state.bootCursor=next;
+  addLog('ok','Boot order: '+list.map(x=>BOOT_LABELS[x]).join(' > '));
+  render();
+}
+// La animación POST actualiza sólo consola/estado. Un render completo
+// destruiría las tarjetas y botones cada ~0.5 s, interrumpiendo clics.
+function refreshBootOutput(){
+  if(!state)return;
+  try{
+    const evaluation=evalState();
+    const text=monitorText(evaluation);
+    $('screen').textContent=text;
+    $('postStatus').textContent=evaluation.post?'Correcto':'Fallido';
+    $('bootStatus').textContent=evaluation.boot?'Arranca':
+      evaluation.post?'No arranca':'Pendiente';
+    $('ledPost').classList.toggle('on',state.power&&evaluation.post);
+    $('ledBoot').classList.toggle('on',state.power&&evaluation.boot);
+    window.PC3D?.update?.(state,{
+      part:p,consoleText:text,videoSignal:outputAvailable(evaluation),
+      osVisual:osPresentation(evaluation)
+    });
+  }catch(err){
+    console.error('POST: error actualizando pantalla',err);
+    showResourceError('Error durante POST: '+(err?.message||String(err)));
+  }
+}
+function schedulePostStages(){
+  const token=++bootEpoch;
+  state.bootToken=token;
+  state.bootStage=0;
+  [420,1080,1770,2580,3300,4000].forEach((delay,i)=>{
+    setTimeout(()=>{
+      if(!state.power||token!==state.bootToken||state.bios)return;
+      state.bootStage=i+1;refreshBootOutput();
+    },delay);
+  });
+}
+
+function init(){state={selected:{motherboard:'b650',cpu:'r7600',ram:'ddr5_16',storage:'sataSSD',gpu:'rx7600',psu:'psu650',cooler:'air',caseVariant:'tower'},installed:{},fixings:{},mechanicalFault:null,lastPowerFailure:null,fixed:{},ramSeated:false,eps:false,atx24:false,frontPanel:false,frontUsb3:false,frontUsbC:false,sataData:false,sataPower:false,paste:1,cpuFan:false,gpuPower:false,monitorCable:false,videoPort:'auto',keyboardConnected:false,mouseConnected:false,
+rgbInstalled:false,rgbOn:true,caseClosed:false,installHistory:[],assemblyEffort:0,psuAccessRouted:false,
+installHold:'',ioShield:false,lastRenderError:null,
+caseFans:[{installed:false,connected:false},{installed:false,connected:false},{installed:false,connected:false}],
+bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),usbImage:'none',usbConnected:false,usbMediaKey:null,installedOs:null,osInstalled:false,osInstalling:false,osInstallProgress:0,osInstallToken:0,power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){
+  state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});
+  state.log=state.log.slice(0,36);
+  const notice=$('workshopFeedback');
+  if(notice){notice.textContent=m;notice.dataset.level=l;}
+}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?(window.PC_COOLER_OPTIONS?.[state.selected.cooler]?.watts||4):0)+
+ (state.caseFans||[]).filter(f=>f.installed).length*3}
+function powerReport(){return window.PC_CLASSROOM.diagnose(state,watts(),
+ state.installed.psu?p('psu').max:0);}
+function fixPart(k){
+ if(state.adventureMode){addLog('warn','Usa destornillador y tornillos del inventario en el modo aventura.');return render();}
+ if(state.power||state.caseClosed){addLog('warn','Apaga el PC y abre la caja antes de fijar tornillos.');return render();}
+ if(!state.installed[k]){addLog('warn','Instala primero '+k+'.');return render();}
+ state.fixings[k]=true;state.mechanicalFault=null;
+ addLog('ok','Tornillos fijados correctamente: '+k+'.');render();
+}
+function ruleList(){let mb=p('motherboard'),cpu=p('cpu'),ram=p('ram'),st=p('storage'),gpu=p('gpu'),psu=p('psu'),r=[];r.push({level:cpu.socket===mb.socket?'ok':'error',text:`Socket ${cpu.socket} ↔ ${mb.socket}`});r.push({level:ram.type===mb.ram?'ok':'error',text:`RAM ${ram.type} ↔ ${mb.ram}`});r.push({level:(st.interface==='SATA'&&mb.slots.sata)||(st.interface==='M2_NVME'&&mb.slots.m2)?'ok':'error',text:`Almacenamiento ${st.interface}`});if(gpu.power.length)gpu.power.forEach(c=>r.push({level:(psu.connectors[c]||0)>0?'ok':'error',text:`GPU requiere ${c}: PSU tiene ${psu.connectors[c]||0}`}));let m=Math.round(watts()*1.25);
+ r.push({level:watts()>psu.max?'error':m<=psu.max?'ok':'warn',
+ text:`Pico ${watts()} W; recomendado ≥ ${m} W; PSU ${psu.max} W`});if(!cpu.igpu&&state.selected.gpu==='none')
+  r.push({level:'error',text:'CPU sin iGPU: necesitarás una GPU dedicada'});
+if(cpu.igpu&&state.selected.gpu==='none'&&!mb.videoOutputs?.length)
+  r.push({level:'error',text:'La placa no dispone de HDMI/DisplayPort para la iGPU'});
+if(cpu.igpu&&mb.videoOutputs?.length)
+  r.push({level:'ok',text:'Vídeo integrado: '+cpu.igpuName+
+    ' → '+mb.videoOutputs.join('/')+' de la placa'});
+if(!cpu.igpu)
+  r.push({level:'warn',text:'Sin gráficos integrados: conecta monitor a la GPU dedicada'});return r}function compatible(){return !ruleList().some(x=>x.level==='error')}function addFault(id){if(!state.activeFaults.includes(id))state.activeFaults.push(id);applyFault(id);state.fixed={};addLog('warn','Avería: '+faults[id].name+'. '+faults[id].msg);beep(faults[id].beep);render()}function applyFault(id){if(id==='ram')state.ramSeated=false;if(id==='eps')state.eps=false;if(id==='atx24')state.atx24=false;if(id==='frontpanel')state.frontPanel=false;if(id==='sata')state.sataData=false;if(id==='satap')state.sataPower=false;if(id==='paste')state.paste=.2;if(id==='fan')state.cpuFan=false;if(id==='gpu')state.gpuPower=false;if(id==='boot'){state.biosCfg.boot='pxe';state.biosCfg.bootOrder=['pxe','usb','ssd'];}
+if(id==='video')state.monitorCable=false;
+if(id==='keyboard')state.keyboardConnected=false;
+if(id==='mouse')state.mouseConnected=false;if(id==='disk')state.installed.storage=true}function install(k){
+  if(state.adventureMode&&!adventureActionContext){addLog('warn','Selecciona la pieza comprada sobre la mesa auxiliar y pulsa Encajar.');return render();}
+  if(state.power){addLog('warn','Apaga el PC antes de instalar piezas.');return render();}
+  if(!state.installed.case&&k!=='case'){
+    addLog('warn','Primero coloca la caja/chasis antes de instalar hardware.');
+    return render();
+  }
+  if(state.caseClosed){
+    addLog('warn','Abre el panel lateral de la caja para acceder al hardware.');
+    return render();
+  }
+  if(k!=='case'&&k!=='motherboard'&&k!=='psu'&&!state.installed.motherboard){
+    addLog('warn','Instala primero la placa base en los separadores del chasis.');
+    return render();
+  }
+  if(k==='cooler'&&!state.installed.cpu){
+    addLog('warn','Primero coloca CPU, pasta térmica y luego el disipador.');
+    return render();
+  }
+  if(k==='motherboard'&&!state.installed.motherboard&&state.installed.psu&&!state.psuAccessRouted){
+    state.installHold='motherboard';state.assemblyEffort+=1;
+    addLog('warn','PSU instalada antes de la placa: los cables tapan separadores. Usa «Apartar y asegurar mazos PSU» antes de colocar la placa (+1 paso).');
+    return render();
+  }
+  if(k==='gpu'&&state.installed.psu&&p('gpu').power.length){
+    const needs=p('gpu').power;
+    if(!needs.every(id=>(p('psu').connectors[id]||0)>0))
+      addLog('warn','GPU instalada, pero la fuente elegida no tiene el conector '+needs.join(', ')+'.');
+  }
+  if(k==='storage'&&p('storage').interface==='M2_NVME'&&state.installed.gpu){
+    state.installHold='storage';
+    addLog('warn','La GPU obstruye la ranura M.2: retírala antes de insertar el NVMe.');
+    return render();
+  }
+  const wasInstalled=!!state.installed[k];
+  state.installed[k]=true;
+  state.installHold='';
+  state.assemblyEffort+=wasInstalled?2:1;
+  state.installHistory.push((wasInstalled?'reinstall:':'')+k);
+   if(k!=='case'&&!wasInstalled)state.fixings[k]=false;
+  if(k==='motherboard'&&!state.ioShield)
+    addLog('warn','Falta instalar la chapa I/O: tendrás que retirar la placa para colocarla correctamente.');
+  clickSound();
+  if(k==='psu'){state.atx24=false;state.eps=false;state.gpuPower=false;state.psuAccessRouted=false;}
+  if(k==='case')state.frontPanel=false;
+  if(k==='ram'){state.ramSeated=false;addLog('warn','RAM colocada: presiona ambos cierres DIMM.');}
+  else if(k==='storage'&&p('storage').interface==='SATA'){
+    state.sataData=false;state.sataPower=false;
+    addLog('warn','Unidad en bahía del chasis: conecta SATA datos y alimentación.');
+  }else if(k==='gpu'&&p('gpu').power.length){
+    state.gpuPower=false;state.monitorCable=false;
+    addLog('warn','GPU encajada en PCIe: conecta alimentación y cable de vídeo.');
+  }else if(k==='cooler'){state.cpuFan=false;addLog('warn','Disipador instalado: falta CPU_FAN.');}
+  else addLog('ok',name(k)+(wasInstalled?' reinstalado.':' encajado en el chasis.'));
+  render();
+}
+function installIOShield(){
+  if(state.power||state.caseClosed||!state.installed.case){
+    addLog('warn','Necesitas una caja abierta y el PC apagado para montar la chapa I/O.');return render();
+  }
+  if(state.installed.motherboard){
+    addLog('warn','La placa ya está atornillada: retírala para encajar la chapa I/O desde dentro.');return render();
+  }
+  if(state.ioShield){addLog('ok','Chapa I/O ya instalada.');return render();}
+  state.ioShield=true;state.assemblyEffort++;state.installHistory.push('io_shield');
+  addLog('ok','Chapa I/O encajada en la abertura trasera del chasis.');
+  render();
+}
+function removeMotherboard(){
+  if(state.power||state.caseClosed||!state.installed.motherboard){
+    addLog('warn','Necesitas la placa montada, caja abierta y PC apagado.');return render();
+  }
+  // Se retira el conjunto: se desconectan auxiliares y se reserva espacio
+  // para volver a colocar la placa con su chapa I/O.
+  ['motherboard','cpu','ram','cooler','gpu','storage'].forEach(k=>{state.installed[k]=false;state.fixings[k]=false;});
+  state.atx24=false;state.eps=false;state.frontPanel=false;state.gpuPower=false;
+  state.cpuFan=false;state.sataData=false;state.sataPower=false;
+  state.monitorCable=false;state.caseFans.forEach(f=>f.connected=false);
+  state.installHold='motherboard';state.assemblyEffort+=5;
+  state.psuAccessRouted=false;
+  addLog('warn','Placa y componentes desmontados para corregir el panel I/O: +5 pasos.');
+  render();
+}
+function caseFanAction(index,action){
+  if(index<0||index>2||!state.installed.case||state.caseClosed||state.power){
+    addLog('warn','Abre la caja y apaga el PC antes de modificar ventiladores.');return render();
+  }
+  const f=state.caseFans[index];
+  if(action==='install'){
+    if(!f.installed){f.installed=true;f.connected=false;state.assemblyEffort++;addLog('ok','Ventilador '+(index+1)+' instalado: conecta PWM.');}
+  }else if(action==='connect'){
+    if(!f.installed){addLog('warn','Instala primero el ventilador.');return render();}
+    if(state.installed.motherboard){f.connected=true;addLog('ok','Ventilador '+(index+1)+' conectado al header SYS_FAN.');}
+    else{addLog('warn','Monta primero la placa base con los headers SYS_FAN.');}
+  }else if(action==='disconnect'){
+    f.connected=false;addLog('warn','SYS_FAN '+(index+1)+' desconectado.');
+  }else if(action==='remove'){
+    f.installed=false;f.connected=false;state.assemblyEffort+=2;
+    addLog('warn','Ventilador '+(index+1)+' retirado.');
+  }
+  render();
+}
+function toggleCase(){
+  if(!state.installed.case){addLog('warn','Instala primero la caja.');return render();}
+  state.caseClosed=!state.caseClosed;
+  addLog('ok',state.caseClosed?'Panel superior cerrado.':'Panel superior abierto.');
+  render();
+}
+function togglePeripheral(which){
+  const key={monitor:'monitorCable',keyboard:'keyboardConnected',mouse:'mouseConnected'}[which];
+  if(!key)return;
+  if(!state.installed.motherboard){addLog('warn','Instala primero la placa y sus puertos USB/vídeo.');return render();}
+  state[key]=!state[key];
+  if(state[key])state.activeFaults=state.activeFaults.filter(id=>id!==({monitor:'video',keyboard:'keyboard',mouse:'mouse'}[which]));
+  const names={monitor:'Vídeo GPU/placa',keyboard:'Teclado USB',mouse:'Ratón USB'};
+  addLog(state[key]?'ok':'warn',names[which]+(state[key]?' conectado.':' desconectado.'));
+  render();
+}
+function name(k){return k==='case'?'Caja':k==='motherboard'?p('motherboard').name:k==='cpu'?p('cpu').name:k==='ram'?p('ram').name:k==='storage'?p('storage').name:k==='gpu'?p('gpu').name:k==='psu'?p('psu').name:'Disipador'}function act(a){
+  if(state.adventureMode&&!adventureActionContext){addLog('warn','En el modo aventura selecciona una herramienta y una acción.');return render();}
+  if(a==='install_io_shield')return installIOShield();
+  if(a==='remove_motherboard')return removeMotherboard();
+
+  const internal=new Set(['connect_atx24','connect_frontpanel','connect_frontusb3','connect_frontusbc','connect_eps',
+    'connect_sata','connect_sata_power','connect_fan','gpu_power',
+    'route_psu','remove_gpu','good_paste','seat_ram','replace_disk']);
+  if(internal.has(a)&&state.power){
+    addLog('warn','Apaga el equipo antes de manipular conexiones internas.');return render();
+  }
+  if(internal.has(a)&&state.caseClosed){
+    addLog('warn','Abre el panel del chasis antes de manipular piezas.');return render();
+  }
+  if(a==='route_psu'&&(!state.installed.psu||state.psuAccessRouted)){
+    addLog('warn','Instala la fuente y deja los mazos sueltos antes de ordenarlos.');return render();
+  }
+  if(a==='remove_gpu'&&!state.installed.gpu){
+    addLog('warn','No hay GPU que retirar.');return render();
+  }
+  if(['connect_keyboard','connect_mouse','connect_monitor'].includes(a)&&
+     !state.installed.motherboard){
+    addLog('warn','Instala la placa base antes de conectar periféricos.');return render();
+  }
+if(a==='seat_ram')state.ramSeated=true;if(a==='connect_atx24')state.atx24=true;if(a==='connect_frontpanel')state.frontPanel=true;if(a==='connect_frontusb3')state.frontUsb3=true;if(a==='connect_frontusbc')state.frontUsbC=true;if(a==='connect_eps')state.eps=true;
+if(a==='connect_monitor')state.monitorCable=true;
+if(a==='connect_keyboard')state.keyboardConnected=true;
+if(a==='connect_mouse')state.mouseConnected=true;
+if(a==='route_psu'){state.psuAccessRouted=true;state.installHold='';state.assemblyEffort+=state.installed.motherboard?1:3;addLog('ok','Mazos sujetos por el interior del chasis y apartados de la placa.');}
+if(a==='remove_gpu'){if(state.installed.gpu){state.installed.gpu=false;state.gpuPower=false;state.monitorCable=false;state.assemblyEffort+=2;addLog('warn','GPU retirada para acceder a la ranura M.2: +2 pasos.');}state.installHold='';}if(a==='connect_sata')state.sataData=true;if(a==='connect_sata_power')state.sataPower=true;if(a==='good_paste')state.paste=1;if(a==='connect_fan')state.cpuFan=true;if(a==='gpu_power'){
+  if(!state.installed.gpu||state.selected.gpu==='none'||!state.installed.psu){
+    addLog('warn','Instala una GPU y una fuente antes de conectar su alimentación.');return render();
+  }
+  const req=p('gpu').power;
+  if(!req.every(id=>(p('psu').connectors[id]||0)>0)){
+    addLog('error','La PSU '+p('psu').name+' no tiene el conector '+req.join(', ')+'. Cambia la fuente.');return render();
+  }
+  state.gpuPower=true;
+  addLog('ok','Alimentación GPU conectada: '+req.join(', ')+'.');
+}if(a==='replace_disk'){state.installed.storage=true;state.sataData=true;state.sataPower=true}if(a==='fix_boot'){state.biosCfg.boot='ssd';state.biosCfg.bootOrder=['ssd','usb','pxe'];}if(a==='bios_defaults'){state.biosCfg=safeBios();syncBiosUI()}state.fixed[a]=true;state.activeFaults=state.activeFaults.filter(id=>faults[id].fix!==a);addLog('ok',fixes[a]+' aplicado.');beep('ok');render()}function derived(){let f=[];['case','motherboard','cpu','ram','psu'].forEach(k=>{if(!state.installed[k])f.push('missing_'+k)});if(!compatible())f.push('incompatible');if(state.installed.ram&&!state.ramSeated)f.push('ram');if(state.installed.motherboard&&state.installed.psu&&!state.eps)f.push('eps');if(state.installed.motherboard&&state.installed.psu&&!state.atx24)f.push('atx24');if(state.installed.case&&state.installed.motherboard&&!state.frontPanel)f.push('frontpanel');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataData)f.push('sata');if(state.installed.storage&&p('storage').interface==='SATA'&&!state.sataPower)f.push('satap');if(state.installed.cooler&&!state.cpuFan)f.push('fan');if(state.installed.cpu&&state.installed.cooler&&state.paste<.7)f.push('paste');if(state.installed.gpu&&p('gpu').power.length&&!state.gpuPower)f.push('gpu');
+if(state.installed.motherboard&&state.power&&!state.monitorCable)f.push('video');
+if(state.power&&!state.keyboardConnected)f.push('keyboard');
+if(state.power&&!state.mouseConnected)f.push('mouse');if(state.installed.storage&&p('storage').interface==='SATA'&&state.biosCfg.sata!=='AHCI')f.push('bios_sata');if(state.installed.ram&&state.biosCfg.xmp==='Aggressive')f.push('bios_xmp');if(state.installed.cooler&&state.biosCfg.fan==='Silent'&&state.stress)f.push('bios_fan');if(state.installed.gpu&&p('gpu').gen&&state.biosCfg.pcie==='Gen5')f.push('bios_pcie');return [...new Set([...f,...state.activeFaults])]}function calculateThermals(f){
+  const count=state.caseFans.filter(fan=>fan.installed&&fan.connected).length;
+  const stressed=!!state.stress;
+  const base=stressed?70:43;
+  const enclosure=state.caseClosed?(stressed?10:5):0;
+  const airflow=count*(stressed?4:2);
+  const inadequate=state.caseFans.some(f=>f.installed&&!f.connected)?(stressed?2:1):0;
+  const cooler=window.PC_COOLER_OPTIONS?.[state.selected.cooler];
+  const gain=state.installed.cooler&&state.cpuFan?(cooler?.thermalGain||0):0;
+  const normal=Math.max(28,base+enclosure-airflow+inadequate-gain);
+  const fault=state.adventureMode&&state.installed.cpu&&!state.installed.cooler?112:
+    f.includes('paste')?106:(f.includes('fan')||f.includes('bios_fan')?100:normal);
+  return Math.round(fault);
+}
+function osHardware(post=false){return {
+ post,disk:p('storage'),diskGb:window.PC_OS.storageCapacityGb(state.selected.storage,p('storage').name),
+ ramGb:state.installed.ram?Number(p('ram').name.match(/\d+/)?.[0]||0):0};}
+function evalState(){let f=derived(),known=f.find(x=>faults[x]),missing=f.find(x=>x.startsWith('missing_')),blocking=['ram','eps','atx24','frontpanel','gpu','bios_xmp','bios_pcie'],temp=calculateThermals(f);
+ const post=!missing&&!f.includes('incompatible')&&!f.some(x=>blocking.includes(x))&&temp<102;
+ const result=window.PC_OS.resolveBoot(state,osHardware(post));
+ return {faults:f,known,missing,post,boot:result.kind==='desktop',bootResult:result,
+ temp,load:Math.round(watts()/p('psu').max*100)}}function shutDownForFault(code,message){
+ const active=state;
+ active.power=false;active.stress=false;active.bios=false;
+ active.osInstalling=false;active.osInstallToken++;
+ active.bootStage=0;active.bootToken=++bootEpoch;
+ active.lastPowerFailure=message;
+ addLog('error',code+': '+message+' El equipo se ha apagado por protección.');
+ powerDown();render();
+}
+function power(){
+ if(state.power){
+   state.power=false;state.osInstalling=false;state.osInstallProgress=0;
+   state.osInstallToken++;state.stress=false;state.bios=false;
+   state.bootStage=0;state.bootToken=++bootEpoch;
+   state.lastPowerFailure=null;addLog('ok','PC apagado.');powerDown();return render();
+ }
+ const report=powerReport();
+ state.lastPowerFailure=null;state.mechanicalFault=null;
+ let noPower=null;
+ if(!state.installed.case)noPower='No hay chasis con botón POWER.';
+ else if(!state.installed.motherboard)noPower='Sin placa base: no hay circuito de arranque.';
+ else if(!state.installed.psu)noPower='No hay fuente de alimentación.';
+ else if(!state.frontPanel)noPower='POWER SW no conectado a F_PANEL.';
+ else if(!state.atx24)noPower='ATX 24 pines desconectado: la placa no recibe corriente.';
+ if(noPower){
+   state.lastPowerFailure=noPower;
+   addLog('error','INTENTO POWER FALLIDO: '+noPower);
+   beep('cpu');return render();
+ }
+ // Manifestar fallos latentes solo tras los prerrequisitos mínimos de POWER.
+ adventureGame?.revealLatentSataOnPower?.();
+ state.power=true;schedulePostStages();powerOn();
+ const e=evalState();
+ if(e.faults.includes('incompatible')||e.missing||!e.post){
+   addLog('error','POST FALLIDO: '+(e.known?faults[e.known]?.msg||e.known:
+    e.missing?'Faltan componentes esenciales.':'Revisa compatibilidad y conexión de RAM/EPS/GPU.'));
+   beep(e.known&&faults[e.known]?faults[e.known].beep:'cpu');
+ }else addLog('ok','POWER: POST correcto; buscando sistema de arranque.');
+ const trip=report.trip,loose=report.mechanical,active=state,token=state.bootToken;
+ if(loose){
+   state.mechanicalFault=loose.component;
+   addLog('warn','FALLO MECÁNICO: '+loose.text+' Se desplaza en el 3D.');
+ }
+ if(trip||loose){
+   const problem=trip||loose;
+   setTimeout(()=>{
+     if(state!==active||!active.power||active.bootToken!==token)return;
+     shutDownForFault(problem.code,problem.text);
+   },trip?.code==='PSU_OVERLOAD'?1600:3300);
+ }
+ render();
+}
+function tool(t){let e=evalState();if(t==='stress'&&state.power&&e.boot){state.stress=true;
+  const report=powerReport();
+  addLog('warn','Test de estrés: consumo y temperatura bajo carga.');stressSound();
+  if(report.peak*1.15>report.rated)setTimeout(()=>{
+   if(state.power&&state.stress)shutDownForFault('PSU_TRANSIENT',
+   'Pico transitorio durante carga supera la potencia disponible.');},950);
+  else if(calculateThermals(derived())>=100)setTimeout(()=>{
+   if(state.power&&state.stress)shutDownForFault('THERMAL_TRIP',
+   'La CPU ha superado el umbral térmico bajo carga.');},1300);
+  return render()}if(t==='bios'){bios();return}if(t==='beep')beep(e.known?faults[e.known].beep:'ok');if(!state.power&&t!=='visual'){addLog('warn','Enciende el PC para usar la herramienta.');return render()}if(t==='multimeter')addLog(e.known?'warn':'ok',e.known?'Tensiones revisadas. Pista: '+faults[e.known].msg:'Tensiones correctas.');else if(t==='smart')addLog(e.known==='disk'?'warn':'ok',e.known==='disk'?'SMART: sectores reasignados.':'SMART: disco correcto o no relacionado.');else addLog(e.known?'warn':'ok',e.known?faults[e.known].name+': '+faults[e.known].msg:'Sin averías activas.');render()}function bios(){
+  if(!state.power){
+    // Acceso asistido: entrar en BIOS equivale a encender el PC y
+    // pulsar Supr/F2 durante POST, si el hardware está listo.
+    if(!state.installed.motherboard||!state.installed.psu){
+      addLog('warn','No se puede abrir BIOS: monta la placa, PSU y cables, y conecta el teclado y monitor.');
+      return render();
+    }
+    power();
+    if(!state.power){
+      addLog('warn','BIOS no disponible porque el ordenador no consiguió encender. Revisa POWER SW y ATX24.');
+      return render();
+    }
+  }
+  const e=evalState();
+  if(!e.post){addLog('error','No se puede entrar a BIOS con POST fallido.');return render()}
+  if(!state.keyboardConnected){addLog('warn','Conecta primero el teclado USB.');return render()}
+  if(!outputAvailable(e)){addLog('warn','Conecta cable de monitor a la GPU o iGPU.');return render()}
+  state.bios=!state.bios;
+  if(!state.bios)state.bootStage=6;
+  addLog('ok',state.bios?'UEFI abierta: organiza la prioridad de arranque.':'UEFI cerrada.');
+  beep('ok');render();
+}
+function autoBuild(){
+  if(state.adventureMode){
+    // La demo cambia expresamente a modo técnico. Nunca entrega gratis
+    // el hardware al cliente ni altera su presupuesto o evaluación.
+    if(adventureGame?.active){adventureGame.demoBuild();return;}
+    addLog('warn','La demostración sólo funciona en modo técnico.');return render();
+  }
+  const gpuConnections=p('gpu').power||[];
+  if(gpuConnections.some(key=>!(p('psu').connectors[key]>0))){
+    state.selected.psu='psu850';
+    addLog('warn','Montaje recomendado: PSU ajustada a 850W ATX 3.0 para el conector de la GPU.');
+  }
+  state.installed={case:true,motherboard:true,cpu:true,cooler:true,ram:true,storage:true,gpu:state.selected.gpu!=='none',psu:true};state.ramSeated=true;state.eps=true;state.atx24=true;state.frontPanel=true;state.frontUsb3=true;state.frontUsbC=true;state.sataData=p('storage').interface==='SATA';state.sataPower=p('storage').interface==='SATA';state.cpuFan=true;state.gpuPower=!!p('gpu').power.length;state.videoPort=state.selected.gpu==='none'?'motherboard':'gpu';
+state.monitorCable=true;state.keyboardConnected=true;state.mouseConnected=true;
+state.installHistory=['case','motherboard','cpu','ram','cooler','storage','gpu','psu'];
+state.assemblyEffort=state.installHistory.length;
+ for(const k of ['motherboard','gpu','cooler','psu','storage'])state.fixings[k]=true;
+ state.mechanicalFault=null;state.lastPowerFailure=null;
+state.psuAccessRouted=true;state.installHold='';state.caseClosed=false;state.ioShield=true;
+state.caseFans=[{installed:true,connected:true},{installed:true,connected:true},{installed:true,connected:true}];
+state.paste=1;state.selected.cooler='air';state.selected.caseVariant='tower';state.biosCfg=safeBios();state.activeFaults=[];state.fixed={};state.power=false;state.bios=false;state.stress=false;state.bootStage=0;state.bootToken=++bootEpoch;syncBiosUI();addLog('ok','Montaje recomendado aplicado con BIOS segura.');render()}function mode(m){$('assemblyBtn').classList.toggle('active',m==='assembly');$('diagnosticBtn').classList.toggle('active',m==='diagnostic');if(m==='diagnostic'){autoBuild();let ids=Object.keys(faults);addFault(ids[Math.floor(Math.random()*ids.length)])}else addLog('ok','Modo montaje activado.');render()}function syncBiosUI(){
+  if(!$('biosBoot'))return;
+  $('biosBoot').value=state.biosCfg.boot;
+  $('biosSata').value=state.biosCfg.sata;
+  $('biosXmp').value=state.biosCfg.xmp;
+  $('biosFan').value=state.biosCfg.fan;
+  $('biosPcie').value=state.biosCfg.pcie;
+  $('biosSecure').value=state.biosCfg.secure;
+  $('biosUefi').value=state.biosCfg.uefi||'on';
+}
+function readBiosUI(){
+  const preferred=$('biosBoot').value;
+  const old=state.biosCfg.bootOrder||['ssd','usb','pxe'];
+  const order=[preferred,...old.filter(x=>x!==preferred)];
+  state.biosCfg={
+    boot:preferred,bootOrder:order,
+    sata:$('biosSata').value,xmp:$('biosXmp').value,fan:$('biosFan').value,
+    pcie:$('biosPcie').value,secure:$('biosSecure').value,uefi:$('biosUefi').value
+  };
+  state.fixed={};
+  addLog('warn','BIOS guardada: '+order.map(x=>BOOT_LABELS[x]).join(' > '));
+  render();
+}
+function tone(f,d=.1,delay=0,type='sine',g=.05){if(!soundEnabled)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();let o=audioCtx.createOscillator(),gain=audioCtx.createGain();o.type=type;o.frequency.value=f;gain.gain.setValueAtTime(.001,audioCtx.currentTime+delay);gain.gain.exponentialRampToValueAtTime(g,audioCtx.currentTime+delay+.02);gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+delay+d);o.connect(gain);gain.connect(audioCtx.destination);o.start(audioCtx.currentTime+delay);o.stop(audioCtx.currentTime+delay+d+.03)}catch(e){}}function clickSound(){tone(520,.04,0,'square',.03)}function powerOn(){tone(80,.4,0,'sawtooth',.03);tone(180,.2,.15)}function powerDown(){tone(180,.2,0,'sawtooth',.03);tone(80,.3,.12)}function stressSound(){tone(120,.5,0,'sawtooth',.03)}function beep(k='ok'){if(k==='memory'){[0,.18,.36].forEach(d=>tone(920,.08,d,'square',.07));return}if(k==='gpu'){tone(760,.3,0,'square',.07);tone(980,.08,.38,'square',.07);tone(980,.08,.55,'square',.07);return}if(k==='cpu'){[0,.13,.26,.39,.52].forEach(d=>tone(820,.06,d,'square',.06));return}tone(950,.1,0,'square',.05)}
+function selector(cat,items){return `<div class="field"><label>${categories[cat]}</label><select data-cat="${cat}">${Object.entries(items).map(([id,x])=>`<option value="${id}" ${state.selected[cat]===id?'selected':''}>${x.name}</option>`).join('')}</select></div>`}function cardStatus(k){if(!state.installed[k])return['','Pendiente'];if(k==='ram'&&!state.ramSeated)return['bad','Sin encajar'];if(k==='storage'&&p('storage').interface==='SATA'&&(!state.sataData||!state.sataPower))return['bad','Faltan SATA'];if(k==='gpu'&&p('gpu').power.length&&!state.gpuPower)return['bad','Falta alimentación'];if(k==='cooler'&&!state.cpuFan)return['bad','Falta CPU_FAN'];if(k==='motherboard'&&state.installed.psu&&!state.atx24)return['bad','Falta ATX 24p'];if(k==='motherboard'&&state.installed.psu&&!state.eps)return['bad','Falta EPS'];if(k==='case'&&state.installed.motherboard&&!state.frontPanel)return['bad','Falta POWER SW'];return['on','Instalado']}function monitorText(e){
+  const biosCfg=state.biosCfg;
+  const order=biosCfg.bootOrder||['ssd','usb','pxe'];
+  const rows=['PC LAB | UEFI / POST Simulation','--------------------------------'];
+  if(!state.power)return rows.concat(state.lastPowerFailure?
+  ['ÚLTIMO INTENTO: APAGADO / PROTECCIÓN',state.lastPowerFailure,
+   'Corrige el montaje y vuelve a pulsar POWER.']:
+  ['Sistema apagado.','Pulsa POWER para arrancar.']).join('\n');
+  if(!state.monitorCable)return 'MONITOR: SIN SEÑAL\nConecta HDMI / DisplayPort.';
+  if(!outputAvailable(e))return 'MONITOR: SIN SEÑAL\nComprobar POST, GPU y alimentación.';
+  if(state.bios){
+    return [
+      'UEFI SETUP UTILITY   [F2 / Supr]',
+      '--------------------------------',
+      'BOOT PRIORITY (pulsa una fila para subir)',
+      ...order.map((key,i)=>(i+1)+'. '+BOOT_LABELS[key]),
+      '',
+      'Modo SATA: '+biosCfg.sata,
+      'Perfil memoria: '+biosCfg.xmp,
+      'Curva CPU_FAN: '+biosCfg.fan,
+      'Secure Boot: '+biosCfg.secure,
+      '',
+      'Pulsa fila del monitor 3D o usa 1/2/3.',
+      'Guardar opciones desde panel BIOS.'
+    ].join('\n');
+  }
+  rows.push('POWER: ON');
+  if(state.bootStage<1)return rows.concat(['Inicializando CPU y VRM...','Deteccion de voltajes ATX / EPS']).join('\n');
+  rows.push('CPU: '+p('cpu').name,'Memoria: '+p('ram').name);
+  if(state.bootStage<2)return rows.concat(['UEFI: Entrenamiento memoria...','VGA: buscando salida...']).join('\n');
+  rows.push('RAM: '+(state.ramSeated?'PASS':'FAIL'));
+  rows.push('VIDEO: '+((state.videoPort==='motherboard'||state.selected.gpu==='none')?
+    (p('cpu').igpu?'iGPU '+p('cpu').igpuName:'iGPU NO DISPONIBLE'):
+    'PCIe GPU'));
+  if(state.bootStage<3)return rows.concat(['POST: comprobacion de dispositivos...','SATA / NVMe: detectando unidad']).join('\n');
+  if(e.faults.includes('incompatible'))rows.push('POST: HALTED','ERROR: hardware incompatible.');
+  else if(e.missing)rows.push('POST: NO INICIADO','ERROR: faltan componentes.');
+  else if(!e.post)rows.push('POST: FAILED','ERROR: '+(e.known?faults[e.known]?.msg||e.known:'Revisa RAM, EPS y compatibilidad.'));
+  else{
+    rows.push('POST: OK','BOOT #1: '+BOOT_LABELS[biosCfg.boot]);
+    if(state.bootStage<4)return rows.concat(['Buscando medio de arranque...']).join('\n');
+    const choice=e.bootResult;
+    if(e.temp>=102)rows.push('CPU THERMAL PROTECTION.','Revisa disipador y pasta.');
+    else if(e.faults.includes('sata')||e.faults.includes('satap'))
+      rows.push('SATA: revisa datos y alimentación.');
+    if(choice.kind==='desktop')
+      rows.push('BOOT: OK',state.bootStage<6?'Cargando '+choice.os.name+'...':
+        choice.os.name+' · Escritorio ficticio iniciado.');
+    else if(choice.kind==='installer')
+      rows.push('USB INSTALADOR: '+choice.os.name,
+        state.osInstallProgress===100&&state.installedOs?.id===state.usbImage?
+          'INSTALACIÓN COMPLETA · Retira USB y arranca desde disco.':
+          'Disco de destino: '+p('storage').name+' · Pulsa «Instalar SO».');
+    else if(choice.kind==='installing')
+      rows.push('INSTALANDO '+(choice.os?.name||'SO')+' · '+choice.progress+'%',
+        'No apagues el ordenador durante el proceso.');
+    else rows.push(choice.code+': NO BOOTABLE DEVICE',choice.message);
+
+  }
+  if(state.installed.cooler&&window.PC_COOLER_OPTIONS?.[state.selected.cooler])
+    rows.push('COOLER: '+window.PC_COOLER_OPTIONS[state.selected.cooler].name);
+  if(state.rgbInstalled&&state.power)rows.push('ARGB: ILUMINACION ON');
+  if(!state.osInstalled&&state.bootStage>=4)rows.push('INSTALACIÓN PENDIENTE: configura USB / SO');
+  if(!state.keyboardConnected)rows.push('USB: teclado no detectado');
+  if(!state.mouseConnected)rows.push('USB: raton no detectado');
+  rows.push('Temp CPU: '+e.temp+' C | PSU: '+e.load+'%',
+   'Consumo pico: '+watts()+' W / '+p('psu').max+' W');
+  return rows.join('\n');
+}
+function osPresentation(e){return window.PC_OS.presentation(state,osHardware(e.post));}
+function setUsbImage(id){
+  if(state.adventureMode){
+    addLog('warn','En un encargo, compra y prepara la memoria USB en la tienda antes de insertarla.');return render();
+  }
+  if(state.osInstalling||state.usbConnected){
+    addLog('warn','Expulsa el USB conectado antes de cambiar la imagen.');return render();
+  }
+  state.usbImage=window.PC_OS.CATALOG[id]?id:'none';
+  addLog('ok','Contenido USB seleccionado: '+(window.PC_OS.CATALOG[id]?.name||'vacío'));
+  render();
+}
+function toggleInstallerUsb(){
+  if(state.adventureMode){adventureGame?.toggleInstallerUsb?.();return;}
+  if(state.osInstalling){addLog('warn','Finaliza la instalación antes de retirar el USB.');return render();}
+  if(state.adventureMode&&!state.usbConnected&&!adventureGame?.hasInstallerUSB?.()){
+    addLog('warn','Compra primero la memoria USB en la tienda del encargo.');return render();
+  }
+  if(!state.usbConnected&&!state.installed.motherboard){
+    addLog('warn','Instala primero la placa base para conectar el USB-A trasero.');return render();
+  }
+  state.usbConnected=!state.usbConnected;
+  state.usbMediaKey=state.usbConnected?'demo:usb':null;
+  addLog('ok',state.usbConnected?'USB insertado en el conector trasero de placa.':'USB extraído.');render();
+}
+function installSelectedOS(){
+  if(state.adventureMode&&(!adventureGame?.hasInstallerUSB?.()||
+      !state.usbMediaKey||!adventureGame?.hasPreparedUSB?.(state.usbMediaKey))){
+    addLog('warn','Compra, prepara y conecta un USB instalador de tu inventario.');return render();
+  }
+  if(state.osInstalling){addLog('warn','Instalación en curso.');return render();}
+  const hardware=osHardware(evalState().post),check=window.PC_OS.canInstall(state,hardware);
+  if(!check.ok){addLog('warn',check.reason);return render();}
+  const token=++state.osInstallToken,activeMachine=state;
+  state.osInstalling=true;state.osInstallProgress=0;
+  addLog('ok','Iniciando instalación ficticia de '+check.os.name+' en '+hardware.disk.name+'.');render();
+  [25,55,80,100].forEach((value,i)=>setTimeout(()=>{
+    if(state!==activeMachine||!state.power||token!==state.osInstallToken||!state.osInstalling)return;
+    state.osInstallProgress=value;
+    if(value===100){
+      const done=window.PC_OS.installRecord(state,osHardware(evalState().post));
+      addLog(done.ok?'ok':'error',done.reason);
+    }
+    refreshBootOutput();
+    $('osStatus').textContent=value===100?
+      'Instalación completada. Retira el USB o arranca desde el disco.':
+      'Instalación ficticia en '+hardware.disk.name+': '+value+'%';
+    if(value===100)render();
+  },(i+1)*600));
+}
+function downloadJson(filename,data){
+ const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function teacherDraft(){return window.PC_CLASSROOM.normalizeCase({
+ title:$('teacherTitle').value,client:$('teacherClient').value,
+ story:$('teacherStory').value,budget:Number($('teacherBudget').value),
+ requirements:{minRam:Number($('teacherRam').value),minStorage:$('teacherStorage').value,
+ gpu:$('teacherGpu').value==='true',maxTemp:Number($('teacherTemp').value)}});}
+function teacherFeedback(msg,problem=false){
+ $('teacherStatus').textContent=msg;
+ $('teacherStatus').classList.toggle('warn',problem);
+ addLog(problem?'warn':'ok',msg);
+}
+function downloadCase(){try{const c=teacherDraft();
+ downloadJson('pc-lab-caso-'+Date.now()+'.json',window.PC_CLASSROOM.caseDocument(c));
+ teacherFeedback('Caso descargado: '+c.title);
+ }catch(e){teacherFeedback(e.message,true)}}
+function applyTeacherCase(){try{const c=teacherDraft(),ids=adventureGame.importCases([c]);
+ adventureGame.start(ids[0]);teacherFeedback('Caso activo: '+c.title+' · '+c.budget+' €.');
+ }catch(e){teacherFeedback(e.message,true)}}
+async function importTeacherFile(file){if(!file)return;
+ try{if(file.size>250000)throw new Error('Archivo demasiado grande (250 KB máximo).');
+ const cases=window.PC_CLASSROOM.parseCases(await file.text());
+ const ids=adventureGame.importCases(cases);adventureGame.start(ids[0]);
+ teacherFeedback(cases.length+' caso(s) importado(s). Activo: '+cases[0].title);
+ }catch(e){teacherFeedback('Importación rechazada: '+e.message,true)}
+ finally{$('importCaseJson').value='';}}
+function exportMount(){try{
+ const details=adventureGame?.active?adventureGame.getExport():null;
+ const data=window.PC_CLASSROOM.buildDocument(state,{
+ case:details?.case||null,spent:details?.spent??null,
+ caseReport:details?.caseReport||null,
+ names:Object.fromEntries(['cpu','ram','motherboard','psu','gpu','storage'].map(k=>[k,p(k).name])),
+ power:powerReport()});
+ if(details?.simulatedTime){
+   // Campos opcionales aditivos: pc-lab.build.v1 sigue siendo válido.
+   data.simulatedTime=details.simulatedTime;
+   data.operationHistory=details.operationHistory||[];
+   if(details.incidentSimulation)data.incidentSimulation=details.incidentSimulation;
+   if(details.ramPrecision)data.ramPrecision=details.ramPrecision;
+   if(details.screwPractice)data.screwPractice=details.screwPractice;
+   if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision;
+   if(details.thermalPaste)data.thermalPaste=details.thermalPaste;
+ }
+ downloadJson('pc-lab-montaje-'+Date.now()+'.json',data);
+ addLog('ok','Exportación JSON realizada: montaje, conexiones, fijaciones, BIOS, consumo y caso.');render();
+ }catch(e){addLog('error','No se pudo exportar: '+e.message);render()}}
+function fallbackHTML(){return '<div class="board"><div class="chip ok" style="left:42%;top:24%">CPU</div><div class="chip ok" style="left:63%;top:18%;height:120px">RAM</div><div class="chip ok" style="left:24%;top:68%;width:210px">GPU PCIe</div><div class="chip ok" style="left:42%;top:52%;width:145px">SSD</div><div class="chip bad" style="left:5%;top:6%">EPS</div><div class="chip ok" style="right:5%;top:30%">ATX 24p</div></div>'}
+function render(){try{state.lastRenderError=null;$('selectors').innerHTML=selector('motherboard',catalog.motherboards)+selector('cpu',catalog.cpus)+selector('ram',catalog.ram)+selector('storage',catalog.storage)+selector('gpu',catalog.gpus)+selector('psu',catalog.psus);document.querySelectorAll('select[data-cat]').forEach(s=>s.onchange=e=>{const category=e.target.dataset.cat;
+const previous=state.selected[category];
+state.selected[category]=e.target.value;state.focus=category;
+if(previous!==state.selected[category]){
+  const part={motherboard:'motherboard',cpu:'cpu',ram:'ram',gpu:'gpu',
+    storage:'storage',psu:'psu'}[category];
+  if(part)state.installed[part]=false;
+  if(category==='gpu'||category==='psu'){
+    state.gpuPower=false;state.monitorCable=false;
+    state.videoPort=category==='gpu'&&state.selected.gpu==='none'?'motherboard':'auto';
+  }
+  if(category==='psu'){state.atx24=false;state.eps=false;state.psuAccessRouted=false;}
+  if(category==='motherboard'){
+    state.ioShield=false;state.atx24=false;state.eps=false;state.frontPanel=false;state.frontUsb3=false;state.frontUsbC=false;
+    state.caseFans.forEach(f=>f.connected=false);
+  }
+  if(category==='storage'){state.sataData=false;state.sataPower=false;state.osInstalling=false;state.osInstallToken++;}
+  if(category==='ram')state.ramSeated=false;
+}
+state.power=false;state.bios=false;state.fixed={};addLog('warn','Selección cambiada: '+categories[state.focus]+'.');render()});let installs=[['case','Caja'],['motherboard',p('motherboard').name],['cpu',p('cpu').name],['cooler','Disipador'],['ram',p('ram').name],['storage',p('storage').name],['gpu',p('gpu').name],['psu',p('psu').name]];$('installList').innerHTML=installs.map(([k,n])=>{let s=cardStatus(k);return `<div class="card ${s[0]}" draggable="true" data-drag-part="${k}" title="Arrastra al 3D para encajar"><div><strong>${n}</strong><small>${s[1]}</small></div><button onclick="install('${k}')">${state.installed[k]?'Reinstalar':'Instalar'}</button>${['motherboard','psu','gpu','cooler','storage'].includes(k)&&state.installed[k]?`<button onclick="fixPart('${k}')" class="${state.fixings?.[k]?'okbtn':'warnbtn'}">${state.fixings?.[k]?'✓ Atornillado':'Fijar tornillos'}</button>`:''}</div>`}).join('');const workReasons=[];
+if(state.power)workReasons.push('Apaga el PC para manipular el interior.');
+if(state.caseClosed)workReasons.push('Abre la caja para instalar piezas o cables internos.');
+if(!state.installed.case)workReasons.push('Instala primero la caja.');
+$('actionNotice').textContent=workReasons.length?workReasons.join(' '):
+  'Puedes trabajar dentro de la caja. Los cables USB y de vídeo se pueden conectar incluso con el PC encendido.';
+$('actionNotice').classList.toggle('warn',workReasons.length>0);
+$('routePsu').disabled=!!state.power||!!state.caseClosed||!state.installed.psu||!!state.psuAccessRouted;
+$('routePsu').textContent=state.psuAccessRouted?'✓ Mazos interiores asegurados':'Apartar y asegurar mazos PSU';
+$('ioShieldAction').disabled=!!state.ioShield||!!state.installed.motherboard||!!state.caseClosed||!state.installed.case||!!state.power;
+$('ioShieldAction').textContent=state.ioShield?'✓ Chapa I/O instalada':'Instalar chapa I/O antes de la placa';
+$('ioShieldRemove').disabled=!state.installed.motherboard||state.ioShield||!!state.power||!!state.caseClosed;
+$('gpuPowerQuick').disabled=!!state.gpuPower||!state.installed.gpu||!state.installed.psu||!!state.power||!!state.caseClosed;
+$('gpuPowerQuick').textContent=state.gpuPower?'✓ GPU alimentada':'Conectar alimentación GPU ('+(p('gpu').power.join(', ')||'integrada')+')';
+$('caseFanList').innerHTML=state.caseFans.map((f,i)=>{
+  const status=f.installed?(f.connected?'Gira y refrigera':'Instalado · PWM pendiente'):'Ranura vacía';
+  const label=i===2?'Trasero · extracción':'Frontal '+(i+1)+' · entrada';
+  return '<div class="fan-row"><strong>'+label+'</strong><small>'+status+'</small>'+
+    '<div class="tools"><button data-fanslot="'+i+'" data-fancommand="'+(f.installed?'remove':'install')+'">'+(f.installed?'Retirar':'Instalar')+'</button>'+
+    (f.installed?'<button data-fanslot="'+i+'" data-fancommand="'+(f.connected?'disconnect':'connect')+'">'+(f.connected?'Desconectar PWM':'Conectar PWM')+'</button>':'')+
+    '</div></div>';
+}).join('');
+document.querySelectorAll('[data-fanslot]').forEach(button=>{
+  button.disabled=!!state.power||!!state.caseClosed;
+  button.onclick=()=>caseFanAction(Number(button.dataset.fanslot),button.dataset.fancommand);
+});
+$('thermalSummary').textContent='Ambiente 24 °C · Caja '+(state.caseClosed?'cerrada':'abierta')+
+' · Ventiladores activos: '+state.caseFans.filter(f=>f.installed&&f.connected).length+'/3'+
+' · CPU: '+evalState().temp+' °C'+(state.stress?' (carga)':' (reposo)');
+document.querySelectorAll('[data-drag-part]').forEach(card=>{
+  card.ondragstart=event=>{
+    if(state.power||state.caseClosed){event.preventDefault();return;}
+    event.dataTransfer.setData('text/plain',card.dataset.dragPart);
+    event.dataTransfer.effectAllowed='copy';
+    window.PC3D?.dragPart?.(card.dataset.dragPart);
+  };
+  card.ondragend=()=>window.PC3D?.cancelDrag?.();
+});
+$('assemblyEffort').textContent='Esfuerzo de montaje: '+state.assemblyEffort+' pasos · '+state.installHistory.length+' operaciones.'+
+(state.installHold?' Atención: acceso bloqueado para '+state.installHold+'.':'');
+$('caseToggle').textContent=state.caseClosed?'Abrir panel del chasis':'Cerrar panel del chasis';
+$('keyboardToggle').textContent=(state.keyboardConnected?'Desconectar':'Conectar')+' teclado USB';
+$('mouseToggle').textContent=(state.mouseConnected?'Desconectar':'Conectar')+' ratón USB';
+$('monitorToggle').textContent=(state.monitorCable?'Desconectar':'Conectar')+' HDMI / DP';
+$('peripheralStatus').textContent='USB teclado: '+(state.keyboardConnected?'ON':'OFF')+
+' · USB ratón: '+(state.mouseConnected?'ON':'OFF')+
+' · Vídeo: '+(state.monitorCable?'conectado':'sin cable');$('selectedPartName').textContent=categories[state.focus];let fp=p(state.focus);$('specPanel').innerHTML=`<div class="spec"><strong>${fp.name}</strong>${fp.desc}</div>`+Object.entries(fp).filter(([k])=>!['name','desc'].includes(k)).map(([k,v])=>`<div class="spec"><strong>${k}</strong>${typeof v==='object'?JSON.stringify(v):v}</div>`).join('');if(!$('faultSelect').dataset.ready){$('faultSelect').innerHTML=Object.entries(faults).map(([id,f])=>`<option value="${id}">${f.name}</option>`).join('');$('faultSelect').dataset.ready=1}$('fixButtons').innerHTML=Object.entries(fixes).map(([a,l])=>`<button data-action="${a}" class="okbtn ${state.fixed[a]?'done':''}">${state.fixed[a]?'✓ ':''}${l}</button>`).join('');document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>act(b.dataset.action));let e=evalState();$('compatPanel').innerHTML=ruleList().map(r=>`<div class="issue ${r.level}">${r.level==='ok'?'✅':r.level==='warn'?'⚠️':'❌'} ${r.text}</div>`).join('')+biosRulesHTML(e);$('compatStatus').textContent=compatible()?'OK':'Revisar';$('compatStatus').className=compatible()?'oktxt':'errtxt';$('powerBtn').textContent=state.power?'Apagar PC':'Encender PC';$('powerBtn').classList.toggle('danger',state.power);$('powerStatus').textContent=state.power?'Encendido':'Apagado';$('postStatus').textContent=e.post?'Correcto':'Fallido';$('bootStatus').textContent=e.boot?'Arranca':(e.post?'No arranca':'Pendiente');$('wattsStatus').textContent=watts()+' W / '+p('psu').max+' W ('+e.load+'%)';
+ const consumption=powerReport();
+ const portions=[['CPU',state.installed.cpu?p('cpu').peak:0],
+ ['GPU',state.installed.gpu?p('gpu').watts:0],
+ ['RAM',state.installed.ram?p('ram').watts:0],
+ ['Placa base',state.installed.motherboard?45:0],
+ ['Disco',state.installed.storage?p('storage').watts:0],
+ ['Disipador',state.installed.cooler?(window.PC_COOLER_OPTIONS?.[state.selected.cooler]?.watts||4):0],
+ ['Ventiladores',state.caseFans.filter(f=>f.installed).length*3]];
+ $('powerBreakdown').innerHTML=portions.map(([name,w])=>`<div class="issue">${name}: <b>${w} W</b></div>`).join('')+
+ `<div class="issue ${consumption.trip?'error':consumption.recommended>consumption.rated?'warn':'ok'}">Pico: ${consumption.peak} W · PSU: ${consumption.rated} W · Recomendado: ${consumption.recommended} W</div>`+
+ consumption.issues.map(i=>`<div class="issue ${i.severity==='trip'?'error':'warn'}">${i.text}</div>`).join('');$('tempStatus').textContent=e.temp+' °C';$('activeFaults').innerHTML=e.faults.filter(x=>faults[x]).map(id=>`<span class="tag bad">${faults[id].name}</span>`).join('')||'<span class="tag ok">Sin averías</span>';$('monitorTitle').textContent=state.bios?'BIOS / UEFI simulada':'Monitor virtual';$('biosPanel').style.display=state.bios?'block':'none';syncBiosUI();const consoleText=monitorText(e);$('screen').textContent=consoleText;
+$('osUsbImage').value=state.usbImage;
+$('osUsbImage').disabled=!!state.adventureMode;
+$('osUsbImage').title=state.adventureMode?'Selecciona el USB comprado y preparado en el inventario':'Imagen de demostración técnica';
+$('osUsbToggle').textContent=state.usbConnected?'Expulsar USB del puerto trasero':
+  state.adventureMode?'Conectar USB seleccionado del inventario':'Conectar USB al puerto trasero';
+$('osInstallBtn').disabled=!!state.osInstalling;
+const media=e.bootResult;
+$('osStatus').textContent='Arranque: '+(media.message||media.code)+
+  ' · Disco: '+(state.installed.storage?p('storage').name:'no instalado')+
+  ' · SO instalado: '+(state.installedOs?.id?
+    window.PC_OS.CATALOG[state.installedOs.id]?.name||'desconocido':'ninguno')+
+  (state.osInstalling?' · Instalación '+state.osInstallProgress+'%':
+   state.osInstallProgress===100&&state.installedOs?' · Instalación completada':'');let cpu=state.power?(state.stress?84:(e.boot?18:6)):0,gpu=state.power&&state.installed.gpu?(state.stress?92:(e.boot?8:0)):0,tempPct=Math.min(100,Math.round(e.temp/110*100));[['cpu',cpu],['gpu',gpu],['psu',state.power?e.load:0]].forEach(([k,v])=>{$(k+'LoadText').textContent=v+'%';$(k+'Bar').style.setProperty('--w',v+'%')});$('tempLoadText').textContent=e.temp+'°C';$('tempBar').style.setProperty('--w',tempPct+'%');$('ledPower').classList.toggle('on',state.power);$('ledPost').classList.toggle('on',state.power&&e.post);$('ledBoot').classList.toggle('on',state.power&&e.boot);$('eventLog').innerHTML=state.log.map(x=>`<li><span class="log${x.l}">[${x.t}]</span> ${x.m}</li>`).join('');$('fallback').innerHTML=window.PC3D?.ready?'':fallbackHTML();window.PC3D?.update?.(state,{part:p,consoleText,videoSignal:outputAvailable(e),
+  osVisual:osPresentation(e)});if(adventureGame?.active)adventureGame.paint();partInspector?.refresh()}catch(err){state.lastRenderError=err?.message||String(err);console.error('Error al actualizar controles',err);showResourceError('Error en los controles: '+state.lastRenderError);}}function biosRulesHTML(e){let cfg=state.biosCfg,out=[];if(cfg.boot==='usb')out.push(['warn','USB primero: el instalador arrancará si está conectado y es compatible.']);
+if(cfg.boot==='pxe')out.push(['warn','Red PXE: se saltará si no hay un servidor de arranque.']);if(cfg.sata!=='AHCI'&&state.installed.storage&&p('storage').interface==='SATA')out.push(['error','BIOS SATA no está en AHCI para este SO.']);if(cfg.xmp==='Aggressive')out.push(['error','Perfil RAM agresivo puede impedir POST o causar BSOD.']);if(cfg.fan==='Silent')out.push(['warn','Curva Silent puede causar apagado térmico en test de estrés.']);if(cfg.pcie==='Gen5'&&state.installed.gpu)out.push(['error','PCIe Gen5 only puede impedir inicialización de GPU Gen4.']);return out.map(([l,t])=>`<div class="issue ${l}">🧬 ${t}</div>`).join('')}function bind(){
+  // No depender de las variables globales implícitas de los id HTML:
+  // autoBuild era además el nombre de una función, de modo que
+  // autoBuild.onclick = autoBuild NO enlazaba el botón real.
+  const on=(id,handler)=>{
+    const element=$(id);
+    if(!element)throw new Error('Falta control de interfaz: #'+id);
+    element.addEventListener('click',handler);
+  };
+  on('adventureBtn',()=>{
+    if(!adventureGame?.active)adventureGame?.start('office');
+    else adventureGame.closeStore();
+  });
+  on('storeBtn',()=>{
+    if(!adventureGame?.active)adventureGame?.start('office');
+    adventureGame?.openStore();
+  });
+  on('powerBtn',()=>adventureGame?.active?adventureGame.perform('boot'):power());
+  on('resetBtn',()=>{init();render()});
+  on('autoBuild',autoBuild);
+  on('assemblyBtn',()=>mode('assembly'));
+  on('diagnosticBtn',()=>mode('diagnostic'));
+  on('injectFault',()=>addFault($('faultSelect').value));
+  on('randomFault',()=>{
+    const ids=Object.keys(faults);
+    addFault(ids[Math.floor(Math.random()*ids.length)]);
+  });
+  on('biosBtn',()=>adventureGame?.active?adventureGame.perform('bios'):bios());
+  on('osUsbToggle',toggleInstallerUsb);
+  on('osInstallBtn',installSelectedOS);
+  $('osUsbImage').addEventListener('change',()=>setUsbImage($('osUsbImage').value));
+  on('exportPcJson',exportMount);
+  on('toggleTeacher',()=>{$('teacherTools').open=!$('teacherTools').open;});
+  on('downloadCaseJson',downloadCase);on('applyTeacherCase',applyTeacherCase);
+  $('importCaseJson').addEventListener('change',e=>importTeacherFile(e.target.files?.[0]));
+  on('soundBtn',()=>{
+    soundEnabled=!soundEnabled;
+    $('soundBtn').textContent='Sonido: '+(soundEnabled?'ON':'OFF');
+  });
+  on('caseToggle',toggleCase);
+  on('routePsu',()=>act('route_psu'));
+  on('ioShieldAction',installIOShield);
+  on('ioShieldRemove',removeMotherboard);
+  on('gpuPowerQuick',()=>act('gpu_power'));
+  on('keyboardToggle',()=>togglePeripheral('keyboard'));
+  on('mouseToggle',()=>togglePeripheral('mouse'));
+  on('monitorToggle',()=>togglePeripheral('monitor'));
+  on('viewDesk',()=>window.PC3D?.viewWorkbench?.());
+  on('viewAssemblyDesk',()=>window.PC3D?.viewAssemblyDesk?.());
+  on('viewPeripherals',()=>window.PC3D?.viewPeripherals?.());
+  on('viewStaging3d',()=>window.PC3D?.viewStaging?.());
+  on('stagePrev',()=>window.PC3D?.turnStagingPage?.(-1));
+  on('stageNext',()=>window.PC3D?.turnStagingPage?.(1));
+  on('viewMonitor3d',()=>window.PC3D?.viewScreen?.());
+  on('viewIso',()=>window.PC3D?.viewIso?.());
+  on('viewTop',()=>window.PC3D?.viewTop?.());
+  on('viewRearCables',()=>window.PC3D?.viewRearCables?.());
+   on('viewDriveBays',()=>window.PC3D?.viewDriveBays?.());
+  on('zoomIn',()=>window.PC3D?.zoom?.(-1));
+  on('zoomOut',()=>window.PC3D?.zoom?.(1));
+  on('explodeBtn',()=>{state.explode=!state.explode;render()});
+  on('saveBios',readBiosUI);
+  on('biosDefaults',()=>act('bios_defaults'));
+  document.querySelectorAll('[data-tool]').forEach(b=>{
+    b.addEventListener('click',()=>tool(b.dataset.tool));
+  });
+}
+window.addEventListener('pc3d-drop',event=>{
+  const part=event.detail?.part;
+  if(!['case','motherboard','cpu','ram','cooler','storage','gpu','psu'].includes(part))return;
+  if(adventureGame?.active){adventureGame.dropPart(part);return;}
+  install(part);
+});
+window.addEventListener('pc3d-snap-rejected',event=>{
+  addLog('warn',event.detail?.reason||'Acerca el componente a su zona de anclaje.');
+  render();
+});
+// El interruptor 3D comparte la misma lógica que el botón HTML, también
+// en modo aventura. Nunca enciende un chasis vacío con placa/PSU ausentes.
+window.addEventListener('pc3d-case-power',()=>{
+  if(!state?.installed?.case)return;
+  if(!state.power&&(!state.installed.motherboard||!state.installed.psu)){
+    addLog('warn','El botón de la caja no responde: instala la placa base y la PSU.');
+    render();return;
+  }
+  $('powerBtn').click();
+});
+window.addEventListener('pc3d-boot-move',event=>moveBoot(event.detail?.index??-1));
+window.addEventListener('pc3d-usb-eject',()=>toggleInstallerUsb());
+document.addEventListener('keydown',event=>{
+  if(!state.power||!state.keyboardConnected)return;
+  const field=/^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName||'');
+  if(!field&&(event.key==='F2'||event.key==='Delete')){
+    event.preventDefault();bios();return;
+  }
+  if(!field&&state.bios&&/^[123]$/.test(event.key)){
+    event.preventDefault();moveBoot(Number(event.key)-1);
+  }
+});
+window.addEventListener('pc3d-ready',render);
+window.addEventListener('pc3d-view-change',event=>{
+  document.querySelectorAll('[data-camera-view]').forEach(button=>{
+    button.setAttribute('aria-pressed',
+      String(button.dataset.cameraView===event.detail?.view));
+  });
+});
+// Tooltip contextual independiente de los menús al hacer clic.
+window.addEventListener('pc3d-hover',event=>{
+  const tip=$('sceneHoverTip'),area=$('viewportWrap'),data=event.detail||{};
+  if(!tip||!area)return;
+  if(!data.key){tip.hidden=true;return;}
+  const alias={board:'motherboard',ioShield:'item:ioShield'};
+  const ref=alias[data.key]||data.key;
+  const descriptor=partInspector?.getInfo(ref);
+  tip.textContent=(descriptor?.name||ref)+
+    (data.source==='table'?' · mesa auxiliar':' · en el equipo')+
+    (data.key==='casePower'?'  ·  clic para encender/apagar':'  ·  clic para inspeccionar');
+  tip.hidden=false;
+  const bounds=area.getBoundingClientRect();
+  // Elegimos la esquina cercana sin salirnos del canvas.
+  const maxX=Math.max(8,bounds.width-Math.min(286,bounds.width-16));
+  const x=data.clientX-bounds.left+15;
+  const y=data.clientY-bounds.top-55;
+  tip.style.left=Math.max(8,Math.min(maxX,x))+'px';
+  tip.style.top=Math.max(8,Math.min(bounds.height-62,y))+'px';
+});
+window.addEventListener('pc3d-stage-page',event=>{
+  const info=event.detail||{page:1,pages:1,total:0};
+  const counter=$('stageCount');
+  if(counter)counter.textContent='Mesa '+info.page+'/'+info.pages+' · '+info.total+' tipos';
+  const prev=$('stagePrev'),next=$('stageNext');
+  if(prev)prev.disabled=info.pages<=1;
+  if(next)next.disabled=info.pages<=1;
+});
+window.addEventListener('pc3d-stage-select',event=>{
+  const key=event.detail?.key;
+  if(!key)return;
+  if(adventureGame?.active)adventureGame.select(key);
+  partInspector?.open(key,'table',event.detail.clientX,event.detail.clientY);
+});
+window.addEventListener('pc3d-select',event=>{
+  const mapping={board:'motherboard',cpu:'cpu',ram:'ram',storage:'storage',
+    gpu:'gpu',psu:'psu',case:'case',cooler:'cooler',ioShield:'item:ioShield'};
+  const part=mapping[event.detail?.part]||event.detail?.part;
+  if(!part)return;
+  if(categories[part])state.focus=part;
+  partInspector?.open(part,'tower',event.detail.clientX,event.detail.clientY);
+});// Los errores de recursos (404 JS, favicon, CDN) no deben reconstruir
+// todos los botones durante un clic. Conservamos los controles HTML vivos.
+function showResourceError(message){
+  const panel=$('resourceAlert');
+  if(!panel)return;
+  panel.hidden=false;
+  panel.textContent=message;
+}
+window.addEventListener('error',event=>{
+  const target=event.target;
+  if(target&&target!==window&&(target.src||target.href)){
+    const failing=target.src||target.href;
+    console.error('Recurso no cargado:',failing);
+    showResourceError('No se ha podido cargar un recurso: '+failing+
+      '. La simulación HTML sigue disponible; prueba recargar la página.');
+    return;
+  }
+  console.error(event.error||event.message||event);
+  showResourceError('Error de ejecución: '+(event.message||'desconocido')+
+    '. La interfaz de montaje sigue disponible. Puedes copiar este aviso para revisarlo.');
+},true);
+window.addEventListener('unhandledrejection',event=>{
+  const msg=String(event.reason?.message||event.reason||'Promesa rechazada');
+  console.error('Error de carga asíncrona:',event.reason);
+  showResourceError('Ha fallado una tarea de carga: '+msg);
+});
+init();bind();render();
+// Modo principal: aventura gráfica de reparación con tienda y verbos.
+if(typeof window.createAdventureGame==='function'){
+  adventureGame=window.createAdventureGame({
+  document,catalog,
+  state:()=>state,part:p,evaluate:evalState,video:outputAvailable,
+  log:addLog,render,
+  reset:init,
+  install:part=>{
+    adventureActionContext=true;
+    try{install(part)}finally{adventureActionContext=false}
+  },
+  action:name=>{
+    adventureActionContext=true;
+    try{act(name)}finally{adventureActionContext=false}
+  },
+  power,bios,caseToggle:toggleCase,osInstall:installSelectedOS,
+  fan:caseFanAction,installIOShield,
+  demoBuild:()=>autoBuild(),
+  stage:(items,selected)=>window.PC3D?.updateStaging?.(items,selected),
+  statusSummary:()=>partInspector?.summaryHTML?.()||'<p class="muted">Inspección no cargada.</p>',
+  inspectPart:ref=>{
+    if(partInspector?.open(ref,'catalogue'))partInspector.showSheet();
+  },
+  stagingView:()=>window.PC3D?.viewStaging?.(),
+  workView:()=>window.PC3D?.viewAssemblyDesk?.(),
+  rearView:()=>window.PC3D?.viewRearCables?.()
+});
+adventureGame.start('office');
+}else{
+  showResourceError('El módulo de la tienda no ha cargado. Puedes continuar en Modo técnico y recargar la página.');
+}
+if(typeof window.createPartInspector==='function'){
+  partInspector=window.createPartInspector({
+    document,state:()=>state,catalog,adventure:()=>adventureGame,
+    evaluate:evalState,video:outputAvailable,watts,
+    fan:caseFanAction,notice:text=>{addLog('warn',text);render();}
+  });
+}
+</script>
+<script type="module" src="./js/procedural3d.js?v=8-6-0-classroom"></script></body></html>
