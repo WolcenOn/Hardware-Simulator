@@ -3,6 +3,10 @@
 (function(root){
 'use strict';
 const CASES={
+  demo:{name:'Montaje recomendado · Laboratorio 3D',client:'Instructor · Demostración',
+    story:'Equipo completo montado con las acciones del taller. Inspecciona, desmonta, mide y vuelve a montar libremente.',
+    budget:2500,minRam:16,gpu:true,minStorage:'ssd',maxTemp:90,demo:true,
+    goals:['Montaje completo','Conexiones y fijaciones comprobables','Sin entrega al cliente']},
   office:{name:'Oficina de barrio',client:'Lucía · Administración',
     story:'Necesito trabajar, videollamadas, documentos y un SSD rápido. No hace falta gráfica dedicada.',
     budget:800,minRam:16,gpu:false,minStorage:'ssd',maxTemp:90,
@@ -382,7 +386,7 @@ function createAdventureGame(api){
   }
   function getCase(){return game?{id:game.caseId,...CASES[game.caseId]}:null;}
   function getExport(){if(!game)return null;return {
-    case:getCase(),spent:game.spent,caseReport:game.report,
+    case:getCase(),demoMode:!!game.demoMode,demoFailures:[...(game.demoFailures||[])],spent:game.spent,caseReport:game.report,
     workshop:workshop.snapshot(),benchTests:[...game.benchTests],cleanings:[...game.cleanings],meterShorts:game.meterShorts,
     meter:{connector:game.meterConnector,redPin:game.meterRedPin,
       blackPin:game.meterBlackPin,mode:game.meterMode,jack:game.meterJack,
@@ -1123,7 +1127,7 @@ function createAdventureGame(api){
     ramPrecisionSession=null;ramPrecisionBypass=false;
     stopRamAnimation();ramCaptures={left:null,right:null};
     game={
-      caseId:which,budget:CASES[which].budget,spent:0,stock:{},used:{},
+      caseId:which,demoMode:which==='demo',budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,
@@ -1145,21 +1149,82 @@ function createAdventureGame(api){
     api.render();
   }
   function runTechnicalDemo(){
-    // La demostración no consume presupuesto ni entrega encargos.
-    exit();
-    api.demoBuild?.();
-    api.document.getElementById('workshopFeedback').textContent=
-      'Demostración técnica cargada: utiliza Encender PC o Entrar BIOS.';
+    // Ensamblaje educativo dentro del modo aventura. Usa los mismos verbos
+    // y estado 3D que las compras del usuario, NUNCA la antigua autoBuild.
+    start('demo');
+    const g=game,st=api.state();
+    g.pendingDemo=false;
+    g.cpuPrecisionEnabled=false;g.ramPrecisionEnabled=false;
+    g.screwPracticeEnabled=false;g.thermalPasteEnabled=false;
+    const failures=[];
+    const step=(name,fn,valid)=>{
+      try{fn();if(!valid())failures.push(name);}
+      catch(err){failures.push(name+': '+String(err?.message||err));}
+    };
+    const buy=(cat,id,n=1)=>{
+      const k=cat+':'+id;
+      for(let i=0;i<n;i++){
+        const before=stock(k);
+        purchase(cat,id);
+        if(stock(k)<=before&&!(k==='item:screwdriver'&&workshop.owns('screwdriver')))
+          failures.push('Compra '+k);
+      }
+    };
+    const fit=(cat,id)=>step('Encajar '+cat+':'+id,()=>{
+      g.selected=cat+':'+id;perform('fit');
+    },()=>cat==='item'&&id==='ioShield'?!!st.ioShield:!!st.installed[cat]);
+    const screw=(cat,id)=>step('Fijar '+cat+':'+id,()=>{
+      g.selected=cat+':'+id;perform('screw');
+    },()=>!!st.fixings?.[cat]);
+    const wire=(connector,flag)=>step('Cable '+connector,
+      ()=>connect(connector),()=>!!st[flag]);
+    // La práctica tiene presupuesto ficticio independiente y no
+    // genera recompensas ni sustituye un encargo de un cliente.
+    for(const [cat,id] of [
+      ['case','tower'],['item','ioShield'],['motherboard','b650'],
+      ['cpu','r7600'],['ram','ddr5_16'],['item','paste'],
+      ['cooler','air'],['storage','sataSSD'],['gpu','rx7600'],
+      ['psu','psu650'],['item','sataCable'],['item','hdmi'],
+      ['item','keyboard'],['item','mouse']
+    ])buy(cat,id);
+    buy('item','screws',4);
+    fit('case','tower');
+    fit('item','ioShield');
+    fit('motherboard','b650');screw('motherboard','b650');
+    fit('cpu','r7600');
+    fit('ram','ddr5_16');
+    step('Asentar RAM',()=>{g.selected='ram:ddr5_16';perform('fit');},
+      ()=>!!st.ramSeated);
+    step('Aplicar pasta',()=>{g.selected='item:paste';perform('apply');},
+      ()=>st.paste>0);
+    fit('cooler','air');screw('cooler','air');
+    fit('storage','sataSSD');screw('storage','sataSSD');
+    fit('gpu','rx7600');screw('gpu','rx7600');
+    fit('psu','psu650');screw('psu','psu650');
+    for(const [connector,flag] of [
+      ['atx24','atx24'],['eps','eps'],['frontpanel','frontPanel'],
+      ['frontusb3','frontUsb3'],['frontusbc','frontUsbC'],['cpufan','cpuFan'],
+      ['sataData','sataData'],['sataPower','sataPower'],
+      ['gpupower','gpuPower'],['keyboard','keyboardConnected'],
+      ['mouse','mouseConnected'],['monitor','monitorCable']
+    ])wire(connector,flag);
+    g.selected='motherboard:b650';g.verb='inspect';
+    g.demoFailures=failures;
+    g.openSections=['mission','actions','inventory'];
+    api.workView?.();
+    message(failures.length?
+      'Montaje de demostración parcial. Revisa: '+failures.join(' · ')+'.':
+      'Montaje recomendado completo en el laboratorio 3D: caja, placa, CPU, RAM, disipador, GPU, disco, PSU, tornillos y cableado. Ya puedes inspeccionarlo y desmontarlo.',
+      failures.length?'warn':'ok');
+    return failures.length===0;
   }
   function demoBuild(){
     if(!game)return;
     const hasProgress=game.purchases.length>0||
       Object.values(api.state().installed||{}).some(Boolean);
     if(!hasProgress){runTechnicalDemo();return;}
-    // Confirmación accesible dentro del panel, evitando window.confirm
-    // que muchos navegadores de prueba y bloqueadores cierran sin avisar.
     game.pendingDemo=true;game.openSections=['mission','actions'];
-    message('La demostración reiniciará este encargo y sus compras. Confirma o cancela aquí.', 'warn');
+    message('¿Sustituir este encargo por un PC de demostración EN EL MISMO taller 3D? Confirma o cancela.','warn');
   }
   function cancelDemo(){
     if(!game)return;
@@ -1885,6 +1950,10 @@ function createAdventureGame(api){
     message('Inspección: '+game.inspection,'ok');
   }
   function checkDelivery(){
+    if(game?.demoMode){
+      message('Demostración libre: no se entrega al cliente ni genera recompensas. Inicia un encargo real para una entrega.','warn');
+      return false;
+    }
     if(game?.pendingSataLatent){
       message('Verifica el arranque: hay una incidencia pendiente de comprobación.');return;
     }
@@ -2493,13 +2562,15 @@ function createAdventureGame(api){
     api.tools?.(workshop.list());
     const mission=
       (game.pendingDemo?'<div class="adv-confirm-demo" role="alert">'+
-        '<p>¿Abrir montaje recomendado? Se perderá el progreso de este encargo, no se comprarán piezas.</p>'+
+        '<p>¿Abrir un montaje recomendado en el laboratorio 3D? Se sustituirá este encargo por componentes de práctica.</p>'+
         '<button type="button" data-confirm-demo class="primary">Sí, abrir demostración</button>'+
         '<button type="button" data-cancel-demo>Conservar encargo</button></div>':'')+
       '<label class="adventure-label">Cliente</label><select id="advClient">'+
-      Object.entries(CASES).map(([id,c])=>'<option value="'+id+'"'+(id===game.caseId?' selected':'')+
+      (game.demoMode?'<option value="demo" selected>Montaje recomendado · práctica 3D</option>':'')+
+      Object.entries(CASES).filter(([,c])=>!c.demo).map(([id,c])=>'<option value="'+id+'"'+(id===game.caseId?' selected':'')+
         '>'+safe(c.name)+'</option>').join('')+'</select>'+
       '<p class="adv-story"><b>'+safe(job.client)+'</b>: '+safe(job.story)+'</p>'+
+      (game.demoMode?'<p class="adv-demo-banner" role="status">🔧 Montaje de demostración en el mismo laboratorio 3D · sin entrega al cliente.</p>':'')+
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
@@ -2631,7 +2702,8 @@ function createAdventureGame(api){
       '<button type="button" data-close>Abrir / cerrar caja</button></div>';
     const delivery=
       '<p class="adv-story">'+job.goals.map(safe).join(' · ')+'</p>'+
-      '<button type="button" class="primary adv-deliver" data-deliver>Entregar PC al cliente</button>'+
+      (game.demoMode?'<p class="adv-demo-banner">Práctica libre: desmonta, inspecciona y modifica el montaje. Para entregar un PC, inicia un encargo real.</p>':
+      '<button type="button" class="primary adv-deliver" data-deliver>Entregar PC al cliente</button>')+
       (game.report?'<div class="adv-report"><b>'+ (game.report.ok?'ENCARGO SUPERADO':'REVISAR MONTAJE')+
         ' · '+game.report.score+'/10</b>'+
         game.report.checks.map(([c,ok])=>'<div class="'+(ok?'oktxt':'errtxt')+'">'+
@@ -2639,11 +2711,11 @@ function createAdventureGame(api){
       '<div class="adv-log" role="status" aria-live="polite">'+game.messages.map(m=>
         '<p class="'+(m.level==='ok'?'oktxt':'warntxt')+'">'+safe(m.text)+'</p>').join('')+'</div>'+
       '<button type="button" data-demo-build class="adv-demo-build">'+
-      'Ver montaje recomendado (demostración, sin encargo)</button>'+
+      'Construir montaje recomendado en este taller 3D</button>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.18.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.19.0</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<button type="button" class="primary" data-open-store>🛒 Tienda de componentes</button>'+
