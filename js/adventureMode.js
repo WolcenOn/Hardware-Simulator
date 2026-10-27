@@ -1130,7 +1130,7 @@ function createAdventureGame(api){
       caseId:which,demoMode:which==='demo',budget:CASES[which].budget,spent:0,stock:{},used:{},
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
-      purchases:[],osUSB:false,pendingDemo:false,
+      purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
       riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
@@ -2606,7 +2606,9 @@ function createAdventureGame(api){
       '<p class="muted">Comprado → mesa auxiliar → instalado. Pulsa una pieza para seleccionarla. Devuelve o cambia las no utilizadas.</p>'+
       '<div class="adv-inventory-grid">'+inventoryMarkup()+'</div>'+
       '<p class="adv-current">Selección: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguna')+'</b></p>'+
-      exchangeMarkup();
+      '<details class="adv-inventory-extras"'+(game.inventoryExtrasOpen?' open':'')+'>'+
+      '<summary>Cambios de producto y opciones de inventario</summary>'+exchangeMarkup()+
+      '</details>';
     const shop=shopMarkup();
     const stActions=api.state();
     const peripherals=
@@ -2676,16 +2678,15 @@ function createAdventureGame(api){
       '</div>':'';
     const actions=
       thermalService+
-      '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       coolerContinue+
-      '<div class="adv-quick-actions">'+
-      '<button type="button" data-quick="boot" class="primary">'+
-      (api.state().power?'Apagar ordenador':'Encender ordenador')+'</button>'+
-      '<button type="button" data-quick="bios">Entrar / salir BIOS</button>'+
-      '</div>'+
+      ramPrecisionMarkup()+screwPracticeMarkup()+cpuPrecisionMarkup()+pastePracticeMarkup()+
+      '<details class="adv-manual-ops"'+(game.manualOpsOpen?' open':'')+'>'+
+      '<summary>Controles manuales alternativos</summary>'+
+      '<p class="muted">Las piezas, conectores y sus opciones principales se manejan desde la ficha del objeto 3D. Estas operaciones se conservan como alternativa accesible.</p>'+
+      '<p class="adv-current">Objeto: <b>'+
+      safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       peripherals+
       '<p class="muted">Acciones sugeridas para la pieza seleccionada:</p>'+contextSuggestions()+
-      ramPrecisionMarkup()+screwPracticeMarkup()+cpuPrecisionMarkup()+pastePracticeMarkup()+
       '<div class="adv-verbs">'+VERBS.map(([id,text])=>
         '<button type="button" class="'+(game.verb===id?'chosen':'')+'" data-verb="'+id+'">'+text+'</button>').join('')+'</div>'+
       '<label class="adventure-label">Salida de vídeo al monitor</label>'+
@@ -2699,7 +2700,7 @@ function createAdventureGame(api){
         '<option value="'+id+'"'+(id===game.connection?' selected':'')+'>'+text+'</option>').join('')+'</select>'+
       '<div class="adv-actions"><button type="button" class="primary" data-go>Realizar acción</button>'+
       '<button type="button" data-rear>Ver trasera</button>'+
-      '<button type="button" data-close>Abrir / cerrar caja</button></div>';
+      '<button type="button" data-close>Abrir / cerrar caja</button></div></details>';
     const delivery=
       '<p class="adv-story">'+job.goals.map(safe).join(' · ')+'</p>'+
       (game.demoMode?'<p class="adv-demo-banner">Práctica libre: desmonta, inspecciona y modifica el montaje. Para entregar un PC, inicia un encargo real.</p>':
@@ -2710,16 +2711,15 @@ function createAdventureGame(api){
         (ok?'✓ ':'✗ ')+safe(c)+'</div>').join('')+'</div>':'')+
       '<div class="adv-log" role="status" aria-live="polite">'+game.messages.map(m=>
         '<p class="'+(m.level==='ok'?'oktxt':'warntxt')+'">'+safe(m.text)+'</p>').join('')+'</div>'+
-      '<button type="button" data-demo-build class="adv-demo-build">'+
-      'Construir montaje recomendado en este taller 3D</button>'+
+      '<p class="muted">La demostración recomendada se inicia desde el botón situado encima del laboratorio 3D.</p>'+
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.19.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.19.1</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
-      '<button type="button" class="primary" data-open-store>🛒 Tienda de componentes</button>'+
-      '<small>Selecciona un objeto de la mesa 3D para ver su ficha, montarlo o devolverlo.</small></div>'+
+      '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+
+      '</div>'+
       section('mission','Encargo y presupuesto',mission)+
       section('inventory','Piezas disponibles',inventory,available.reduce((n,x)=>n+x.quantity,0))+
       section('actions','Montaje y acciones',actions,game.selected?'●':'')+
@@ -2887,7 +2887,14 @@ function createAdventureGame(api){
       event.preventDefault();
       const details=summary.parentElement;
       const name=details?.dataset.section;
-      if(!name||!game)return;
+      if(!game)return;
+      if(details.classList?.contains('adv-manual-ops')){
+        game.manualOpsOpen=!details.open;return;
+      }
+      if(details.classList?.contains('adv-inventory-extras')){
+        game.inventoryExtrasOpen=!details.open;return;
+      }
+      if(!name)return;
       if(details.open)game.openSections=game.openSections.filter(x=>x!==name);
       else game.openSections=[...game.openSections.filter(x=>x!==name),name].slice(-2);
       panel.querySelectorAll('details[data-section]').forEach(d=>{
