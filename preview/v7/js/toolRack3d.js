@@ -8,7 +8,7 @@ export function createToolRack(THREE,scene){
  const mint=new THREE.MeshStandardMaterial({color:0x56d9bf,roughness:.5});
  const silver=new THREE.MeshStandardMaterial({color:0xbed4d9,metalness:.54,roughness:.42});
  const keys=['screwdriver','multimeter','gpuTest','ramDdr4','ramDdr5','brush',
-   'vacuum','alcohol','wipes','airDuster','cleaner'];
+   'vacuum','alcohol','wipes','airDuster','cleaner','esdStrap','usbWriter'];
  const objects=new Map();
  function box(parent,w,h,d,x,y,z,material){
    const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
@@ -26,7 +26,7 @@ export function createToolRack(THREE,scene){
  sign.position.set(0,8.85,1.45);root.add(sign);
  keys.forEach((id,i)=>{
    const holder=new THREE.Group();holder.name='Herramienta '+id;holder.userData.toolId=id;
-   holder.position.set(-3.3+i%4*2.18,1.34+Math.floor(i/4)*2.67,0);
+   holder.position.set(-3.35+i%5*1.68,1.34+Math.floor(i/5)*2.67,0);
    root.add(holder);objects.set(id,holder);
    if(id==='screwdriver'){
      box(holder,.24,1,.2,0,0,.2,warm);box(holder,.11,.7,.11,0,.82,.2,silver);
@@ -51,6 +51,17 @@ export function createToolRack(THREE,scene){
      box(holder,1.25,.85,.8,0,0,.2,dark);box(holder,.74,.35,.62,0,.56,.2,mint);
    }else if(id==='wipes'){
      box(holder,1.25,.35,.8,0,-.25,.1,silver);
+   }else if(id==='esdStrap'){
+     // Pulsera con banda y cordón: la geometría solo aparece al comprar.
+     const band=new THREE.Mesh(new THREE.TorusGeometry(.38,.13,10,28),mint);
+     band.rotation.x=Math.PI/2;band.position.set(0,.07,.1);holder.add(band);
+     const lead=new THREE.Mesh(new THREE.TorusGeometry(.56,.035,6,26,Math.PI*1.3),silver);
+     lead.position.set(.13,-.43,.18);holder.add(lead);
+     box(holder,.36,.2,.19,.5,-.72,.25,silver);
+   }else if(id==='usbWriter'){
+     box(holder,1.22,.52,.3,0,.05,.25,dark);
+     box(holder,.32,.34,.23,.79,.05,.25,silver);
+     box(holder,.4,.14,.04,-.1,.09,.43,mint);
    }else{
      const bottle=new THREE.Mesh(new THREE.CylinderGeometry(.35,.42,1.25,18),warm);
      bottle.position.set(0,.1,.2);holder.add(bottle);

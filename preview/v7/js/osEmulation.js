@@ -108,6 +108,10 @@ function installRecord(state,hardware={}){
   if(!check.ok)return check;
   state.installedOs={id:state.usbImage,storageId:state.selected.storage,
     storageInterface:hardware.disk?.interface||'unknown'};
+  // La licencia corresponde al PC instalado, no al medio USB. NovaDesk
+  // es propietario ficticio y puede arrancar sin activación; las
+  // distribuciones libres no requieren una compra adicional.
+  state.osActivated=state.usbImage!=='novadesk';
   state.osInstalled=true;state.osInstalling=false;state.osInstallProgress=100;
   return {ok:true,code:'INSTALLED',os:CATALOG[state.usbImage],
     reason:'Instalación completada. Retira el USB o coloca el disco primero en la BIOS.'};

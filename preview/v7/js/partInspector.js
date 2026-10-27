@@ -102,6 +102,8 @@ function createPartInspector(api){
   }
   function checks(t){
     const st=api.state(),ad=api.adventure?.(),g=ad?.game;
+    const esdRate=window.PC_MISHAPS?.componentEsdRisk?.(t.category,
+      !!g?.esdConnected)||0;
     const isInstalled=installed(t,st),screw=k=>
       !g?info('Atornillado','No registrado en modo técnico'):
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
@@ -134,22 +136,26 @@ function createPartInspector(api){
     if(t.category==='keyboard'||t.category==='mouse')return [
       good('USB conectado',!!st[t.category==='keyboard'?'keyboardConnected':'mouseConnected'])];
     if(!isInstalled)return [good('Situado en el chasis',false),
-      info('En inventario',g?.stock?.[t.key]??0)];
+      info('En inventario',g?.stock?.[t.key]??0),
+      ...(esdRate?[info('Riesgo ESD educativo',Math.round(esdRate*100)+' % por manipulación')]:[])];
     switch(t.category){
       case 'case':return [good('Caja colocada',!!st.installed.case),
         good('Chapa I/O',!!st.ioShield),info('Panel',st.caseClosed?'Cerrado':'Abierto'),
         info('Ventiladores instalados',String(st.caseFans?.filter(f=>f.installed).length||0)+'/3')];
-      case 'motherboard':return [screw('motherboard'),
+      case 'motherboard':return [screw('motherboard'),info('Riesgo ESD educativo',Math.round(esdRate*100)+' %'),
         good('ATX 24 pines',!!st.atx24),good('POWER SW / F_PANEL',!!st.frontPanel),
         good('EPS 8 pines CPU',!!st.eps),good('Chapa I/O',!!st.ioShield)];
       case 'cpu':return [good('CPU instalada',true),good('Disipador',!!st.installed.cooler),
-        good('Pasta térmica',st.paste>=.7),good('EPS placa',!!st.eps)];
-      case 'ram':return [good('DIMM bloqueado en pestañas',!!st.ramSeated)];
+        info('Riesgo ESD educativo',Math.round(esdRate*100)+' % por manipulación'),
+        good('Pasta térmica',st.paste>=.7),info('Limpieza',st.paste>0?'Necesita alcohol y toallitas antes de otra aplicación':'Superficie limpia'),
+        good('EPS placa',!!st.eps)];
+      case 'ram':return [good('DIMM bloqueado en pestañas',!!st.ramSeated),
+        info('Riesgo ESD educativo',Math.round(esdRate*100)+' % por manipulación')];
       case 'cooler':return [info('Modelo',window.PC_COOLER_OPTIONS?.[st.selected.cooler]?.name||'Torre de aire'),
         good('Pasta térmica aplicada',st.paste>=.7),
         good('CPU_FAN conectado',!!st.cpuFan),
         info('Temperatura CPU',String(api.evaluate?.()?.temp??'—')+' °C')];
-      case 'gpu':return [screw('gpu'),
+      case 'gpu':return [screw('gpu'),info('Riesgo ESD educativo',Math.round(esdRate*100)+' %'),
         ...(t.model.power?.length?[good('Alimentación PCIe / 12VHPWR',!!st.gpuPower),
           info('Conector requerido',t.model.power.join(', '))]:
           [info('Alimentación auxiliar','No necesaria')]),
@@ -204,6 +210,8 @@ function createPartInspector(api){
       const target=t.category;
       const flag=target==='monitor'?'monitorCable':target+'Connected';
       actions.push({verb:st[flag]?'disconnect':'connect',target,label:st[flag]?'Desconectar':'Conectar',enabled:true});
+      if(target==='monitor'&&st.osInstalled&&st.installedOs?.id==='novadesk'&&!st.osActivated)
+        actions.push({verb:'activate',label:'Activar NovaDesk con licencia',enabled:true});
       return actions;
     }
     if(!on){
@@ -212,6 +220,13 @@ function createPartInspector(api){
       actions.push({verb:'fit',label:t.category==='case'?'Colocar caja':'Encajar',enabled:true});
     }
     else{
+      if(t.category==='case')
+        actions.push({verb:'caseToggle',label:st.caseClosed?'Abrir panel lateral':'Cerrar panel lateral',enabled:!st.power});
+      if(t.category==='cpu'&&!st.installed.cooler){
+        if(st.paste>0)actions.push({verb:'clean',label:'🧴 Limpiar pasta térmica (alcohol + toallita)',enabled:!st.power&&!st.caseClosed,
+          reason:'Consume una dosis de alcohol y una toallita del taller'});
+        else actions.push({verb:'apply',label:'Aplicar pasta térmica nueva',enabled:!st.power&&!st.caseClosed&&!!ad.game?.stock?.['item:paste']});
+      }
       if(['motherboard','psu','storage','gpu'].includes(t.category)&&!ad.game?.screwed?.[t.category])
         actions.push({verb:'screw',label:'Atornillar',enabled:true});
       // Cada clavija es independiente: mostrar exactamente la acción
@@ -346,6 +361,27 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
+    if(verb==='caseToggle'&&t.category==='case'){
+      api.caseToggle?.();
+      feedback={text:api.state().caseClosed?'Panel de la caja cerrado.':'Panel de la caja abierto.',level:'ok'};
+      refresh();return;
+    }
+    if(verb==='activate'&&t.category==='monitor'){
+      ad.activateOS?.();feedback=ad.game?.lastFeedback||null;refresh();return;
+    }
+    if(verb==='clean'&&t.category==='cpu'){
+      const ok=ad.cleanThermalPaste?.();
+      feedback=ad.game?.lastFeedback?{...ad.game.lastFeedback}:
+        {text:ok?'Pasta térmica limpiada':'No se pudo limpiar la CPU',level:ok?'ok':'warn'};
+      refresh();return;
+    }
+    if(verb==='apply'&&t.category==='cpu'){
+      ad.select('item:paste');
+      ad.perform('apply');
+      feedback=ad.game?.lastFeedback?{...ad.game.lastFeedback}:
+        {text:'Aplicación de pasta iniciada',level:'ok'};
+      refresh();return;
+    }
     if(verb==='return'){
       const purchased=ad.game?.purchases?.some(p=>p.k===t.key);
       if(!purchased||!ad.canReturn?.(t.key)){
