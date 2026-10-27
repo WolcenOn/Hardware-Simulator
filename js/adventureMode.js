@@ -2982,7 +2982,7 @@ function createAdventureGame(api){
     buyTool,useTool,openTool,openMeter,closeMeter,probeMeter,replaceMeterFuse,
     selectMeterConnector,selectMeterPin,openMeterAtPin,
     getWorkshop:()=>workshop.snapshot(),
-    storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
+    storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,canReturn,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),

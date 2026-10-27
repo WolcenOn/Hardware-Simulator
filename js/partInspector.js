@@ -171,13 +171,23 @@ function createPartInspector(api){
     const on=installed(t,st);
     const actions=[{verb:'sheet',label:'Ficha técnica',enabled:true}];
     if(!active)return actions;
+    const returnAction=()=>{
+      // La ficha 3D usa exactamente las mismas reglas que Inventario:
+      // no devuelve una pieza colocada, un consumible gastado o un cable activo.
+      if(!ad.game?.purchases?.some(p=>p.k===t.key))return;
+      const paid=ad.game.purchases.findLast(p=>p.k===t.key)?.price;
+      const enabled=!!ad.canReturn?.(t.key);
+      actions.push({verb:'return',label:'Devolver'+
+        (Number.isFinite(paid)?' · +'+paid+' €':''),
+        enabled,reason:enabled?'Devolver una unidad sin instalar':'Primero retira la pieza o desconecta el cable para devolverlo.'});
+    };
     if(t.category==='item'){
       if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'||t.id==='rgbStrip'){
         const mountedIO=(t.id==='ioShield'&&st.ioShield)||(t.id==='rgbStrip'&&st.rgbInstalled);
         if(!mountedIO)actions.push({verb:(t.id==='paste'||t.id==='rgbStrip')?'apply':'fit',
           label:(t.id==='paste'||t.id==='rgbStrip')?'Aplicar':t.id==='ioShield'?'Encajar en rear I/O':'Encajar',enabled:true});
       }
-      return actions;
+      returnAction();return actions;
     }
     if(/^fan[0-2]$/.test(t.category)){
       const n=Number(t.category.slice(-1));
@@ -224,7 +234,7 @@ function createPartInspector(api){
       if(t.category==='ram'&&!st.ramSeated)actions.push({verb:'fit',label:'Encajar DIMM',enabled:true});
       actions.push({verb:'remove',label:'Retirar',enabled:true});
     }
-    return actions;
+    returnAction();return actions;
   }
   function details(t){
     const m=t.model,rows=[];
@@ -268,6 +278,8 @@ function createPartInspector(api){
     return '<div class="part-context-actions">'+actionList(t).map(a=>
       '<button type="button" data-part-verb="'+escape(a.verb)+'"'+
       (a.target?' data-part-target="'+escape(a.target)+'"':'')+
+      (a.verb==='return'?' class="part-return-action"':'')+
+      (a.reason?' title="'+escape(a.reason)+'"':'')+
       (!a.enabled?' disabled':'')+'>'+escape(a.label)+'</button>').join('')+'</div>';
   }
   function feedbackHTML(){
@@ -334,6 +346,26 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
+    if(verb==='return'){
+      const purchased=ad.game?.purchases?.some(p=>p.k===t.key);
+      if(!purchased||!ad.canReturn?.(t.key)){
+        feedback={text:'No se puede devolver esta unidad. Debe estar sin montar, disponible y sin cables activos.',level:'warn'};
+        refresh();return;
+      }
+      const ok=ad.returnItem(t.key);
+      if(!ok){
+        feedback={text:'No se pudo procesar la devolución.',level:'warn'};
+        refresh();return;
+      }
+      // La mesa elimina el modelo al agotarse el stock. Cerramos su ficha
+      // para no mantener un control flotante sobre una pieza inexistente.
+      if(target.source==='table'&&!(ad.game?.stock?.[t.key]>0)){
+        close();return;
+      }
+      feedback=ad.game?.lastFeedback?{...ad.game.lastFeedback}:
+        {text:'Devolución registrada. Presupuesto actualizado.',level:'ok'};
+      refresh();return;
+    }
     if(verb==='connect'||verb==='disconnect'){
       if(!connector){
         feedback={text:'No se ha seleccionado ningún conector.',level:'warn'};
