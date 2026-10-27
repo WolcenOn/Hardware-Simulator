@@ -544,8 +544,9 @@ function createAdventureGame(api){
       closeScrewPractice();
       const record=perform('remove');
       if(record?.status!=='success')return false;
-      cleanThermalPaste();
-      message('Disipador retirado y pasta limpiada. Necesitas otra dosis para repetir.','warn');
+      // El retirado no limpia automáticamente: el usuario debe ir a la
+      // ficha 3D de la CPU y emplear alcohol y toallitas multiuso.
+      message('Disipador retirado. Abre la ficha 3D de la CPU para limpiar la pasta usada antes de aplicar otra dosis.','warn');
       return true;
     }
     const review=game.pasteReview;
