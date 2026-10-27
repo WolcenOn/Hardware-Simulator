@@ -1238,6 +1238,7 @@ test('taller v8.14 mantiene el equipamiento de diagnóstico entre encargos',asyn
   await expect(page.locator('.meter-probes')).toContainText('corriente');
   await page.locator('[data-meter-close]').evaluate(el=>el.click());
   await expect(page.locator('#multimeterLabPopup')).toBeHidden();
+  await openSection(page,'mission');
   await page.locator('#advClient').selectOption('gaming');
   await openSection(page,'workshop');
   await expect(panel.locator('[data-tool-buy="multimeter"]')).toBeDisabled();
