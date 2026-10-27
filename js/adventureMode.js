@@ -114,6 +114,75 @@ const key=(cat,id)=>cat+':'+id;
 const safe=val=>String(val).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function createAdventureGame(api){
   let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
+  const workshop=root.PC_WORKSHOP_TOOLS.createBank(root.localStorage);
+  const equipment=root.PC_WORKSHOP_TOOLS.ITEMS;
+  function buyTool(id){
+    if(!game)return false;
+    const r=workshop.buy(id);
+    message(r.ok?'Adquirido para el taller: '+equipment[id].label+'.':
+      'Compra no realizada: '+r.reason+'.',r.ok?'ok':'warn');
+    return r.ok;
+  }
+  function useTool(id){
+    if(!game||!equipment[id]||!workshop.owns(id))return false;
+    if(id==='multimeter')return openMeter();
+    if(id==='screwdriver'){message('Destornillador ya disponible, sin recompra.','ok');return true;}
+    if(api.state().power){
+      message('Apaga el PC antes de limpiar o probar piezas de referencia.');return false;
+    }
+    if(!workshop.use(id))return false;
+    if(['gpuTest','ramDdr4','ramDdr5'].includes(id)){
+      game.benchTests.push(id);
+      message('Prueba comparativa virtual con '+equipment[id].label+
+        '. No instala piezas ni resuelve la compatibilidad.','ok');
+    }else{
+      game.cleanings.push(id);
+      message('Limpieza simulada con '+equipment[id].label+
+        (equipment[id].units?' (una dosis gastada).':'.')+
+        ' No corrige averías automáticamente.','ok');
+    }
+    return true;
+  }
+  function openTool(id){
+    if(!game)return false;
+    if(id==='multimeter'&&workshop.owns(id))return openMeter();
+    game.openSections=[...game.openSections.filter(v=>v!=='workshop'),'workshop'].slice(-2);
+    paint();api.toolView?.();return true;
+  }
+  function openMeter(){
+    if(!game)return false;
+    if(!workshop.owns('multimeter')){
+      message('Primero compra un multímetro para el taller.');return false;
+    }
+    game.meterOpen=true;game.meterReading=null;renderMeter();return true;
+  }
+  function closeMeter(){if(game)game.meterOpen=false;
+    if(meterPopup)meterPopup.hidden=true;}
+  function probeMeter(){
+    if(!game?.meterOpen)return null;
+    const st=api.state();
+    const reading=root.PC_WORKSHOP_TOOLS.meterRead({
+      mode:game.meterMode,jack:game.meterJack,point:game.meterPoint,
+      powered:!!st.power,psu:!!st.installed.psu,
+      sata:!!st.sataData,fan:!!st.cpuFan,
+      fuseBlown:workshop.snapshot().fuseBlown
+    });
+    game.meterReading=reading;
+    if(reading.spark){
+      workshop.shortCircuit();game.meterShorts++;
+      api.log('warn','Chispazo ficticio: cortocircuito por multímetro en amperios.');
+    }
+    renderMeter();return reading;
+  }
+  function replaceMeterFuse(){
+    if(!game||!workshop.replaceFuse()){
+      message('El fusible no se ha cambiado (cuesta 5 € y debe estar fundido).');return false;
+    }
+    game.meterReading={value:'FUSE OK',message:'Fusible de amperios reemplazado.'};
+    renderMeter();message('Fusible de amperios sustituido por 5 € del fondo del taller.','ok');
+    return true;
+  }
+
   let ramPrecisionEngine=null,ramPrecisionSession=null,ramPrecisionBypass=false;
   let screwEngine=null,screwSession=null,screwBypass=false,screwDragging=false;
   let screwHoleIndex=0,screwSessions=new Map();
@@ -286,6 +355,7 @@ function createAdventureGame(api){
   function getCase(){return game?{id:game.caseId,...CASES[game.caseId]}:null;}
   function getExport(){if(!game)return null;return {
     case:getCase(),spent:game.spent,caseReport:game.report,
+    workshop:workshop.snapshot(),benchTests:[...game.benchTests],cleanings:[...game.cleanings],meterShorts:game.meterShorts,
     purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
     operationHistory:operationEngine?.getHistory()||[],
     simulatedTime:clock?.getSummary()||null,
@@ -315,6 +385,7 @@ function createAdventureGame(api){
 
   const panel=api.document.getElementById('adventurePanel');
   const storePage=api.document.getElementById('adventureStorePage');
+  const meterPopup=api.document.getElementById('multimeterLabPopup');
   const ramPopup=api.document.getElementById('ramPrecisionPopup');
   const screwPopup=api.document.getElementById('screwPrecisionPopup');
   const pastePopup=api.document.getElementById('pastePrecisionPopup');
@@ -977,7 +1048,7 @@ function createAdventureGame(api){
     paint();
   }
   const stock=(k)=>game?.stock[k]||0;
-  const owned=(k)=>stock(k)>0||!!game?.used[k];
+  const owned=(k)=>k==='item:screwdriver'&&workshop.owns('screwdriver')||stock(k)>0||!!game?.used[k];
   const has=(k)=>stock(k)>0;
   function expend(k,amount=1){
     if(stock(k)<amount)return false;
@@ -1013,7 +1084,9 @@ function createAdventureGame(api){
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
       thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
-      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials'
+      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',
+       meterOpen:false,meterMode:'vdc',meterJack:'vohm',meterPoint:'psu12',
+       meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -1047,7 +1120,7 @@ function createAdventureGame(api){
     pasteUi?.close();pasteSpread=null;screwSessions.clear();
     closeCpuPrecision();closeScrewPractice();
     stopRamAnimation();ramPrecisionSession=null;ramCaptures={left:null,right:null};
-    api.stage?.([], '');
+    api.stage?.([], '');api.tools?.([]);
     api.document.body.classList.remove('adventure-on');
     api.document.body.classList.remove('adventure-store-on');
     const state=api.state();
@@ -1131,6 +1204,9 @@ function createAdventureGame(api){
       return;
     }
     const k=key(cat,id);
+    if(k==='item:screwdriver'&&workshop.owns('screwdriver')){
+      message('Comprado: destornillador incluido permanentemente, coste 0 €.','ok');return;
+    }
     if(cat==='gpu'&&id==='none')return;
     game.stock[k]=(game.stock[k]||0)+(k==='item:screws'?10:1);
     game.spent+=cost;
@@ -1766,7 +1842,9 @@ function createAdventureGame(api){
     ];
     const ok=checks.every(x=>x[1]);
     game.report={ok,checks,score:checks.filter(x=>x[1]).length,spent:game.spent};
-    message(ok?'¡Entrega aceptada por '+job.client+'!':
+    const earned=ok&&workshop.reward(game.caseId);
+    message(ok?'¡Entrega aceptada por '+job.client+'!'+
+      (earned?' Fondo del taller +110 € por primera entrega.':''):
       'Entrega rechazada: hay '+checks.filter(x=>!x[1]).length+' requisitos sin cumplir.',ok?'ok':'warn');
   }
   function storeFacts(cat,id){
@@ -2157,6 +2235,7 @@ function createAdventureGame(api){
     const job=CASES[game.caseId];
     const available=stagedItems();
     api.stage?.(available,game.selected);
+    api.tools?.(workshop.list());
     const mission=
       (game.pendingDemo?'<div class="adv-confirm-demo" role="alert">'+
         '<p>¿Abrir montaje recomendado? Se perderá el progreso de este encargo, no se comprarán piezas.</p>'+
@@ -2578,6 +2657,8 @@ function createAdventureGame(api){
     }
   });
   return {start,exit,openStore,closeStore,setStoreCategory,renderStore,
+    buyTool,useTool,openTool,openMeter,closeMeter,probeMeter,replaceMeterFuse,
+    getWorkshop:()=>workshop.snapshot(),
     storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,
