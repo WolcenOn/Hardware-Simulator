@@ -102,3 +102,45 @@ test('8.16: colores comunes de EPS/PCIe y SATA P11 no universal',()=>{
  assert.equal(p.swatch(lookup('sata15',11)),p.COLORS.none);
  assert.equal(p.WIRE_LEGEND.find(q=>q.color==='green').signal,'PS_ON#');
 });
+
+
+test('8.17: las caras opuestas invierten columnas, sin modificar pines',()=>{
+ const p=ctx.window.PC_PINOUTS;
+ const n=rows=>rows.map(row=>Array.from(row,x=>x.number));
+ assert.deepEqual(n(p.orientedRows('atx24','contacts'))[0],
+   Array.from({length:12},(_,i)=>i+13));
+ assert.deepEqual(n(p.orientedRows('atx24','contacts'))[1],
+   Array.from({length:12},(_,i)=>i+1));
+ assert.deepEqual(n(p.orientedRows('atx24','wires'))[0],
+   Array.from({length:12},(_,i)=>24-i));
+ assert.deepEqual(n(p.orientedRows('atx24','wires'))[1],
+   Array.from({length:12},(_,i)=>12-i));
+ for(const id of ['atx24','eps8','pcie8','sata15']){
+   const def=CONNECTORS[id];
+   for(const pin of def.pins){
+     const a=p.positionOf(id,pin.number,'contacts');
+     const b=p.positionOf(id,pin.number,'wires');
+     assert.equal(a.row,b.row);
+     assert.equal(a.col+b.col,def.columns-1);
+     const expected=p.level(pin.rail,{psu:true,powered:true})===null?'OL':'0.0 V⎓';
+     assert.equal(m(id,pin.number,pin.number,{psu:true,powered:true}).value,
+       expected,id+' / P'+pin.number);
+   }
+ }
+ assert.equal(p.positionOf('atx24',16,'contacts').row,0);
+ assert.equal(p.positionOf('atx24',16,'wires').col,8);
+ assert.equal(p.positionOf('none',1),null);
+ assert.equal(p.orientedRows('atx24','invalid').length,0);
+});
+test('8.17: polarización EPS y PCIe distinta y llave SATA en L',()=>{
+ const p=ctx.window.PC_PINOUTS;
+ assert.equal(p.HOUSINGS.atx24.split,'20+4');
+ assert.equal(p.HOUSINGS.eps8.split,'4+4');
+ assert.equal(p.HOUSINGS.pcie8.split,'6+2');
+ assert.equal(p.HOUSINGS.sata15.kind,'sata-l');
+ assert.equal(p.keyShape('eps8',6),'square');
+ assert.equal(p.keyShape('pcie8',6),'bevel');
+ assert.equal(p.keyShape('atx24',1),'neutral');
+ assert.equal(p.keyShape('sata15',1),'blade');
+ assert.equal(p.keyShape('atx24',25),null);
+});

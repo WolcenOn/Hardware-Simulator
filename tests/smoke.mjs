@@ -984,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.16.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.17.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1165,3 +1165,36 @@ assert(!meterElement.innerHTML.includes('meter-wire-swatch'));
 helpMode('signals');assert(meterElement.innerHTML.includes('PWR_OK'));
 assert(meterElement.innerHTML.includes('🔴 Roja P10 · +12 V'));
 console.log('8.16: esquema ordenado, colores y modo examen OK');
+
+
+// 8.17: ambas caras invierten columnas, mantienen valores de medida.
+const oriented=window.PC_PINOUTS,seq=rs=>rs.map(r=>Array.from(r,p=>p.number));
+assert.deepEqual(seq(oriented.orientedRows('atx24','contacts'))[0],
+ Array.from({length:12},(_,i)=>i+13));
+assert.deepEqual(seq(oriented.orientedRows('atx24','wires'))[0],
+ Array.from({length:12},(_,i)=>24-i));
+g.start('office');g.openMeter();
+const keyed=get('multimeterLabPopup');
+assert(keyed.innerHTML.includes('data-meter-face="contacts"'));
+assert(keyed.innerHTML.includes('meter-latch'));
+assert(keyed.innerHTML.includes('meter-cavity-neutral'));
+const initial=g.getExport().meter;
+const faceClick=which=>keyed.events.click({target:{closest:()=>({
+ dataset:{meterFace:which},hasAttribute:()=>false
+})}});
+faceClick('wires');
+assert(keyed.innerHTML.includes('data-meter-face="wires"'));
+assert(keyed.innerHTML.indexOf('data-meter-pin="24"')<
+ keyed.innerHTML.indexOf('data-meter-pin="13"'));
+assert.equal(g.getExport().meter.face,'wires');
+assert.equal(g.getExport().meter.redPin,initial.redPin);
+assert.equal(g.probeMeter().value,'0.0 V⎓');
+faceClick('contacts');g.selectMeterConnector('eps8');
+assert(keyed.innerHTML.includes('división 4+4'));
+assert(keyed.innerHTML.includes('meter-cavity-bevel'));
+g.selectMeterConnector('pcie8');
+assert(keyed.innerHTML.includes('división 6+2'));
+g.selectMeterConnector('sata15');
+assert(keyed.innerHTML.includes('GUÍA L'));
+assert(keyed.innerHTML.includes('meter-cavity-blade'));
+console.log('8.17: miradas frontal/posterior y conectores polarizados verificados');

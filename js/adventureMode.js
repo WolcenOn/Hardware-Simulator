@@ -2137,10 +2137,7 @@ function createAdventureGame(api){
           const shape=model.keyShape(game.meterConnector,pin.number);
           const strip=housing.split?{atx24:2,eps8:2,pcie8:1}[game.meterConnector]:0;
           const breakAt=strip?(face==='contacts'?def.columns-strip:strip):0;
-          const isBreak=strip&&i===i&&(
-            face==='contacts'?row.indexOf(pin)===breakAt-1:
-              row.indexOf(pin)===breakAt-1
-          );
+          const isBreak=!!strip&&row.indexOf(pin)===breakAt-1;
           return '<button type="button" data-meter-pin="'+pin.number+'" '+
             'class="meter-pin'+(activeRed?' meter-pin-red':'')+
             (activeBlack?' meter-pin-black':'')+

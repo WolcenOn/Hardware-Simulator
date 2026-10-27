@@ -1285,9 +1285,9 @@ test('v8.16: pinout ordenado, colores habituales y modo examen',async({page})=>{
  await expect(first).toHaveCount(12);
  await expect(second).toHaveCount(12);
  expect(await first.evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin))))
-   .toEqual(Array.from({length:12},(_,i)=>i+1));
- expect(await second.evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin))))
    .toEqual(Array.from({length:12},(_,i)=>i+13));
+ expect(await second.evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin))))
+   .toEqual(Array.from({length:12},(_,i)=>i+1));
  await expect(popup.locator('[data-meter-pin="9"]')).toContainText('+5 VSB');
  await expect(popup.locator('[data-meter-pin="13"] .meter-wire-swatch'))
    .toHaveAttribute('style',/linear-gradient/);
@@ -1307,4 +1307,35 @@ test('v8.16: pinout ordenado, colores habituales y modo examen',async({page})=>{
  await popup.locator('#meterConnector').selectOption('sata15');
  await expect(popup.locator('[data-meter-row="1"] [data-meter-pin]')).toHaveCount(15);
  await expect(popup.locator('[data-meter-pin="11"]')).toContainText('actividad');
+});
+
+
+test('v8.17: vista de contactos/cables con clip, EPS, PCIe y SATA en L',async({page})=>{
+ await openGame(page);
+ await openSection(page,'workshop');
+ await page.locator('#adventurePanel [data-tool-buy="multimeter"]').evaluate(el=>el.click());
+ await page.locator('#adventurePanel [data-tool-use="multimeter"]').evaluate(el=>el.click());
+ const box=page.locator('#multimeterLabPopup');
+ await expect(box.locator('[data-meter-housing="atx24"] .meter-latch')).toBeVisible();
+ const numbers=()=>box.locator('[data-meter-row="1"] [data-meter-pin]')
+   .evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin)));
+ expect(await numbers()).toEqual(Array.from({length:12},(_,i)=>i+13));
+ await box.locator('[data-meter-face="wires"]').evaluate(el=>el.click());
+ expect(await numbers()).toEqual(Array.from({length:12},(_,i)=>24-i));
+ await box.locator('[data-meter-probe]').evaluate(el=>el.click());
+ await expect(box.locator('.meter-display')).toContainText('0.0 V');
+ await box.locator('[data-meter-face="contacts"]').evaluate(el=>el.click());
+ expect(await numbers()).toEqual(Array.from({length:12},(_,i)=>i+13));
+ await box.locator('#meterConnector').selectOption('eps8');
+ await expect(box.locator('.meter-housing-foot')).toContainText('4+4');
+ await expect(box.locator('.meter-cavity-bevel')).toHaveCount(4);
+ await box.locator('#meterConnector').selectOption('pcie8');
+ await expect(box.locator('.meter-housing-foot')).toContainText('6+2');
+ await expect(box.locator('.meter-cavity-bevel')).toHaveCount(5);
+ await box.locator('#meterConnector').selectOption('sata15');
+ await expect(box.locator('.meter-l-key')).toBeVisible();
+ await expect(box.locator('.meter-cavity-blade')).toHaveCount(15);
+ await box.locator('[data-meter-face="wires"]').evaluate(el=>el.click());
+ await expect(box.locator('[data-meter-row="1"] [data-meter-pin]').first())
+   .toHaveAttribute('data-meter-pin','15');
 });
