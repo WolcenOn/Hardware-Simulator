@@ -1140,7 +1140,8 @@ console.log('8.15: ATX/EPS/PCIe/SATA, puntas roja y negra y selección 3D conect
 
 
 // 8.16: orden numérico, muestras cromáticas y modo examen sin pistas.
-g.start('office');assert.equal(g.buyTool('multimeter'),true);
+g.start('office');assert.equal(g.getWorkshop().tools.multimeter,true,
+  'Las herramientas del taller no se recompran al repetir el encargo');
 assert.equal(g.openMeter(),true);
 const meterElement=get('multimeterLabPopup');
 assert(meterElement.innerHTML.includes('data-meter-row="1"'));
