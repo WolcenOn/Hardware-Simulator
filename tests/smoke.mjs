@@ -1064,7 +1064,7 @@ console.log('8.12.2: el minijuego se abre al encajar y se reanuda tras adquirir 
 g.start('office');
 assert.equal(g.openStore(),true);
 const storeHTML=get('adventureStorePage').innerHTML;
-assert(storeHTML.includes('Tienda de componentes'));
+assert(storeHTML.includes('Componentes y herramientas del taller'));
 assert(storeHTML.includes('data-store-category="motherboard"'));
 assert(storeHTML.includes('data-store-category="cpu"'));
 assert(storeHTML.includes('data-store-category="item"'));

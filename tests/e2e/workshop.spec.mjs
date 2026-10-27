@@ -1105,7 +1105,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.18.0');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.20.0');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1450,6 +1450,9 @@ test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',
  await expect(page.locator('#adventurePanel [data-thermal-clean]')).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>adventureGame.game.pasteNeedsCleaning)).toBe(true);
  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(first+4);
+ await page.evaluate(()=>{
+   adventureGame.buyTool('alcohol');adventureGame.buyTool('wipes');
+ });
  await page.locator('[data-thermal-clean]').evaluate(el=>el.click());
  await expect.poll(()=>page.evaluate(()=>state.paste)).toBe(0);
  await expect(page.locator('#adventurePanel [data-thermal-clean]')).toHaveCount(0);
