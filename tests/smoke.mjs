@@ -69,7 +69,7 @@ g.disconnect('frontusb3');
 assert(!l.s.frontUsb3&&l.s.frontUsbC,'Cada cable USB tiene estado independiente');
 buy('item','rgbStrip');g.select('item:rgbStrip');g.perform('apply');
 assert(l.s.rgbInstalled);
-buy('cpu','r7600');fit('cpu:r7600');
+buy('cpu','r7600');g.toggleCpuPrecision();fit('cpu:r7600');
 buy('item','paste');g.select('item:paste');g.togglePastePractice();g.perform('apply');
 buy('cooler','aio240');fit('cooler:aio240');
 assert.equal(l.s.selected.cooler,'aio240','Disipador: '+JSON.stringify({installed:l.s.installed.cooler,selected:g.game.selected,feedback:g.game.lastFeedback,tools:g.getWorkshop(),paste:l.s.paste,cpu:l.s.installed.cpu}));
