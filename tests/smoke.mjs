@@ -465,7 +465,7 @@ assert.equal(disconnectRecord.category,'rework');
 assert.equal(l.s.frontPanel,false);
 assert.equal(g.connect('frontpanel').category,'rework');
 buy('cpu','r7600');g.toggleCpuPrecision();fit('cpu:r7600');
-buy('item','paste');g.select('item:paste');
+buy('item','paste');g.select('item:paste');g.togglePastePractice();
 const pasteRecord=g.perform('apply');
 assert.equal(pasteRecord.category,'necessary');
 assert.equal(l.s.paste,1);
