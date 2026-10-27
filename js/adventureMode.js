@@ -2174,9 +2174,9 @@ function createAdventureGame(api){
       '<option value="series"'+(series?' selected':'')+'>Ventilador · circuito en serie</option></select>'+
       (series?'':'<fieldset class="meter-lead-picker"><legend>Selecciona primero la punta y después el pin</legend>'+
         '<button type="button" data-meter-lead="black" aria-pressed="'+
-          (game.meterLead==='black')+'">⚫ Negra P'+game.meterBlackPin+' · '+(help==='exam'?'':(' · '+safe(black.signal)))+'</button>'+
+          (game.meterLead==='black')+'">⚫ Negra P'+game.meterBlackPin+(help==='exam'?'':(' · '+safe(black.signal)))+'</button>'+
         '<button type="button" data-meter-lead="red" aria-pressed="'+
-          (game.meterLead==='red')+'">🔴 Roja P'+game.meterRedPin+' · '+safe(red.signal)+'</button></fieldset>')+
+          (game.meterLead==='red')+'">🔴 Roja P'+game.meterRedPin+(help==='exam'?'':(' · '+safe(red.signal)))+'</button></fieldset>')+
       '<button type="button" class="primary" data-meter-probe>Aplicar puntas y medir</button>'+
       '<p role="status" class="'+(reading?.spark?'errtxt':'')+'">'+
       safe(masking&&reading?'Lectura registrada. Cambia a «Señales» para ver qué contactos has medido.':
