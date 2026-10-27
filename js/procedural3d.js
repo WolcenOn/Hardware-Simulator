@@ -14,7 +14,7 @@ import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-1-usb-
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
-import {createToolRack} from './toolRack3d.js?v=8-14-0-tools';
+import {createToolRack} from './toolRack3d.js?v=8-20-0-permanent';
 import {createPinoutBoard} from './pinoutBoard3d.js?v=8-17-0-housing-keys';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
