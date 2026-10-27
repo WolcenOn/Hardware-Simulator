@@ -1116,7 +1116,7 @@ function createAdventureGame(api){
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
       thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
-      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',
+      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',lastPurchase:null,
        meterOpen:false,meterMode:'vdc',meterJack:'vohm',meterPoint:'psu12',
        meterTest:'pins',meterConnector:'atx24',meterRedPin:10,meterBlackPin:3,
        meterLead:'red',meterHelpMode:'signals',meterFace:'contacts',meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
@@ -1244,13 +1244,15 @@ function createAdventureGame(api){
     game.stock[k]=(game.stock[k]||0)+(k==='item:screws'?10:1);
     game.spent+=cost;
     game.purchases.push({k,price:cost});
+    game.lastPurchase=k;
     game.selected=k;
     game.openSections=cat==='cooler'&&api.state().installed.cpu&&api.state().paste>0?
       ['inventory','actions']:['shop','inventory'];
     if(cat==='cooler'&&api.state().installed.cpu&&api.state().paste>0)
       game.verb='fit';
-    // Tras comprar la primera caja se ve directamente sobre la mesa auxiliar.
-    if(cat==='case')api.stagingView?.();
+    // Mostrar los componentes físicos comprados sobre la mesa 3D.
+    // Si WebGL todavía carga, pc3d-ready sincronizará este inventario.
+    if(cat!=='item')api.stagingView?.();
     message('Comprado: '+label(cat,id)+' por '+format(cost)+'.','ok');
     // El último material comprado reanuda el montaje pendiente del
     // disipador sin perderlo por haber cambiado la selección a «tornillos».
@@ -1975,6 +1977,10 @@ function createAdventureGame(api){
       '<small>HARDWARE SIMULATOR · ALMACÉN DEL TALLER</small>'+
       '<h2>🛒 Tienda de componentes</h2>'+
       '<p>Compra con el presupuesto de tu encargo. Las compras aparecen en la mesa auxiliar del taller.</p>'+
+      (game.lastPurchase?
+        '<div class="store-on-table" role="status">✅ En la mesa de piezas: <strong>'+
+        safe(label(...game.lastPurchase.split(':')))+
+        '</strong>. <button type="button" data-store-to-table>Ver pieza en mesa 3D</button></div>':'')+
       '</div><div class="store-page-actions">'+
       '<div class="store-money"><span>Presupuesto disponible</span><strong>'+format(remaining)+
       '</strong><small>Gastado: '+format(game.spent)+' / '+format(game.budget)+'</small></div>'+
@@ -2578,7 +2584,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.1</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
       '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
@@ -2845,6 +2851,9 @@ function createAdventureGame(api){
   storePage?.addEventListener('click',event=>{
     const button=event.target.closest('button');
     if(!button||!game)return;
+    if(button.hasAttribute('data-store-to-table')){
+      closeStore();api.stagingView?.();return;
+    }
     if(button.hasAttribute('data-store-back')){closeStore();return;}
     if(button.dataset.sellerTopic){
       if(['materials','process'].includes(button.dataset.sellerTopic)){

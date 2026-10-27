@@ -318,6 +318,15 @@ export function createStagingTable(THREE,scene){
     return {page:page+1,pages:Math.max(1,Math.ceil(allItems.length/12)),
       total:allItems.length};
   }
-  return {root,update,identify,turnPage,getPageInfo,
+  function getSnapshot(){
+    // Inspección automatizada de los objetos REALES en la mesa 3D,
+    // no sólo del inventario HTML o de las compras registradas.
+    return {items:allItems.map(item=>({key:item.key,quantity:item.quantity})),
+      rendered:[...stockGroups].map(([key,group])=>({
+        key,visible:group.visible,children:group.children.length,
+        x:group.position.x,z:group.position.z
+      })),selected:selectedKey,...getPageInfo()};
+  }
+  return {root,update,identify,turnPage,getPageInfo,getSnapshot,
     get overflow(){return overflow;},layout:STAGING_LAYOUT};
 }
