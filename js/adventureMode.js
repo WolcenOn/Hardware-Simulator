@@ -2503,7 +2503,8 @@ function createAdventureGame(api){
       '<div class="adv-ledger"><span>Presupuesto: <b>'+format(job.budget)+'</b></span>'+
       '<span>Gastado: <b>'+format(game.spent)+'</b></span>'+
       '<span>Disponible: <b>'+format(job.budget-game.spent)+'</b></span></div>'+
-      '<p class="adv-guide">'+safe(progressText())+'</p>'+
+      '<p class="adv-guide">'+safe(progressText())+'</p>';
+    const advanced=
       '<div class="adv-operation-clock"><label for="advWorkSpeed">Velocidad del técnico</label>'+
       '<select id="advWorkSpeed">'+Object.entries(root.PC_TIME.SPEEDS).map(([id,opt])=>
         '<option value="'+id+'"'+(clock?.getSpeed()===id?' selected':'')+'>'+opt.label+'</option>').join('')+
@@ -2642,20 +2643,18 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.2</span></div>'+
-      '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
-      '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
-      section('mission','Encargo y progreso',mission)+
-      section('workshop','🧰 Estantería y herramientas del taller',workshopMarkup(),workshop.list().length)+
-      usbTools+
-      section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
-      section('shop','Tienda de informática',shop)+
-      section('actions','Acciones y herramientas',actions,game.selected?'●':'')+
-      section('installed','Estado de piezas montadas',
-        '<p class="muted">Pulsa una pieza para ver tornillos, alimentación, datos y compatibilidad.</p>'+
-        (api.statusSummary?.()||'<p class="muted">Todavía no hay estado disponible.</p>'),
-        Object.values(api.state().installed).filter(Boolean).length)+
-      section('delivery','Diagnóstico y entrega',delivery);
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.18.0</span></div>'+
+      '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
+      ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
+      '<button type="button" class="primary" data-open-store>🛒 Tienda de componentes</button>'+
+      '<small>Selecciona un objeto de la mesa 3D para ver su ficha, montarlo o devolverlo.</small></div>'+
+      section('mission','Encargo y presupuesto',mission)+
+      section('inventory','Piezas disponibles',inventory,available.reduce((n,x)=>n+x.quantity,0))+
+      section('actions','Montaje y acciones',actions,game.selected?'●':'')+
+      section('delivery','Entrega y diagnóstico',delivery)+
+      section('workshop','Herramientas del taller',workshopMarkup(),workshop.list().length)+
+      section('usb','USB e instalación',usbTools)+
+      section('advanced','Configuración y simulación',advanced);
     panel.scrollTop=top;
     paintRamPopup();
     paintScrewPopup();
