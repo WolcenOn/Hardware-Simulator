@@ -1339,3 +1339,42 @@ test('v8.17: vista de contactos/cables con clip, EPS, PCIe y SATA en L',async({p
  await expect(box.locator('[data-meter-row="1"] [data-meter-pin]').first())
    .toHaveAttribute('data-meter-pin','15');
 });
+
+
+test('v8.17.1: la placa comprada en tienda aparece físicamente en la mesa 3D',async({page})=>{
+ await openGame(page);
+ await expect.poll(()=>page.evaluate(()=>!!window.PC3D?.ready)).toBe(true);
+ const store=await openStore(page,'motherboard');
+ await store.locator('[data-store-buy="motherboard:b650"]').first().evaluate(el=>el.click());
+ await expect(store.locator('.store-on-table')).toContainText('En la mesa de piezas');
+ await expect(store.locator('[data-store-to-table]')).toBeVisible();
+ await store.locator('[data-store-to-table]').evaluate(el=>el.click());
+ await expect(store).toBeHidden();
+ await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','staging');
+ await expect(page.locator('#adventurePanel')).toContainText('B650');
+ const shown=await page.evaluate(()=>window.PC3D?.getStagingState?.());
+ expect(shown?.items).toEqual(expect.arrayContaining([
+  expect.objectContaining({key:'motherboard:b650',quantity:1})
+ ]));
+ expect(shown?.rendered).toEqual(expect.arrayContaining([
+  expect.objectContaining({key:'motherboard:b650',visible:true})
+ ]));
+ expect(shown.rendered.find(x=>x.key==='motherboard:b650').children).toBeGreaterThan(1);
+ await expect(page.locator('#stageCount')).toContainText('1 tipos');
+});
+test('v8.17.1: si se compra antes de cargar WebGL, la mesa recupera el inventario',async({page})=>{
+ await page.route('**/js/procedural3d.js?*',async route=>{
+   await new Promise(resolve=>setTimeout(resolve,850));
+   await route.continue();
+ });
+ await openGame(page);
+ const store=await openStore(page,'motherboard');
+ await store.locator('[data-store-buy="motherboard:b650"]').first().evaluate(el=>el.click());
+ await expect(store.locator('.store-on-table')).toContainText('B650');
+ await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+ const state=await page.evaluate(()=>window.PC3D?.getStagingState?.());
+ expect(state.rendered.find(x=>x.key==='motherboard:b650')).toMatchObject({
+   visible:true
+ });
+ await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','staging');
+});

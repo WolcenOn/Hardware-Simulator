@@ -38,12 +38,12 @@ l.autoBuild();assert(!g.active&&l.s.installed.motherboard);
 l.power();assert(l.s.power);l.bios();assert(l.s.bios);
 g.start('office');
 const caseRenders=[];
-const viewEvents=[];
+const viewEvents=[],stagedEvents=[];
 window.PC3D={
   ready:true,
   update(state){if(state.installed.case)
     caseRenders.push(state.selected.caseVariant);},
-  updateStaging(){},
+  updateStaging(items,selected){stagedEvents.push({items,selected});},
   viewStaging(){viewEvents.push('staging')},
   viewAssemblyDesk(){viewEvents.push('assembly')}
 };
@@ -55,7 +55,12 @@ assert.equal(caseRenders.at(-1),'towerWhite','3D debe dibujar el acabado antes d
 assert(viewEvents.includes('assembly'),'Al montar caja enfoca la mesa principal');
 buy('item','ioShield');fit('item:ioShield');
 buy('psu','psu450');fit('psu:psu450');
-buy('motherboard','b650');fit('motherboard:b650');
+buy('motherboard','b650');
+assert.equal(viewEvents.at(-1),'staging','Al comprar placa base se enfoca la mesa de piezas');
+assert(stagedEvents.at(-1).items.some(x=>x.key==='motherboard:b650'),
+  'La placa base comprada se envía al tablero Three.js');
+assert.equal(stagedEvents.at(-1).selected,'motherboard:b650');
+fit('motherboard:b650');
 assert(!l.s.installed.motherboard);
 g.perform('route');assert(l.s.psuAccessRouted);
 fit('motherboard:b650');assert(l.s.installed.motherboard);
@@ -596,7 +601,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-17-0-housings'));
+assert(html.includes('adventureMode.js?v=8-17-1-stage-fix'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -984,7 +989,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.17.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.17.1'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1198,3 +1203,16 @@ g.selectMeterConnector('sata15');
 assert(keyed.innerHTML.includes('GUÍA L'));
 assert(keyed.innerHTML.includes('meter-cavity-blade'));
 console.log('8.17: miradas frontal/posterior y conectores polarizados verificados');
+
+// 8.17.1 — cámara de mesa, última compra y retorno visible desde tienda.
+g.start('office');
+const beforeView=viewEvents.length;
+buy('motherboard','b650');
+assert.equal(g.game.lastPurchase,'motherboard:b650');
+assert.equal(viewEvents.at(-1),'staging');
+assert(viewEvents.length>beforeView);
+assert(g.stagedItems().some(x=>x.key==='motherboard:b650'&&x.quantity===1));
+assert(get('adventureStorePage').innerHTML.includes('data-store-to-table'));
+assert(get('adventureStorePage').innerHTML.includes('En la mesa de piezas'));
+assert(stagedEvents.at(-1).items.some(x=>x.key==='motherboard:b650'));
+console.log('8.17.1: compra de placa base sincronizada con la mesa de piezas');
