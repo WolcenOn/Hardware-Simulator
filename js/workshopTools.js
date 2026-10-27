@@ -5,13 +5,15 @@ const STORAGE='hardware-simulator.workshop.8.14';
 const ITEMS=Object.freeze({
  screwdriver:{label:'Destornillador de precisión',icon:'🪛',price:0},
  multimeter:{label:'Multímetro digital',icon:'📟',price:48},
+ esdStrap:{label:'Pulsera antiestática ESD reutilizable',icon:'⚡',price:16},
+ usbWriter:{label:'USB instalador reutilizable (32 GB)',icon:'💾',price:22},
  gpuTest:{label:'Tarjeta gráfica de prueba',icon:'🎮',price:85},
  ramDdr4:{label:'RAM DDR4 de prueba',icon:'🧪',price:34},
  ramDdr5:{label:'RAM DDR5 de prueba',icon:'🧪',price:44},
  brush:{label:'Brochas antiestáticas',icon:'🖌️',price:9},
  vacuum:{label:'Aspiradora para electrónica ESD',icon:'🧹',price:62},
- alcohol:{label:'Alcohol isopropílico',icon:'🧴',price:12,units:4},
- wipes:{label:'Paños sin pelusa',icon:'🧻',price:6,units:6},
+ alcohol:{label:'Alcohol isopropílico (4 limpiezas)',icon:'🧴',price:12,units:4},
+ wipes:{label:'Toallitas sin pelusa (6 usos)',icon:'🧻',price:6,units:6},
  airDuster:{label:'Aire técnico',icon:'💨',price:14,units:4},
  cleaner:{label:'Limpiador de contactos',icon:'🧴',price:16,units:3}
 });
@@ -74,6 +76,15 @@ function createBank(storage){
    if(item.units){state.supplies[id]--;persist();}
    return true;
  }
+ function useMany(ids){
+   if(!Array.isArray(ids)||ids.length===0||
+      ids.some(id=>!ITEMS[id]||!ITEMS[id].units))return false;
+   const needs={};
+   for(const id of ids)needs[id]=(needs[id]||0)+1;
+   if(Object.entries(needs).some(([id,n])=>(state.supplies[id]||0)<n))return false;
+   for(const [id,n]of Object.entries(needs))state.supplies[id]-=n;
+   persist();return true;
+ }
  function reward(caseId){
    if(!caseId||state.rewarded[caseId])return false;
    state.rewarded[caseId]=true;state.cash+=110;state.earned+=110;persist();return true;
@@ -84,7 +95,7 @@ function createBank(storage){
    state.cash-=5;state.fuseBlown=false;persist();return true;
  }
  function snapshot(){return JSON.parse(JSON.stringify(state));}
- return {owns,buy,use,reward,shortCircuit,replaceFuse,snapshot,
+ return {owns,buy,use,useMany,reward,shortCircuit,replaceFuse,snapshot,
    list:()=>Object.keys(ITEMS).filter(owns)};
 }
 root.PC_WORKSHOP_TOOLS=Object.freeze({ITEMS,createBank,meterRead,STORAGE});
