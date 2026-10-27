@@ -449,7 +449,7 @@ assert(html.includes('id="advWorkSpeed"')===false,
  'El selector se genera dinámicamente dentro de adventureMode.js');
 assert(read('js/adventureMode.js').includes('id="advWorkSpeed"'));
 assert(html.includes('timeEngine.js?v=8-7-1-operation-lifecycle'));
-assert(html.includes('mishapEngine.js?v=8-8-2-latent-sata'));
+assert(html.includes('mishapEngine.js?v=8-20-0-8-2-latent-sata'));
 assert(html.includes('operationEngine.js?v=8-8-2-latent-sata'));
 // 8.7.1 — las cuatro operaciones adicionales conservan validaciones existentes.
 g.start('office');
@@ -615,7 +615,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-19-1-accordion-hotfix'));
+assert(html.includes('adventureMode.js?v=8-20-0-contextual-hub'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -765,7 +765,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-19-1-accordion-hotfix'));
+assert(html.includes('adventureMode.js?v=8-20-0-contextual-hub'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1003,7 +1003,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.19.1'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.20.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1262,7 +1262,12 @@ assert(get('adventurePanel').innerHTML.includes('data-thermal-clean'),
 const screwStockClean=g.game.stock['item:screws'];
 assert.equal(g.perform('fit'),null,'No se puede volver a usar la pasta anterior');
 assert.equal(l.s.installed.cooler,false);
+if(!g.getWorkshop().supplies.alcohol)assert.equal(g.buyTool('alcohol'),true);
+assert.equal(g.buyTool('wipes'),true);
+const beforeSupplies=g.getWorkshop().supplies;
 assert.equal(g.cleanThermalPaste(),true);
+assert.equal(g.getWorkshop().supplies.alcohol,beforeSupplies.alcohol-1);
+assert.equal(g.getWorkshop().supplies.wipes,beforeSupplies.wipes-1);
 assert.equal(l.s.paste,0);
 assert.equal(g.game.pasteNeedsCleaning,false);
 assert.equal(g.game.stock['item:screws'],screwStockClean);
@@ -1291,7 +1296,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
-assert(compact.includes('Modo aventura · Motor 8.19.1'));
+assert(compact.includes('Modo aventura · Motor 8.20.0'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));
@@ -1344,3 +1349,40 @@ assert(html.includes('id="diagnosticFaults"'));
 assert(html.includes('body.adventure-on #diagnosticFaults{display:none}'));
 assert(html.includes('body.adventure-on.lab-focus #labDiagnostics{display:block}'));
 console.log('8.19.1: restaurados diagnóstico y log, eliminadas duplicidades del panel de acciones');
+
+
+// 8.20: hub sobre visor, tienda del taller separada del presupuesto del cliente,
+// CPU con consumibles, ESD por pieza y licencia ficticia instalable.
+g.start('office');
+assert(html.includes('id="labMission"'));
+assert(html.includes('body.adventure-on #adventurePanel{display:none!important}'));
+assert(html.includes('body.adventure-on #labDiagnostics{'));
+const missionUI=get('labMission');
+assert.equal(missionUI.hidden,false);
+assert(missionUI.innerHTML.includes('labJobSelect'));
+assert(missionUI.innerHTML.includes('data-lab-esd'));
+assert(missionUI.innerHTML.includes('data-lab-license'));
+const beforeWorkshopCash=g.getWorkshop().cash,oldSpent=g.game.spent;
+if(!g.getWorkshop().tools.usbWriter){
+ assert.equal(g.purchase('workshop','usbWriter'),true);
+ assert.equal(g.getWorkshop().cash,beforeWorkshopCash-22);
+}
+assert.equal(g.game.spent,oldSpent,'Compra permanente no consume presupuesto del cliente');
+assert.equal(g.prepareUsb('libreforge'),true);
+assert.equal(g.getWorkshop().usbOs,'libreforge');
+g.start('gaming');
+assert.equal(g.getWorkshop().tools.usbWriter,true);
+assert.equal(g.getWorkshop().usbOs,'libreforge');
+const compRisk=window.PC_MISHAPS;
+for(const [part,rate]of [['ram',.20],['cpu',.18],['motherboard',.15],['gpu',.12],['storage',.10]]){
+ assert.equal(compRisk.componentEsdRisk(part),rate);
+ assert.equal(compRisk.componentEsdRisk(part,true),rate/10);
+}
+l.s.osInstalled=true;l.s.installedOs={id:'novadesk',storageId:'sataSSD'};
+l.s.osActivated=false;
+assert.equal(g.activateOS(),false,'No se activa un SO de pago sin licencia');
+buy('item','licenseNova');
+assert.equal(g.activateOS(),true);
+assert.equal(l.s.osActivated,true);
+assert.equal(g.game.stock['item:licenseNova'],0);
+console.log('8.20: compras permanentes, licencia ficticia, limpieza consumible y ESD por pieza');

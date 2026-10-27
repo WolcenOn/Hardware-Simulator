@@ -4,6 +4,15 @@ async function openGame(page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#adventurePanel')).toBeVisible();
   await expect(page.locator('#advClient')).toHaveValue('office');
+  // Compatibilidad de regresiones antiguas: el usuario entra sin lateral,
+  // mientras estos escenarios prueban el formulario alternativo.
+  await page.evaluate(()=>document.body.classList.add('lab-legacy-open'));
+}
+async function openModernGame(page){
+  await openGame(page);
+  await page.evaluate(()=>document.body.classList.remove('lab-legacy-open'));
+  await expect(page.locator('#labMission')).toBeVisible();
+  await expect(page.locator('#adventurePanel')).toBeHidden();
 }
 
 async function openSection(page, name) {
@@ -1452,8 +1461,8 @@ test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',
 });
 
 
-test('v8.19.1: el taller mantiene diagnóstico y log con controles redundantes plegados',async({page})=>{
- await openGame(page);
+test('v8.20: el taller sin lateral mantiene diagnóstico y bitácora',async({page})=>{
+ await openModernGame(page);
  const compact=await page.evaluate(()=>{
    const lab=document.querySelector('#labWorkspace').getBoundingClientRect();
    const sidebar=document.querySelector('#adventurePanel').getBoundingClientRect();
@@ -1475,15 +1484,13 @@ test('v8.19.1: el taller mantiene diagnóstico y log con controles redundantes p
    expect(compact.labWidth).toBeGreaterThan(compact.sidebarWidth*1.6);
    expect(compact.height).toBeGreaterThanOrEqual(620);
  }
- await page.locator('#labFocusToggle').evaluate(el=>el.click());
- await expect(page.locator('body')).toHaveClass(/lab-focus/);
- await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','true');
  await expect(page.locator('#adventurePanel')).toBeHidden();
  await expect(page.locator('#labDiagnostics')).toBeVisible();
  await expect(page.locator('#eventLog')).toBeVisible();
- await page.locator('#labFocusToggle').evaluate(el=>el.click());
+ await page.locator('#labMission [data-lab-legacy]').evaluate(el=>el.click());
  await expect(page.locator('#adventurePanel')).toBeVisible();
- await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','false');
+ await page.locator('#labMission [data-lab-legacy]').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel')).toBeHidden();
 });
 
 test('v8.18: devolución desde la ficha 3D actualiza stock, presupuesto y mesa',async({page})=>{
@@ -1569,7 +1576,7 @@ test('v8.19.1: bitácora y diagnóstico visibles después de comprar y montar',a
  await expect(diagnostic.locator('#eventLog')).toContainText('Comprado');
  await fit(page,'case:tower');
  await expect(diagnostic.locator('#eventLog')).toContainText('Caja');
- await page.locator('#labFocusToggle').evaluate(el=>el.click());
+ await page.locator('#labMission [data-lab-legacy]').evaluate(el=>el.click());
  await expect(page.locator('#adventurePanel')).toBeHidden();
  await expect(diagnostic).toBeVisible();
  await expect(diagnostic.locator('#eventLog')).toBeVisible();
@@ -1590,4 +1597,46 @@ test('v8.19.1: menú manual plegado conserva estado durante cambios de acción',
  await expect(extra).toHaveAttribute('open','');
  await page.evaluate(()=>adventureGame.select('case:tower'));
  await expect(extra).toHaveAttribute('open','');
+});
+
+
+test('v8.20: sin lateral, encargo y tienda de herramientas junto al laboratorio',async({page})=>{
+ await openModernGame(page);
+ await expect(page.locator('#labMission')).toContainText('Oficina');
+ await expect(page.locator('#labDiagnostics')).toBeVisible();
+ await expect(page.locator('#eventLog')).toBeVisible();
+ await page.locator('[data-lab-store]').evaluate(el=>el.click());
+ await expect(page.locator('#adventureStorePage')).toBeVisible();
+ await page.locator('[data-store-category="workshop"]').evaluate(el=>el.click());
+ const card=page.locator('[data-store-buy="workshop:esdStrap"]');
+ await expect(card).toBeEnabled();
+ await card.evaluate(el=>el.click());
+ expect(await page.evaluate(()=>adventureGame.getWorkshop().tools.esdStrap)).toBe(true);
+ await page.locator('[data-store-back]').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel')).toBeHidden();
+ await expect(page.locator('#labMission')).toBeVisible();
+});
+
+test('v8.20: limpieza contextual CPU requiere alcohol y toallitas multiuso',async({page})=>{
+ await openModernGame(page);
+ await page.evaluate(()=>{
+   state.installed.case=true;state.installed.cpu=true;state.paste=1;
+   state.selected.cpu='r7600';state.installed.cooler=false;
+   render();
+ });
+ await page.evaluate(()=>partInspector.open('cpu:r7600','tower'));
+ await expect(page.locator('#partContextMenu [data-part-verb="clean"]')).toBeVisible();
+ await page.locator('#partContextMenu [data-part-verb="clean"]').evaluate(el=>el.click());
+ expect(await page.evaluate(()=>state.paste)).toBe(1);
+ await page.evaluate(()=>{
+   adventureGame.buyTool('alcohol');
+   adventureGame.buyTool('wipes');
+ });
+ const before=await page.evaluate(()=>adventureGame.getWorkshop().supplies);
+ await page.evaluate(()=>partInspector.open('cpu:r7600','tower'));
+ await page.locator('#partContextMenu [data-part-verb="clean"]').evaluate(el=>el.click());
+ expect(await page.evaluate(()=>state.paste)).toBe(0);
+ const after=await page.evaluate(()=>adventureGame.getWorkshop().supplies);
+ expect(after.alcohol).toBe(before.alcohol-1);
+ expect(after.wipes).toBe(before.wipes-1);
 });
