@@ -1897,7 +1897,8 @@ function createAdventureGame(api){
     if(!entries.length)return '<p class="store-empty">No hay productos con ese nombre en esta categoría.</p>';
     return entries.map(([id,cost])=>{
       const cat=game.shopCategory,k=key(cat,id),facts=storeFacts(cat,id),
-        available=stock(k),affordable=cost<=game.budget-game.spent;
+        available=stock(k),permanent=k==='item:screwdriver',
+        affordable=permanent||cost<=game.budget-game.spent;
       return '<article class="store-product">'+
         '<div class="store-product-icon" aria-hidden="true">'+SHOP_ICONS[cat]+'</div>'+
         '<div class="store-product-main"><h3>'+safe(label(cat,id))+'</h3>'+
@@ -1906,10 +1907,10 @@ function createAdventureGame(api){
         '<small>Abre la ficha para examinar los datos disponibles.</small>')+
         (available?'<span class="store-owned">En inventario: '+available+'</span>':'')+
         '</div><div class="store-product-actions">'+
-        '<strong class="store-price">'+format(cost)+'</strong>'+
+        '<strong class="store-price">'+(permanent?'Incluido':format(cost))+'</strong>'+
         '<button type="button" data-store-info="'+safe(k)+'">Ficha técnica</button>'+
         '<button type="button" class="primary" data-store-buy="'+safe(k)+'"'+
-        (affordable?'':' disabled')+'>Comprar</button></div></article>';
+        (affordable?'':' disabled')+'>'+(permanent?'Ya está en el taller':'Comprar')+'</button></div></article>';
     }).join('');
   }
   function storeDetailMarkup(){
@@ -1929,7 +1930,8 @@ function createAdventureGame(api){
         '<div><dt>'+safe(a)+'</dt><dd>'+safe(b)+'</dd></div>').join('')+'</dl>':
         '<p>No se han declarado especificaciones adicionales para este artículo.</p>')+
       '<button type="button" class="primary" data-store-buy="'+safe(game.storeInfo)+'"'+
-      (amount>game.budget-game.spent?' disabled':'')+'>Comprar por '+format(amount)+'</button>';
+      (game.storeInfo==='item:screwdriver'?'':amount>game.budget-game.spent?' disabled':'')+'>'+ 
+      (game.storeInfo==='item:screwdriver'?'Ya disponible en taller':'Comprar por '+format(amount))+'</button>';
   }
   function renderStore(){
     if(!storePage)return;
@@ -2005,6 +2007,67 @@ function createAdventureGame(api){
       'están en la pantalla independiente de la tienda.</p>'+
       '<button type="button" class="primary" data-open-store>'+
       '🛒 Entrar en la tienda de componentes</button>';
+  }
+  function workshopMarkup(){
+    const st=workshop.snapshot();
+    return '<div class="workshop-funds"><strong>Fondo propio del taller: '+
+      format(st.cash)+'</strong><small>Capital inicial: 300 €. El primer trabajo '+
+      'superado de cada tipo añade 110 €. Nunca se descuenta del cliente.</small>'+
+      '<button type="button" data-tool-view>Ver estantería 3D</button></div>'+
+      '<p class="muted">Las herramientas y piezas de referencia permanecen entre encargos. '+
+      'Los consumibles se reponen por dosis.</p>'+
+      '<div class="workshop-catalog">'+Object.entries(equipment).map(([id,item])=>{
+        const available=workshop.owns(id),count=st.supplies[id]||0;
+        return '<article class="workshop-tool"><div>'+item.icon+' <b>'+
+          safe(item.label)+'</b></div><small>'+
+          (item.units?'Consumible · quedan '+count+' dosis':
+            available?'Herramienta permanente disponible':'Ampliación pendiente')+'</small>'+
+          '<div class="tools"><button type="button" data-tool-buy="'+id+'"'+
+          ((!item.units&&available)||item.price>st.cash?' disabled':'')+'>'+
+          (item.units?'Reponer':'Adquirir')+' · '+format(item.price)+'</button>'+
+          '<button type="button" data-tool-use="'+id+'"'+(!available?' disabled':'')+'>'+
+          (id==='multimeter'?'Abrir multímetro':
+            ['gpuTest','ramDdr4','ramDdr5'].includes(id)?'Prueba virtual':'Utilizar')+
+          '</button></div></article>';
+      }).join('')+'</div>';
+  }
+  function renderMeter(){
+    if(!meterPopup)return;
+    if(!game?.meterOpen){meterPopup.hidden=true;meterPopup.innerHTML='';return;}
+    meterPopup.hidden=false;
+    const r=game.meterReading,st=workshop.snapshot();
+    const modes=[['vdc','V⎓ DC'],['vac','V~ AC'],['ohm','Ω Resistencia'],['adc','A⎓ Corriente']];
+    const points=[['psu12','ATX +12 V'],['psu5','ATX +5 V'],['psu33','ATX +3,3 V'],
+      ['sata5','SATA +5 V'],['sataWire','Extremos cable SATA'],
+      ['fanSeries','Ventilador en serie']];
+    meterPopup.innerHTML='<div class="meter-lab-dialog" role="dialog" '+
+      'aria-modal="true" aria-label="Multímetro simulado"><header><h3>📟 Multímetro del taller</h3>'+
+      '<button type="button" data-meter-close>✕ Cerrar</button></header>'+
+      '<p class="meter-disclaimer">Simulación didáctica, no herramienta real. '+
+      'El modo A conectado en paralelo con una fuente puede provocar un cortocircuito.</p>'+
+      '<div class="meter-lab-grid"><section class="meter-body'+(r?.spark?' meter-spark':'')+'">'+
+      '<div class="meter-display" aria-live="polite">'+safe(r?.value||'0.0')+'</div>'+
+      '<div class="meter-flash" aria-hidden="true">⚡</div>'+
+      '<div class="meter-dial" role="group" aria-label="Selector de magnitud">'+
+      modes.map(([id,name])=>'<button type="button" data-meter-mode="'+id+'" '+
+        'aria-pressed="'+(game.meterMode===id)+'">'+name+'</button>').join('')+'</div>'+
+      '<div class="meter-jacks"><span>⚫ COM: punta negra a masa</span>'+
+      '<label for="meterJack">🔴 Borne de punta roja</label><select id="meterJack">'+
+      '<option value="vohm"'+(game.meterJack==='vohm'?' selected':'')+'>VΩ</option>'+
+      '<option value="amp"'+(game.meterJack==='amp'?' selected':'')+'>A (corriente)</option>'+
+      '</select></div></section><section class="meter-probes">'+
+      '<label for="meterPoint">¿Dónde pones las puntas?</label>'+
+      '<select id="meterPoint">'+points.map(([id,name])=>
+        '<option value="'+id+'"'+(game.meterPoint===id?' selected':'')+'>'+name+'</option>').join('')+
+      '</select><div class="meter-leads" aria-hidden="true"><i></i><i></i></div>'+
+      '<button type="button" class="primary" data-meter-probe>Aplicar puntas y medir</button>'+
+      '<p class="'+(r?.spark?'errtxt':'')+'" role="status">'+
+      safe(r?.message||'Elige magnitud, borne y punto. La corriente se mide en serie.')+'</p>'+
+      (st.fuseBlown?'<button type="button" data-meter-fuse'+
+        (st.cash<5?' disabled':'')+'>Sustituir fusible A · 5 €</button>':'')+
+      '<small>Fuente '+(api.state().power?'encendida':'apagada')+
+      ' · Fusible '+(st.fuseBlown?'fundido':'correcto')+'</small>'+
+      '</section></div></div>';
   }
   function inventoryMarkup(){
     const entries=[...new Set([...Object.keys(game.stock),...Object.keys(game.used)])]
@@ -2370,10 +2433,11 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.13.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.14.0</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
       '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
+      section('workshop','🧰 Estantería y herramientas del taller',workshopMarkup(),workshop.list().length)+
       usbTools+
       section('inventory','Inventario y cambios',inventory,available.reduce((n,x)=>n+x.quantity,0))+
       section('shop','Tienda de informática',shop)+
@@ -2553,6 +2617,9 @@ function createAdventureGame(api){
     }
     const button=event.target.closest('button');if(!button||!game)return;
     if(button.hasAttribute('data-open-store')){openStore();return;}
+    if(button.dataset.toolBuy){buyTool(button.dataset.toolBuy);return;}
+    if(button.dataset.toolUse){useTool(button.dataset.toolUse);return;}
+    if(button.hasAttribute('data-tool-view')){api.toolView?.();return;}
     if(button.hasAttribute('data-ram-toggle')){toggleRamPrecision();return;}
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
@@ -2593,6 +2660,23 @@ function createAdventureGame(api){
     else if(button.hasAttribute('data-close'))api.caseToggle();
     else if(button.hasAttribute('data-rear'))api.rearView();
     else if(button.hasAttribute('data-exit-mode'))exit();
+  });
+  meterPopup?.addEventListener('click',event=>{
+    const button=event.target.closest('button');if(!button||!game)return;
+    if(button.hasAttribute('data-meter-close')){closeMeter();return;}
+    if(button.dataset.meterMode){
+      game.meterMode=button.dataset.meterMode;game.meterReading=null;renderMeter();return;
+    }
+    if(button.hasAttribute('data-meter-probe')){probeMeter();return;}
+    if(button.hasAttribute('data-meter-fuse')){replaceMeterFuse();return;}
+  });
+  meterPopup?.addEventListener('change',event=>{
+    if(!game)return;
+    if(event.target.id==='meterJack'){
+      game.meterJack=event.target.value;game.meterReading=null;renderMeter();
+    }else if(event.target.id==='meterPoint'){
+      game.meterPoint=event.target.value;game.meterReading=null;renderMeter();
+    }
   });
   storePage?.addEventListener('click',event=>{
     const button=event.target.closest('button');
