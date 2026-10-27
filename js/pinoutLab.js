@@ -4,12 +4,52 @@
 // Esquemas NUMÉRICOS, no plantillas para fabricar o modificar cables.
 (function(root){
 'use strict';
+// Los colores son la convención orientativa del cable en el lado del dispositivo.
+// No describen el lado modular de la PSU ni obligan a los fabricantes.
 function pin(number,signal,rail,color,notes=''){
-  return Object.freeze({number,signal,rail,color,notes});
+  const wireColors=number===13&&signal.includes('sense')?
+    ['orange','brown']:color==='none'?[]:[color];
+  return Object.freeze({number,signal,rail,color,
+    wireColors:Object.freeze(wireColors),notes});
 }
 const COLORS=Object.freeze({orange:'#ec994d',red:'#e85a59',yellow:'#f6c453',
   black:'#536272',purple:'#ad84de',green:'#71c79a',gray:'#c4d1da',
-  blue:'#73a9e5',none:'#80949e'});
+  blue:'#73a9e5',brown:'#a57b58',none:'#80949e'});
+const COLOR_NAMES=Object.freeze({
+  orange:'naranja',red:'rojo',yellow:'amarillo',black:'negro',
+  purple:'morado',green:'verde',gray:'gris',blue:'azul',
+  brown:'marrón',none:'sin color fijo'
+});
+const WIRE_LEGEND=Object.freeze([
+  Object.freeze({color:'yellow',signal:'+12 V'}),
+  Object.freeze({color:'red',signal:'+5 V'}),
+  Object.freeze({color:'orange',signal:'+3,3 V'}),
+  Object.freeze({color:'black',signal:'COM / masa'}),
+  Object.freeze({color:'purple',signal:'+5VSB (espera)'}),
+  Object.freeze({color:'green',signal:'PS_ON#'}),
+  Object.freeze({color:'gray',signal:'PWR_OK'}),
+  Object.freeze({color:'blue',signal:'−12 V'}),
+  Object.freeze({color:'brown',signal:'Sense de +3,3 V (P13)'})
+]);
+function orderedRows(connector){
+  const definition=CONNECTORS[connector];if(!definition)return [];
+  const pins=[...definition.pins].sort((a,b)=>a.number-b.number);
+  return Object.freeze(Array.from({length:definition.rows},(_,index)=>
+    Object.freeze(pins.slice(index*definition.columns,(index+1)*definition.columns))));
+}
+function colorName(pin){
+  if(!pin)return 'sin color fijo';
+  return pin.wireColors.length?pin.wireColors.map(key=>COLOR_NAMES[key]).join(' + '):
+    COLOR_NAMES.none;
+}
+function swatch(pin){
+  const shades=(pin?.wireColors||[]).map(key=>COLORS[key]).filter(Boolean);
+  if(!shades.length)return COLORS.none;
+  if(shades.length===1)return shades[0];
+  return 'linear-gradient(90deg,'+shades.map((color,i)=>
+    color+' '+(100*i/shades.length)+'%,'+color+' '+(100*(i+1)/shades.length)+'%'
+  ).join(',')+')';
+}
 const ATX=[
  ['+3.3 V','3v3','orange'],['+3.3 V','3v3','orange'],['COM','gnd','black'],
  ['+5 V','5v','red'],['COM','gnd','black'],['+5 V','5v','red'],
@@ -41,7 +81,7 @@ const SATA=Array.from({length:15},(_,i)=>{
   if(n<=6||n===10||n===12)return pin(n,'COM','gnd','black');
   if(n>=7&&n<=9)return pin(n,'+5 V','5v','red',
     n===7?'P7 contacto de precarga.':'');
-  if(n===11)return pin(n,'P11 · actividad / control','signal','gray',
+  if(n===11)return pin(n,'P11 · actividad / control','signal','none',
     'Puede cumplir funciones DAS/DSS; no asumir masa.');
   return pin(n,'+12 V','12v','yellow',
     n===13?'P13 contacto de precarga.':'');
@@ -112,5 +152,6 @@ function measure({connector='atx24',red=10,black=3,mode='vdc',
   return {value:differential.toFixed(1)+' V⎓',voltage:differential,
     message:prefix+'Diferencia de potencial nominal simulada entre ambos contactos.'};
 }
-root.PC_PINOUTS=Object.freeze({CONNECTORS,COLORS,lookup,level,measure});
+root.PC_PINOUTS=Object.freeze({CONNECTORS,COLORS,COLOR_NAMES,WIRE_LEGEND,
+  lookup,level,measure,orderedRows,colorName,swatch});
 })(typeof window==='undefined'?globalThis:window);
