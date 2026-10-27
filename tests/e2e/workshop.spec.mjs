@@ -638,6 +638,7 @@ test('Fase 1: velocidad y reloj virtual registran montaje e inspección sin tiem
   test.setTimeout(95_000);
   await openGame(page);
   await expect(page.locator('#advVirtualClock')).toContainText('0 min');
+  await openSection(page,'advanced');
   await page.locator('#advWorkSpeed').selectOption('fast');
   await expect(page.locator('#advWorkSpeed')).toHaveValue('fast');
   await buy(page,'case','tower');
@@ -678,6 +679,7 @@ test('Fase 1.1: desmontaje válido, retrabajo y rechazos conservan el reloj',asy
 test('Fase 2a: incidencias reproducibles desactivadas por defecto y pulsera ESD real',async ({page})=>{
   test.setTimeout(110_000);
   await openGame(page);
+  await openSection(page,'advanced');
   await expect(page.locator('#advRiskMode')).toHaveValue('off');
   await expect(page.locator('#advRiskStatus')).toContainText('0');
   await page.locator('#advRiskMode').selectOption('on');
@@ -732,7 +734,7 @@ test('Fase 2b.1: incidencia SATA reparable sin bucles, con diagnóstico y retrab
     }
     throw new Error('No se encontró semilla para fallo SATA');
   });
-  await openSection(page,'mission');
+  await openSection(page,'advanced');
   await page.locator('#advRiskSeed').fill(seed);
   await page.locator('[data-risk-seed]').evaluate(el=>el.click());
   await page.locator('#advRiskMode').selectOption('on');
@@ -771,7 +773,7 @@ test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({pag
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
   await buy(page,'storage','sataSSD');await fit(page,'storage:sataSSD');
   await buy(page,'item','sataCable');
-  await openSection(page,'mission');
+  await openSection(page,'advanced');
   await page.locator('#advRiskSeed').fill('latent-test-1974');
   await page.locator('[data-risk-seed]').evaluate(el=>el.click());
   await page.locator('#advRiskMode').selectOption('on');
@@ -1060,7 +1062,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.13.0');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.18.0');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1415,4 +1417,74 @@ test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',
  await page.evaluate(()=>{adventureGame.select('cooler:air');adventureGame.perform('screw');});
  await expect.poll(()=>page.evaluate(()=>state.fixings.cooler)).toBe(true);
  await expect(page.locator('#adventurePanel [data-thermal-remove]')).toBeVisible();
+});
+
+
+test('v8.18: el laboratorio 3D usa dos columnas, controles fuera del visor y foco a ancho completo',async({page})=>{
+ await openGame(page);
+ const compact=await page.evaluate(()=>{
+   const lab=document.querySelector('#labWorkspace').getBoundingClientRect();
+   const sidebar=document.querySelector('#adventurePanel').getBoundingClientRect();
+   const area=document.querySelector('#viewportWrap').getBoundingClientRect();
+   return {labWidth:lab.width,sidebarWidth:sidebar.width,height:area.height,
+     diagnosisHidden:getComputedStyle(document.getElementById('labDiagnostics')).display==='none',
+     toolbarOutside:!document.getElementById('viewportWrap').contains(
+       document.getElementById('viewStaging3d')),
+     hasShop:!!document.querySelector('#adventurePanel [data-section="shop"]'),
+     hasInstalled:!!document.querySelector('#adventurePanel [data-section="installed"]'),
+     advancedClosed:!document.querySelector('#adventurePanel [data-section="advanced"]').open};
+ });
+ expect(compact.diagnosisHidden).toBe(true);
+ expect(compact.toolbarOutside).toBe(true);
+ expect(compact.hasShop).toBe(false);
+ expect(compact.hasInstalled).toBe(false);
+ expect(compact.advancedClosed).toBe(true);
+ if(page.viewportSize().width>980){
+   expect(compact.labWidth).toBeGreaterThan(compact.sidebarWidth*1.75);
+   expect(compact.height).toBeGreaterThanOrEqual(620);
+ }
+ await page.locator('#labFocusToggle').evaluate(el=>el.click());
+ await expect(page.locator('body')).toHaveClass(/lab-focus/);
+ await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('#adventurePanel')).toBeHidden();
+ await page.locator('#labFocusToggle').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel')).toBeVisible();
+ await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','false');
+});
+
+test('v8.18: devolución desde la ficha 3D actualiza stock, presupuesto y mesa',async({page})=>{
+ await openGame(page);
+ await expect.poll(()=>page.evaluate(()=>!!window.PC3D?.ready)).toBe(true);
+ await buy(page,'motherboard','b650');
+ await page.evaluate(()=>partInspector.open('motherboard:b650','table'));
+ const context=page.locator('#partContextMenu');
+ await expect(context.locator('[data-part-verb="return"]')).toBeEnabled();
+ await context.locator('[data-part-verb="sheet"]').evaluate(el=>el.click());
+ const sheet=page.locator('#partSpecSheet');
+ await expect(sheet).toBeVisible();
+ await expect(sheet.locator('[data-part-verb="return"]')).toBeEnabled();
+ const spent=await page.evaluate(()=>adventureGame.game.spent);
+ await sheet.locator('[data-part-verb="return"]').evaluate(el=>el.click());
+ await expect.poll(()=>page.evaluate(()=>adventureGame.game.stock['motherboard:b650'])).toBe(0);
+ expect(await page.evaluate(()=>adventureGame.game.spent)).toBe(spent-159);
+ await expect(context).toBeHidden();
+ await expect(sheet).toBeHidden();
+ await expect(page.locator('#partReturnNotice')).toContainText('Devolución');
+ const actual=await page.evaluate(()=>window.PC3D.getStagingState());
+ expect(actual.rendered.some(x=>x.key==='motherboard:b650')).toBe(false);
+});
+
+test('v8.18: una placa montada no se puede devolver desde el 3D',async({page})=>{
+ await openGame(page);
+ await buy(page,'case','tower');await fit(page,'case:tower');
+ await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+ await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+ await expect.poll(()=>page.evaluate(()=>state.installed.motherboard)).toBe(true);
+ await page.evaluate(()=>partInspector.open('motherboard:b650','tower'));
+ const button=page.locator('#partContextMenu [data-part-verb="return"]');
+ await expect(button).toBeVisible();
+ await expect(button).toBeDisabled();
+ const old=await page.evaluate(()=>adventureGame.game.spent);
+ expect(await page.evaluate(()=>adventureGame.canReturn('motherboard:b650'))).toBe(false);
+ expect(await page.evaluate(()=>adventureGame.game.spent)).toBe(old);
 });
