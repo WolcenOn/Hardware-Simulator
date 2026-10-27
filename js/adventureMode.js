@@ -386,7 +386,7 @@ function createAdventureGame(api){
   }
   function getCase(){return game?{id:game.caseId,...CASES[game.caseId]}:null;}
   function getExport(){if(!game)return null;return {
-    case:getCase(),spent:game.spent,caseReport:game.report,
+    case:getCase(),demoMode:!!game.demoMode,demoFailures:[...(game.demoFailures||[])],spent:game.spent,caseReport:game.report,
     workshop:workshop.snapshot(),benchTests:[...game.benchTests],cleanings:[...game.cleanings],meterShorts:game.meterShorts,
     meter:{connector:game.meterConnector,redPin:game.meterRedPin,
       blackPin:game.meterBlackPin,mode:game.meterMode,jack:game.meterJack,
@@ -2566,6 +2566,7 @@ function createAdventureGame(api){
         '<button type="button" data-confirm-demo class="primary">Sí, abrir demostración</button>'+
         '<button type="button" data-cancel-demo>Conservar encargo</button></div>':'')+
       '<label class="adventure-label">Cliente</label><select id="advClient">'+
+      (game.demoMode?'<option value="demo" selected>Montaje recomendado · práctica 3D</option>':'')+
       Object.entries(CASES).filter(([,c])=>!c.demo).map(([id,c])=>'<option value="'+id+'"'+(id===game.caseId?' selected':'')+
         '>'+safe(c.name)+'</option>').join('')+'</select>'+
       '<p class="adv-story"><b>'+safe(job.client)+'</b>: '+safe(job.story)+'</p>'+

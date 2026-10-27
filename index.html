@@ -1953,7 +1953,8 @@ adventureGame.start('office');
 window.addEventListener('pc3d-ready',()=>{
   if(adventureGame?.active){
     adventureGame.paint();
-    if(adventureGame.game?.lastPurchase)window.PC3D?.viewStaging?.();
+    if(adventureGame.game?.demoMode)window.PC3D?.viewAssemblyDesk?.();
+    else if(adventureGame.game?.lastPurchase)window.PC3D?.viewStaging?.();
   }
 });
 if(typeof window.createPartInspector==='function'){
