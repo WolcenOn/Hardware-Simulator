@@ -28,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/workshopTools.js','js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/thermalPaste.js','js/pasteGameplay.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/workshopTools.js','js/pinoutLab.js','js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/thermalPaste.js','js/pasteGameplay.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -984,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.14.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.15.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1115,3 +1115,25 @@ assert(get('adventurePanel').innerHTML.includes('data-tool-use="multimeter"'));
 assert(get('adventurePanel').innerHTML.includes('Fondo propio del taller'));
 assert.equal(g.getExport().workshop.tools.gpuTest,true);
 console.log('8.14: patrimonio de taller, compras, inventario y multímetro verificados');
+
+
+// 8.15 — Los contactos se seleccionan en esquema y el cálculo usa ambas puntas.
+g.start('office');
+g.buyTool('multimeter');
+assert.equal(g.selectMeterConnector('atx24'),true);
+assert.equal(g.selectMeterPin(9,'red'),true);
+assert.equal(g.selectMeterPin(3,'black'),true);
+assert.equal(g.openMeter(),true);
+assert.equal(g.probeMeter().value,'0.0 V⎓');
+assert(get('multimeterLabPopup').innerHTML.includes('data-meter-pin="16"'));
+assert(get('multimeterLabPopup').innerHTML.includes('data-meter-lead="black"'));
+assert.equal(g.selectMeterConnector('eps8'),true);
+assert.equal(g.selectMeterPin(8,'red'),true);
+assert.equal(g.selectMeterPin(2,'black'),true);
+assert.equal(g.getExport().meter.redPin,8);
+assert.equal(g.openMeterAtPin('pcie8',3),true);
+assert.equal(g.getExport().meter.connector,'pcie8');
+assert.equal(g.getExport().meter.redPin,3);
+assert.equal(g.selectMeterConnector('sata15'),true);
+assert.equal(g.probeMeter().value,'0.0 V⎓');
+console.log('8.15: ATX/EPS/PCIe/SATA, puntas roja y negra y selección 3D conectadas');

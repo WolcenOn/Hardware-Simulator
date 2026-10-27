@@ -1246,3 +1246,29 @@ test('taller v8.14 mantiene el equipamiento de diagnóstico entre encargos',asyn
   await page.locator('#viewTools3d').evaluate(el=>el.click());
   await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','tools');
 });
+
+
+test('v8.15: terminales PSU seleccionables con puntas independientes',async ({page})=>{
+  await openGame(page);
+  await openSection(page,'workshop');
+  await page.locator('#adventurePanel [data-tool-buy="multimeter"]').evaluate(el=>el.click());
+  await page.locator('#adventurePanel [data-tool-use="multimeter"]').evaluate(el=>el.click());
+  await expect(page.locator('#multimeterLabPopup')).toBeVisible();
+  await expect(page.locator('[data-meter-pin="16"]')).toBeVisible();
+  await page.locator('[data-meter-lead="black"]').evaluate(el=>el.click());
+  await page.locator('[data-meter-pin="3"]').evaluate(el=>el.click());
+  await page.locator('[data-meter-lead="red"]').evaluate(el=>el.click());
+  await page.locator('[data-meter-pin="9"]').evaluate(el=>el.click());
+  await page.locator('[data-meter-probe]').evaluate(el=>el.click());
+  await expect(page.locator('.meter-display')).toContainText('0.0 V');
+  await page.locator('#meterConnector').selectOption('eps8');
+  await expect(page.locator('[data-meter-pin="8"]')).toBeVisible();
+  await page.locator('#meterConnector').selectOption('pcie8');
+  await expect(page.locator('[data-meter-pin="6"]')).toBeVisible();
+  await page.locator('#meterConnector').selectOption('sata15');
+  await expect(page.locator('[data-meter-pin="15"]')).toBeVisible();
+  await page.locator('[data-meter-close]').evaluate(el=>el.click());
+  await page.locator('#viewPinouts3d').evaluate(el=>el.click());
+  await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','pinouts');
+  expect(await page.evaluate(()=>window.PC3D?.getPinBoardContacts?.())).toBe(55);
+});
