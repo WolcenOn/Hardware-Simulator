@@ -37,6 +37,52 @@ function orderedRows(connector){
   return Object.freeze(Array.from({length:definition.rows},(_,index)=>
     Object.freeze(pins.slice(index*definition.columns,(index+1)*definition.columns))));
 }
+// Vista didáctica desde la cara del terminal del cable, con pestaña arriba.
+// Al girar al lado de los cables se invierte la izquierda/derecha. El número
+// físico es invariable: el giro cambia sólo coordenadas de representación.
+// Los contornos EPS/PCIe son esquemas de polarización; no son calibres.
+const HOUSINGS=Object.freeze({
+ atx24:Object.freeze({kind:'minifit',latch:'Pestaña de bloqueo arriba',
+   split:'20+4',clip:true,description:'Carcasa Mini-Fit de dos filas, clip de retención y tramo desmontable 20+4.'}),
+ eps8:Object.freeze({kind:'minifit',latch:'Pestaña de bloqueo arriba',
+   split:'4+4',clip:true,description:'CPU EPS12V 4+4: cavidades cuadradas y con esquina biselada; no es PCIe.'}),
+ pcie8:Object.freeze({kind:'minifit',latch:'Pestaña de bloqueo arriba',
+   split:'6+2',clip:true,description:'GPU PCIe 6+2: patrón de guía distinto de EPS, dos pines de detección.'}),
+ sata15:Object.freeze({kind:'sata-l',latch:'Ranura en L · polarización',
+   split:'',clip:false,description:'SATA alimentación plano: guía en forma de L; no se encaja invertido.'})
+});
+function keyShape(connector,number){
+  const n=Number(number);
+  if(!lookup(connector,n))return null;
+  // ATX: indicación genérica de cavidad; no se adjudica una geometría
+  // concreta por pin sin plano mecánico del fabricante del housing.
+  if(connector==='atx24')return 'neutral';
+  if(connector==='sata15')return 'blade';
+  const patterns={
+    // Orden eléctrico: P1..P4 (abajo), P5..P8 (arriba).
+    eps8:['square','bevel','bevel','square','bevel','square','square','bevel'],
+    pcie8:['square','bevel','bevel','square','bevel','bevel','square','bevel']
+  };
+  return patterns[connector]?.[n-1]||'neutral';
+}
+function orientedRows(connector,face='contacts'){
+  const rows=orderedRows(connector);
+  if(!rows.length||!['contacts','wires'].includes(face))return [];
+  // En la vista desde los contactos: fila de números mayores ARRIBA.
+  // Desde detrás de la misma clavija, se ve reflejada horizontalmente.
+  const topFirst=rows.length===2?[rows[1],rows[0]]:rows;
+  return Object.freeze(topFirst.map(row=>Object.freeze(
+    face==='wires'?[...row].reverse():[...row]
+  )));
+}
+function positionOf(connector,number,face='contacts'){
+  const rows=orientedRows(connector,face);
+  for(let row=0;row<rows.length;row++){
+    const col=rows[row].findIndex(p=>p.number===Number(number));
+    if(col>=0)return Object.freeze({row,col,number:Number(number)});
+  }
+  return null;
+}
 function colorName(pin){
   if(!pin)return 'sin color fijo';
   return pin.wireColors.length?pin.wireColors.map(key=>COLOR_NAMES[key]).join(' + '):
@@ -153,5 +199,6 @@ function measure({connector='atx24',red=10,black=3,mode='vdc',
     message:prefix+'Diferencia de potencial nominal simulada entre ambos contactos.'};
 }
 root.PC_PINOUTS=Object.freeze({CONNECTORS,COLORS,COLOR_NAMES,WIRE_LEGEND,
-  lookup,level,measure,orderedRows,colorName,swatch});
+  lookup,level,measure,orderedRows,orientedRows,positionOf,keyShape,
+  HOUSINGS,colorName,swatch});
 })(typeof window==='undefined'?globalThis:window);

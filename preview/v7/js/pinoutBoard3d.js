@@ -6,6 +6,7 @@ export function createPinoutBoard(THREE,scene,definitions){
   const rim=new THREE.MeshStandardMaterial({color:0x6b8c9d,metalness:.76,roughness:.38});
   const inactive=new THREE.MeshStandardMaterial({color:0x344f5c,roughness:.68});
   const contacts=new Map();
+  const physics=window.PC_PINOUTS;
   function box(parent,w,h,d,x,y,z,mat){
     const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
     mesh.position.set(x,y,z);parent.add(mesh);return mesh;
@@ -36,15 +37,56 @@ export function createPinoutBoard(THREE,scene,definitions){
     pcie8:{x:2.55,y:12.58,step:.73,label:'PCIe 8 · GPU'},
     sata15:{x:0,y:10.7,step:.54,label:'SATA 15 · POWER'}
   };
+  function cavity(shape,material){
+    const radius=.14,cut=.045;
+    const points=shape==='bevel'?[
+      [-radius+cut,-radius],[radius-cut,-radius],[radius,-radius+cut],
+      [radius,radius-cut],[radius-cut,radius],[-radius+cut,radius],
+      [-radius,radius-cut],[-radius,-radius+cut]
+    ]:shape==='blade'?[
+      [-radius,-.07],[radius,-.07],[radius,.07],[-radius,.07]
+    ]:[
+      [-radius,-radius],[radius,-radius],[radius,radius],[-radius,radius]
+    ];
+    const shape2=new THREE.Shape();
+    shape2.moveTo(...points[0]);
+    for(const point of points.slice(1))shape2.lineTo(...point);
+    shape2.closePath();
+    return new THREE.Mesh(new THREE.ExtrudeGeometry(shape2,{
+      depth:.085,bevelEnabled:false
+    }),material);
+  }
   for(const [id,config]of Object.entries(layouts)){
     const def=definitions[id];if(!def)continue;
     const headline=print(config.label,id==='atx24'?4.2:id==='sata15'?4.5:3,.40);
     headline.position.set(config.x,config.y+.64,.1);root.add(headline);
     const rows=def.rows,cols=def.columns;
+    const housing=physics.HOUSINGS[id];
+    const clipMat=new THREE.MeshStandardMaterial({color:0x80949d,roughness:.55});
+    const bracket=box(root,id==='atx24'?1.14:.8,.12,.45,
+      config.x,config.y+(rows-1)*.215+.38,.09,clipMat);
+    if(housing.clip){
+      bracket.name=id+' · clip de retención, arriba';
+      box(root,id==='atx24'?1.65:1.15,.09,.35,
+        config.x,bracket.position.y+.13,.12,back);
+    }else{
+      bracket.name=id+' · guía de inserción SATA en L';
+      box(root,.20,.43,.30,config.x-cols*config.step/2-.10,
+        config.y-.02,.20,clipMat);
+      box(root,.85,.08,.30,config.x-cols*config.step/2+.28,
+        config.y-.28,.20,clipMat);
+    }
+    if(housing.split){
+      const separations={atx24:2,eps8:2,pcie8:1};
+      const boundary=cols-separations[id]-.5;
+      const x=config.x+(boundary-(cols-1)/2)*config.step;
+      box(root,.075,rows*.47+.25,.26,x,config.y,.16,clipMat).name=
+        id+' · separación de cable '+housing.split;
+    }
     box(root,Math.max(1.1,cols*config.step+.23),rows*.43+.29,.2,
       config.x,config.y,-.03,inactive);
     for(const p of [...def.pins].sort((a,b)=>a.number-b.number)){
-      const idx=p.number-1,row=Math.floor(idx/cols),col=idx%cols;
+      const idx=p.number-1,row=rows===2?(idx<cols?1:0):0,col=idx%cols;
       const holder=new THREE.Group();
       holder.position.set(config.x+(col-(cols-1)/2)*config.step,
         config.y+(rows-1)/2*.43-row*.43,.23);
@@ -59,8 +101,11 @@ export function createPinoutBoard(THREE,scene,definitions){
         metalness:.55,roughness:.42,emissive:0x000000,emissiveIntensity:.32});
       const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.38,16),material);
       sleeve.rotation.x=Math.PI/2;sleeve.position.z=-.21;holder.add(sleeve);
-      const terminal=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.16,18),material);
-      terminal.rotation.x=Math.PI/2;terminal.position.z=.05;holder.add(terminal);
+      const terminal=cavity(physics.keyShape(id,p.number),material);
+      terminal.position.z=.05;holder.add(terminal);
+      const border=new THREE.Mesh(new THREE.BoxGeometry(.33,.33,.04),
+        new THREE.MeshStandardMaterial({color:0x101e29,roughness:.82}));
+      border.position.z=-.08;holder.add(border);
       if(p.wireColors?.length>1){
         // P13 ATX: retorno marrón sense junto al +3,3 V naranja.
         const extra=window.PC_PINOUTS?.COLORS?.[p.wireColors[1]]||'#a57b58';
@@ -74,7 +119,7 @@ export function createPinoutBoard(THREE,scene,definitions){
       contacts.set(id+':'+p.number,{holder,material});
     }
   }
-  const legend=print('ESQUEMA DE PINES NUMERADOS · NO LADO MODULAR PSU',8.4,.38);
+  const legend=print('CARA DE CONTACTOS · PESTAÑA SUPERIOR / SATA L · NO LADO PSU',8.7,.38);
   legend.position.set(0,9.2,.12);root.add(legend);
   function identify(object){
     let cursor=object;

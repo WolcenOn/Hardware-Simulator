@@ -176,6 +176,7 @@ function createAdventureGame(api){
   }
   function openMeterAtPin(id,pin){
     if(!game)return false;
+    game.meterFace='contacts';
     if(!workshop.owns('multimeter'))return openMeter();
     if(!root.PC_PINOUTS.lookup(id,pin))return false;
     if(game.meterConnector!==id)selectMeterConnector(id);
@@ -385,7 +386,7 @@ function createAdventureGame(api){
     workshop:workshop.snapshot(),benchTests:[...game.benchTests],cleanings:[...game.cleanings],meterShorts:game.meterShorts,
     meter:{connector:game.meterConnector,redPin:game.meterRedPin,
       blackPin:game.meterBlackPin,mode:game.meterMode,jack:game.meterJack,
-      helpMode:game.meterHelpMode,
+      helpMode:game.meterHelpMode,face:game.meterFace,
       lastReading:game.meterReading?{...game.meterReading}:null},
     purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
     operationHistory:operationEngine?.getHistory()||[],
@@ -1118,7 +1119,7 @@ function createAdventureGame(api){
       awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',
        meterOpen:false,meterMode:'vdc',meterJack:'vohm',meterPoint:'psu12',
        meterTest:'pins',meterConnector:'atx24',meterRedPin:10,meterBlackPin:3,
-       meterLead:'red',meterHelpMode:'signals',meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
+       meterLead:'red',meterHelpMode:'signals',meterFace:'contacts',meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -2074,7 +2075,9 @@ function createAdventureGame(api){
     const black=model.lookup(game.meterConnector,game.meterBlackPin);
     const help=game.meterHelpMode||'signals';
     const masking=help==='exam';
-    const columns=model.orderedRows(game.meterConnector);
+    const face=game.meterFace||'contacts';
+    const columns=model.orientedRows(game.meterConnector,face);
+    const housing=model.HOUSINGS[game.meterConnector];
     const visibleColors=new Set(def.pins.flatMap(p=>p.wireColors));
     const legend=model.WIRE_LEGEND.filter(x=>visibleColors.has(x.color));
     const shownVoltage=p=>{
@@ -2098,12 +2101,24 @@ function createAdventureGame(api){
         ['exam','Modo examen']].map(([id,label])=>
         '<button type="button" data-meter-help="'+id+'" aria-pressed="'+
         (help===id)+'">'+label+'</button>').join('')+'</div>'+
-      '<p class="meter-row-key">Orden numérico por filas · '+(
+      '<div class="meter-face-controls" role="group" aria-label="Vista del conector">'+
+        [['contacts','Frente · cavidades'],['wires','Detrás · cables']].map(([id,label])=>
+          '<button type="button" data-meter-face="'+id+'" aria-pressed="'+
+          (face===id)+'">'+label+'</button>').join('')+'</div>'+
+      '<p class="meter-housing-caption">'+
+        (face==='contacts'?'Mirando las cavidades del enchufe del cable':
+          'Mirando la entrada de cables: izquierda y derecha quedan reflejadas')+
+        ' · '+safe(housing.description)+'</p>'+
+      '<p class="meter-row-key">Orden de pines (vista '+(face==='contacts'?'frontal':'posterior')+') · '+(
         def.rows===1?'P1–P'+def.pins.length:
         'fila A P1–P'+def.columns+' / fila B P'+(def.columns+1)+
         '–P'+def.pins.length)+'</p>'+
-      '<div class="meter-pin-scroll"><div class="meter-pin-matrix" style="--meter-columns:'+
-        def.columns+'">'+
+      '<div class="meter-pin-scroll"><div class="meter-physical-housing meter-housing-'+
+        housing.kind+'" data-meter-housing="'+game.meterConnector+'" data-meter-face="'+face+'">'+
+      (housing.clip?'<div class="meter-latch" aria-label="Pestaña de bloqueo">'+
+        '⌄ PESTAÑA · CLIP ⌄</div>':'<div class="meter-l-key">'+
+        '◀ GUÍA L · SATA</div>')+
+      '<div class="meter-pin-matrix" style="--meter-columns:'+def.columns+'">'+
       columns.map((row,i)=>
         '<div class="meter-pin-row" role="row" aria-label="Fila '+(i+1)+
         ' de contactos" data-meter-row="'+(i+1)+'">'+
@@ -2119,18 +2134,29 @@ function createAdventureGame(api){
           const info=masking?'Pin '+pin.number:
             'Pin '+pin.number+' · '+pin.signal+' · color habitual: '+
             model.colorName(pin)+(pin.notes?' · '+pin.notes:'');
+          const shape=model.keyShape(game.meterConnector,pin.number);
+          const strip=housing.split?{atx24:2,eps8:2,pcie8:1}[game.meterConnector]:0;
+          const breakAt=strip?(face==='contacts'?def.columns-strip:strip):0;
+          const isBreak=!!strip&&row.indexOf(pin)===breakAt-1;
           return '<button type="button" data-meter-pin="'+pin.number+'" '+
             'class="meter-pin'+(activeRed?' meter-pin-red':'')+
             (activeBlack?' meter-pin-black':'')+
-            (masking?' meter-pin-exam':'')+'"'+
+            (masking?' meter-pin-exam':'')+
+            (isBreak?' meter-pin-split':'')+'"'+
             ' style="--pin-color:'+shade+'" title="'+safe(info)+
             '" aria-label="'+safe(info)+'">'+
+            '<span class="meter-cavity meter-cavity-'+shape+'" aria-hidden="true"></span>'+
             '<b>'+pin.number+'</b>'+
             (masking?'':'<i class="meter-wire-swatch" aria-hidden="true" style="background:'+
               model.swatch(pin)+'"></i>')+
             '<small>'+safe(value)+'</small><em>'+marker+'</em></button>';
         }).join('')+'</div>'
       ).join('')+'</div></div>'+
+      '<p class="meter-housing-foot">P1'+(face==='contacts'?' a la izquierda de la fila inferior':
+        ' a la derecha de la fila inferior')+
+        (housing.clip?' · clip de retención sobre la fila superior':
+          ' · guía lateral en L para impedir el giro')+
+        (housing.split?' · división '+housing.split:'')+'</p></div>'+
       (masking?'<p class="meter-pin-hint">Modo examen: sin indicación de líneas, '+
         'colores ni tensiones. Mide para deducir cada función.</p>':
         '<div class="meter-legend" aria-label="Colores habituales de cable">'+
@@ -2552,7 +2578,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.16.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.0</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
       '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
@@ -2783,6 +2809,13 @@ function createAdventureGame(api){
   meterPopup?.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button||!game)return;
     if(button.hasAttribute('data-meter-close')){closeMeter();return;}
+    if(button.dataset.meterFace){
+      if(['contacts','wires'].includes(button.dataset.meterFace)){
+        game.meterFace=button.dataset.meterFace;
+        game.meterReading=null;renderMeter();
+      }
+      return;
+    }
     if(button.dataset.meterHelp){
       if(['signals','voltages','colors','exam'].includes(button.dataset.meterHelp)){
         game.meterHelpMode=button.dataset.meterHelp;renderMeter();
