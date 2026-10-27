@@ -158,15 +158,42 @@ function createAdventureGame(api){
   }
   function closeMeter(){if(game)game.meterOpen=false;
     if(meterPopup)meterPopup.hidden=true;}
+  function selectMeterConnector(id){
+    if(!game||!root.PC_PINOUTS.CONNECTORS[id])return false;
+    game.meterConnector=id;game.meterTest='pins';game.meterReading=null;
+    const defaults={atx24:[10,3],eps8:[5,1],pcie8:[1,5],sata15:[8,4]};
+    [game.meterRedPin,game.meterBlackPin]=defaults[id];
+    api.pinoutSelection?.(id,game.meterRedPin,game.meterBlackPin);
+    renderMeter();return true;
+  }
+  function selectMeterPin(pin,lead=game?.meterLead){
+    if(!game||!root.PC_PINOUTS.lookup(game.meterConnector,pin))return false;
+    if(lead==='black')game.meterBlackPin=Number(pin);
+    else game.meterRedPin=Number(pin);
+    game.meterReading=null;game.meterTest='pins';
+    api.pinoutSelection?.(game.meterConnector,game.meterRedPin,game.meterBlackPin);
+    renderMeter();return true;
+  }
+  function openMeterAtPin(id,pin){
+    if(!game)return false;
+    if(!workshop.owns('multimeter'))return openMeter();
+    if(!root.PC_PINOUTS.lookup(id,pin))return false;
+    if(game.meterConnector!==id)selectMeterConnector(id);
+    selectMeterPin(pin);return openMeter();
+  }
   function probeMeter(){
     if(!game?.meterOpen)return null;
     const st=api.state();
-    const reading=root.PC_WORKSHOP_TOOLS.meterRead({
-      mode:game.meterMode,jack:game.meterJack,point:game.meterPoint,
+    const electrical={mode:game.meterMode,jack:game.meterJack,
       powered:!!st.power,psu:!!st.installed.psu,
-      sata:!!st.sataData,fan:!!st.cpuFan,
-      fuseBlown:workshop.snapshot().fuseBlown
-    });
+      fuseBlown:workshop.snapshot().fuseBlown};
+    const reading=game.meterTest==='series'?
+      root.PC_WORKSHOP_TOOLS.meterRead({
+        ...electrical,point:'fanSeries',sata:!!st.sataData,fan:!!st.cpuFan
+      }):root.PC_PINOUTS.measure({
+        ...electrical,connector:game.meterConnector,
+        red:game.meterRedPin,black:game.meterBlackPin
+      });
     game.meterReading=reading;
     if(reading.spark){
       workshop.shortCircuit();game.meterShorts++;
@@ -356,6 +383,9 @@ function createAdventureGame(api){
   function getExport(){if(!game)return null;return {
     case:getCase(),spent:game.spent,caseReport:game.report,
     workshop:workshop.snapshot(),benchTests:[...game.benchTests],cleanings:[...game.cleanings],meterShorts:game.meterShorts,
+    meter:{connector:game.meterConnector,redPin:game.meterRedPin,
+      blackPin:game.meterBlackPin,mode:game.meterMode,jack:game.meterJack,
+      lastReading:game.meterReading?{...game.meterReading}:null},
     purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
     operationHistory:operationEngine?.getHistory()||[],
     simulatedTime:clock?.getSummary()||null,
@@ -1086,7 +1116,8 @@ function createAdventureGame(api){
       thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
       awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',
        meterOpen:false,meterMode:'vdc',meterJack:'vohm',meterPoint:'psu12',
-       meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
+       meterTest:'pins',meterConnector:'atx24',meterRedPin:10,meterBlackPin:3,
+       meterLead:'red',meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
     };
     state.casePlaced=false;
     api.document.body.classList.add('adventure-on');
@@ -2433,7 +2464,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.14.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.15.0</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
       '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
@@ -2664,6 +2695,10 @@ function createAdventureGame(api){
   meterPopup?.addEventListener('click',event=>{
     const button=event.target.closest('button');if(!button||!game)return;
     if(button.hasAttribute('data-meter-close')){closeMeter();return;}
+    if(button.dataset.meterPin){selectMeterPin(Number(button.dataset.meterPin));return;}
+    if(button.dataset.meterLead){
+      game.meterLead=button.dataset.meterLead;renderMeter();return;
+    }
     if(button.dataset.meterMode){
       game.meterMode=button.dataset.meterMode;game.meterReading=null;renderMeter();return;
     }
@@ -2674,8 +2709,10 @@ function createAdventureGame(api){
     if(!game)return;
     if(event.target.id==='meterJack'){
       game.meterJack=event.target.value;game.meterReading=null;renderMeter();
-    }else if(event.target.id==='meterPoint'){
-      game.meterPoint=event.target.value;game.meterReading=null;renderMeter();
+    }else if(event.target.id==='meterConnector'){
+      if(event.target.value==='series'){
+        game.meterTest='series';game.meterReading=null;renderMeter();
+      }else selectMeterConnector(event.target.value);
     }
   });
   storePage?.addEventListener('click',event=>{
@@ -2742,6 +2779,7 @@ function createAdventureGame(api){
   });
   return {start,exit,openStore,closeStore,setStoreCategory,renderStore,
     buyTool,useTool,openTool,openMeter,closeMeter,probeMeter,replaceMeterFuse,
+    selectMeterConnector,selectMeterPin,openMeterAtPin,
     getWorkshop:()=>workshop.snapshot(),
     storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id)),
