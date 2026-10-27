@@ -33,6 +33,11 @@ for(const path of ['js/workshopTools.js','js/pinoutLab.js','js/classroom.js','js
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
 const l=ctx.lab,g=l.g;
+// Las regresiones de montaje/mecánica no sortean averías ESD.
+// El riesgo se comprueba por separado con su algoritmo propio.
+const originalStart=g.start;
+g.start=(...args)=>{const value=originalStart(...args);if(g.game)g.game.esdRandom=()=>.999999;return value;};
+g.game.esdRandom=()=>.999999;
 assert(g.active);
 l.autoBuild();
 assert(g.active,'El montaje recomendado mantiene abierto el taller 3D');
