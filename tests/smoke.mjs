@@ -845,7 +845,7 @@ console.log('8.11.1: Y=0 visual y lógico coinciden antes y después de bajar CP
 
 // 8.12: jeringuilla viscosa y cobertura asociada a los tornillos.
 assert(html.includes('id="pastePrecisionPopup"'));
-assert(html.includes('pasteGameplay.js?v=8-12-0-paste-pressure'));
+assert(html.includes('pasteGameplay.js?v=8-12-3-live-spread'));
 assert(html.includes('if(details.thermalPaste)data.thermalPaste=details.thermalPaste'));
 function prepareThermalTest(){
   g.start('office');
