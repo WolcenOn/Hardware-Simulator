@@ -1061,7 +1061,7 @@ assert(coolerFacts.some(([key,value])=>key==='Dimensiones'&&value.includes('240'
   'La ficha previa del disipador debe indicar sus dimensiones declaradas');
 const hints=g.sellerMessages().map(row=>row.join(' ').toLowerCase());
 assert(hints.some(h=>h.includes('tornillos')),'El vendedor recuerda tornillos');
-assert(hints.some(h=>h.includes('destornillador')),'El vendedor recuerda herramientas');
+assert(!hints.some(h=>h.includes('destornillador')),'El vendedor no recomienda recomprar una herramienta permanente');
 assert(!hints.some(h=>h.includes('am5')||h.includes('ddr5')||h.includes('incompatible')),
   'El vendedor no resuelve compatibilidades a los alumnos');
 const beforePurchase=g.game.spent;
