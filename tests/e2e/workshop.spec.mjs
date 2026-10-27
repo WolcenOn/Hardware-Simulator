@@ -47,6 +47,11 @@ async function openStore(page,category='case'){
   return store;
 }
 async function buy(page,category,id){
+  if(category==='item'&&id==='screwdriver'){
+    expect(await page.evaluate(()=>adventureGame.getWorkshop().tools.screwdriver)).toBe(true);
+    return;
+  }
+  if(category==='item'&&id==='esdStrap')category='workshop';
   const store=await openStore(page,category);
   const button=store.locator('[data-store-buy="'+category+':'+id+'"]').first();
   await expect(button).toBeVisible();
@@ -55,7 +60,7 @@ async function buy(page,category,id){
   // Comprar el último material de un disipador pendiente puede devolver
   // automáticamente al montaje y abrir el minijuego de tornillos.
   if(await store.isVisible()){
-    await expect(store).toContainText('Comprado:');
+    await expect(store).toContainText(category==='workshop'?'Adquirido para el taller':'Comprado:');
     await store.locator('[data-store-back]').evaluate(el=>el.click());
   }
 }
