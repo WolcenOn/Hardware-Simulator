@@ -1272,3 +1272,39 @@ test('v8.15: terminales PSU seleccionables con puntas independientes',async ({pa
   await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','pinouts');
   expect(await page.evaluate(()=>window.PC3D?.getPinBoardContacts?.())).toBe(55);
 });
+
+
+test('v8.16: pinout ordenado, colores habituales y modo examen',async({page})=>{
+ await openGame(page);
+ await openSection(page,'workshop');
+ await page.locator('#adventurePanel [data-tool-buy="multimeter"]').evaluate(el=>el.click());
+ await page.locator('#adventurePanel [data-tool-use="multimeter"]').evaluate(el=>el.click());
+ const popup=page.locator('#multimeterLabPopup');
+ const first=popup.locator('[data-meter-row="1"] [data-meter-pin]');
+ const second=popup.locator('[data-meter-row="2"] [data-meter-pin]');
+ await expect(first).toHaveCount(12);
+ await expect(second).toHaveCount(12);
+ expect(await first.evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin))))
+   .toEqual(Array.from({length:12},(_,i)=>i+1));
+ expect(await second.evaluateAll(els=>els.map(el=>Number(el.dataset.meterPin))))
+   .toEqual(Array.from({length:12},(_,i)=>i+13));
+ await expect(popup.locator('[data-meter-pin="9"]')).toContainText('+5 VSB');
+ await expect(popup.locator('[data-meter-pin="13"] .meter-wire-swatch'))
+   .toHaveAttribute('style',/linear-gradient/);
+ await popup.locator('[data-meter-help="colors"]').evaluate(el=>el.click());
+ await expect(popup.locator('[data-meter-pin="13"]')).toContainText('naranja + marrón');
+ await expect(popup.locator('.meter-legend')).toContainText('morado');
+ await popup.locator('[data-meter-help="voltages"]').evaluate(el=>el.click());
+ await expect(popup.locator('[data-meter-pin="10"]')).toContainText('0.0 V');
+ await popup.locator('[data-meter-help="exam"]').evaluate(el=>el.click());
+ await expect(popup.locator('.meter-legend')).toHaveCount(0);
+ await expect(popup.locator('.meter-wire-swatch')).toHaveCount(0);
+ await expect(popup.locator('[data-meter-pin="16"]')).not.toContainText('PS_ON');
+ await popup.locator('[data-meter-help="signals"]').evaluate(el=>el.click());
+ await expect(popup.locator('[data-meter-pin="16"]')).toContainText('PS_ON#');
+ await popup.locator('#meterConnector').selectOption('eps8');
+ await expect(popup.locator('[data-meter-row="1"] [data-meter-pin]')).toHaveCount(4);
+ await popup.locator('#meterConnector').selectOption('sata15');
+ await expect(popup.locator('[data-meter-row="1"] [data-meter-pin]')).toHaveCount(15);
+ await expect(popup.locator('[data-meter-pin="11"]')).toContainText('actividad');
+});

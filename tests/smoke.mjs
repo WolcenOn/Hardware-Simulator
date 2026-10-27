@@ -596,7 +596,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-15-0-pinout'));
+assert(html.includes('adventureMode.js?v=8-16-0-pin-help'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -746,7 +746,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-15-0-pinout'));
+assert(html.includes('adventureMode.js?v=8-16-0-pin-help'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -984,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.15.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.16.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1137,3 +1137,30 @@ assert.equal(g.getExport().meter.redPin,3);
 assert.equal(g.selectMeterConnector('sata15'),true);
 assert.equal(g.probeMeter().value,'0.0 V⎓');
 console.log('8.15: ATX/EPS/PCIe/SATA, puntas roja y negra y selección 3D conectadas');
+
+
+// 8.16: orden numérico, muestras cromáticas y modo examen sin pistas.
+g.start('office');assert.equal(g.buyTool('multimeter'),true);
+assert.equal(g.openMeter(),true);
+const meterElement=get('multimeterLabPopup');
+assert(meterElement.innerHTML.includes('data-meter-row="1"'));
+assert(meterElement.innerHTML.includes('data-meter-row="2"'));
+assert(meterElement.innerHTML.includes('data-meter-help="colors"'));
+const pin13=meterElement.innerHTML.match(/<button[^>]*data-meter-pin="13"[\s\S]*?<\/button>/)?.[0];
+assert(pin13?.includes('linear-gradient'),'P13 ATX con naranja y marrón');
+assert(meterElement.innerHTML.includes('Leyenda de colores habituales'));
+const clickMeter=meterElement.events.click;
+const helpMode=mode=>clickMeter({target:{closest:()=>({
+  dataset:{meterHelp:mode},hasAttribute:()=>false
+})}});
+helpMode('colors');
+assert(meterElement.innerHTML.includes('naranja + marrón'));
+assert.equal(g.getExport().meter.helpMode,'colors');
+helpMode('voltages');assert(meterElement.innerHTML.includes('0.0 V'));
+helpMode('exam');
+assert(!meterElement.innerHTML.includes('PWR_OK'));
+assert(!meterElement.innerHTML.includes('Leyenda de colores habituales'));
+assert(!meterElement.innerHTML.includes('meter-wire-swatch'));
+helpMode('signals');assert(meterElement.innerHTML.includes('PWR_OK'));
+assert(meterElement.innerHTML.includes('🔴 Roja P10 · +12 V'));
+console.log('8.16: esquema ordenado, colores y modo examen OK');

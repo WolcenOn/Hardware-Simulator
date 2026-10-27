@@ -61,3 +61,44 @@ test('ohmios exigen PSU sin CA y no diagnostican líneas ajenas',()=>{
   assert.equal(m('atx24',3,10,{psu:false,mode:'ohm'}).value,'OL');
   assert.equal(m('atx24',20,3,{psu:false,mode:'ohm'}).value,'OL');
 });
+
+
+test('8.16: orden por filas de ATX, EPS, PCIe y SATA',()=>{
+ const p=ctx.window.PC_PINOUTS;
+ const seq=id=>p.orderedRows(id).map(row=>Array.from(row,x=>x.number));
+ assert.deepEqual(Array.from(seq('atx24')[0]),Array.from({length:12},(_,i)=>i+1));
+ assert.deepEqual(Array.from(seq('atx24')[1]),Array.from({length:12},(_,i)=>i+13));
+ for(const id of ['eps8','pcie8']){
+   assert.deepEqual(Array.from(seq(id)[0]),[1,2,3,4]);
+   assert.deepEqual(Array.from(seq(id)[1]),[5,6,7,8]);
+ }
+ assert.deepEqual(Array.from(seq('sata15')[0]),Array.from({length:15},(_,i)=>i+1));
+ assert.equal(p.orderedRows('unknown').length,0);
+});
+test('8.16: colores ATX de Intel, incluyendo sense naranja/marrón en P13',()=>{
+ const p=ctx.window.PC_PINOUTS;
+ const colors=['orange','orange','black','red','black','red',
+  'black','gray','purple','yellow','yellow','orange',
+  'orange','blue','black','green','black','black',
+  'black','none','red','red','red','black'];
+ assert.deepEqual(Array.from(CONNECTORS.atx24.pins,pin=>pin.color),colors);
+ assert.deepEqual(Array.from(lookup('atx24',13).wireColors),['orange','brown']);
+ assert.equal(p.colorName(lookup('atx24',13)),'naranja + marrón');
+ assert.match(p.swatch(lookup('atx24',13)),/^linear-gradient/);
+ assert.equal(p.colorName(lookup('atx24',20)),'sin color fijo');
+ assert.equal(p.colorName(lookup('atx24',9)),'morado');
+ assert.equal(p.colorName(lookup('atx24',16)),'verde');
+ assert.equal(p.colorName(lookup('atx24',8)),'gris');
+ assert.equal(p.colorName(lookup('atx24',14)),'azul');
+});
+test('8.16: colores comunes de EPS/PCIe y SATA P11 no universal',()=>{
+ const p=ctx.window.PC_PINOUTS;
+ assert.deepEqual(Array.from(CONNECTORS.eps8.pins,q=>q.color),
+  ['black','black','black','black','yellow','yellow','yellow','yellow']);
+ assert.deepEqual(Array.from(CONNECTORS.pcie8.pins,q=>q.color),
+  ['yellow','yellow','yellow','black','black','black','black','black']);
+ assert.equal(lookup('sata15',11).color,'none');
+ assert.equal(p.colorName(lookup('sata15',11)),'sin color fijo');
+ assert.equal(p.swatch(lookup('sata15',11)),p.COLORS.none);
+ assert.equal(p.WIRE_LEGEND.find(q=>q.color==='green').signal,'PS_ON#');
+});
