@@ -242,6 +242,7 @@ function createAdventureGame(api){
       const value=String(seed||'').trim();
       const next=root.PC_MISHAPS.createEngine({seed:value});
       game.riskSeed=value;mishaps=next;
+      game.esdRandom=root.PC_MISHAPS.createSeededRandom(value+'-esd');
       // El minijuego usa un RNG SEPARADO; cambiar la semilla cancela la
       // presentación abierta sin alterar incidencias ya registradas.
       ramPrecisionEngine=root.PC_RAM_PRECISION.createEngine({seed:value});
@@ -1156,7 +1157,7 @@ function createAdventureGame(api){
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
-      riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
+      osControlsOpen:false,riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
@@ -1817,8 +1818,13 @@ function createAdventureGame(api){
       if(cat==='cooler')st.cpuFan=false;
       if(cat==='storage'){st.sataData=false;st.sataPower=false;st.osInstalling=false;st.osInstallToken++;}
       delete g.screwed[cat];delete st.fixings[cat];
-      g.stock[k]=(g.stock[k]||0)+1;
-      message('Retirado: '+label(cat,id)+'. Queda disponible para volver a montar.','ok');
+      if(g.esdDamage?.[cat]){
+        delete g.esdDamage[cat];
+        message('Componente con descarga ESD descartado: '+label(cat,id)+'. Compra un repuesto nuevo.','warn');
+      }else{
+        g.stock[k]=(g.stock[k]||0)+1;
+        message('Retirado: '+label(cat,id)+'. Queda disponible para volver a montar.','ok');
+      }
       api.render();return;
     }
     message('Esa acción no es válida para el objeto seleccionado.');
@@ -2642,7 +2648,7 @@ function createAdventureGame(api){
         '<button type="button" data-lab-esd aria-pressed="'+!!game.esdConnected+'">'+
          (game.esdConnected?'⚡ ESD protegida (÷10)':'⚡ Conectar pulsera ESD')+'</button>'+
         '<button type="button" data-lab-deliver'+(game.demoMode?' disabled':'')+'>📋 Verificar entrega</button>'+
-        '<details class="lab-os-operations"><summary>💾 USB · SO · licencia</summary>'+
+        '<details class="lab-os-operations"'+(game.osControlsOpen?' open':'')+'><summary>💾 USB · SO · licencia</summary>'+
         '<div class="lab-os-controls"><select id="labUsbOs">'+
           '<option value="novadesk">NovaDesk 11 (licencia aparte)</option>'+
           '<option value="libreforge">LibreForge (libre)</option>'+
@@ -2991,6 +2997,8 @@ function createAdventureGame(api){
       if(event.target.id==='labJobSelect')start(event.target.value);
     });
     el.addEventListener('click',event=>{
+      const summary=event.target.closest('.lab-os-operations>summary');
+      if(summary&&game){game.osControlsOpen=!summary.parentElement.open;return;}
       const btn=event.target.closest('button');
       if(!btn||!game)return;
       if(btn.hasAttribute('data-lab-store')){openStore();return;}
