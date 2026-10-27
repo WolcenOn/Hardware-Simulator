@@ -34,7 +34,21 @@ vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return ad
  ctx,{filename:'index.html'});
 const l=ctx.lab,g=l.g;
 assert(g.active);
-l.autoBuild();assert(!g.active&&l.s.installed.motherboard);
+l.autoBuild();
+assert(g.active,'El montaje recomendado mantiene abierto el taller 3D');
+assert(g.game.demoMode);
+assert.equal(g.game.caseId,'demo');
+assert.deepEqual(Array.from(g.game.demoFailures),[],
+  'Todas las acciones reales del montaje recomendado deben completarse');
+for(const part of ['case','motherboard','cpu','ram','cooler','storage','gpu','psu'])
+ assert.equal(l.s.installed[part],true,'Demostración: '+part);
+for(const key of ['motherboard','cooler','storage','gpu','psu'])
+ assert.equal(l.s.fixings[key],true,'Fijación: '+key);
+for(const flag of ['ramSeated','atx24','eps','frontPanel','cpuFan',
+ 'sataData','sataPower','gpuPower','keyboardConnected','mouseConnected','monitorCable'])
+ assert.equal(l.s[flag],true,'Cableado: '+flag);
+assert(get('adventurePanel').innerHTML.includes('Montaje de demostración'));
+assert(!get('adventurePanel').innerHTML.includes('data-deliver'));
 l.power();assert(l.s.power);l.bios();assert(l.s.bios);
 g.start('office');
 const caseRenders=[];
@@ -601,7 +615,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-18-0-compact-lab'));
+assert(html.includes('adventureMode.js?v=8-19-0-demo-workshop'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -751,7 +765,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-18-0-compact-lab'));
+assert(html.includes('adventureMode.js?v=8-19-0-demo-workshop'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -989,7 +1003,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.18.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.19.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1277,7 +1291,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(compact.includes('data-open-store'));
-assert(compact.includes('Modo aventura · Motor 8.18.0'));
+assert(compact.includes('Modo aventura · Motor 8.19.0'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));
@@ -1293,3 +1307,24 @@ assert(!g.stagedItems().some(x=>x.key==='motherboard:b650'));
 assert.equal(g.canReturn('motherboard:b650'),false);
 assert.equal(g.returnItem('motherboard:b650'),false);
 console.log('8.18: sidebar 3D compacta y devolución con presupuesto sincronizado');
+
+// 8.19: demo guiada queda en la UI 3D, mantiene escenas, sin entrega/recompensa.
+g.start('office');
+buy('case','tower');
+const demoBefore=g.game.spent;
+g.demoBuild();
+assert.equal(g.game.pendingDemo,true);
+g.cancelDemo();
+assert.equal(g.game.spent,demoBefore);
+assert.equal(g.game.caseId,'office');
+g.demoBuild();
+assert.equal(g.game.pendingDemo,true);
+assert.equal(g.runTechnicalDemo(),true);
+assert.equal(g.active,true);
+assert.equal(g.game.demoMode,true);
+assert(get('adventurePanel').innerHTML.includes('Sin entrega')||get('adventurePanel').innerHTML.includes('sin entrega'));
+const oldBudget=g.game.spent;
+assert.equal(g.checkDelivery(),false);
+assert.equal(g.game.spent,oldBudget);
+assert.equal(g.game.report,null);
+console.log('8.19: montaje recomendado completo sin abandonar el taller 3D');

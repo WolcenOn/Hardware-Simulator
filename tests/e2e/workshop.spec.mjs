@@ -12,6 +12,13 @@ async function openSection(page, name) {
   await expect(details).toHaveAttribute('open', '');
 }
 
+async function loadTechnicalFixture(page){
+  // Casos antiguos que prueban controles del modo técnico, independientes
+  // de la nueva demo del taller. Su botón sigue funcionando fuera de aventura.
+  await page.evaluate(()=>adventureGame.exit());
+  await page.locator('#autoBuild').click();
+}
+
 async function openStore(page,category='case'){
   await page.locator('#storeBtn').evaluate(el=>el.click());
   const store=page.locator('#adventureStorePage');
@@ -52,15 +59,27 @@ test('la tienda permite comprar una caja, colocarla y continuar con la chapa I/O
   await expect(page.locator('#adventurePanel')).toContainText('Chapa I/O colocada');
 });
 
-test('la demo recomendada se ejecuta sin diálogo bloqueante y permite entrar en BIOS', async ({ page }) => {
+test('el montaje recomendado se construye dentro del taller 3D y permite entrar en BIOS', async ({ page }) => {
   await openGame(page);
   await page.locator('#autoBuild').click();
-  await expect(page.locator('#legacyPanel')).toBeVisible();
-  await expect(page.locator('#workshopFeedback')).toContainText('Demostración');
+  await expect(page.locator('#adventurePanel')).toBeVisible();
+  await expect(page.locator('#legacyPanel')).toBeHidden();
+  await expect(page.locator('#adventurePanel')).toContainText('Montaje de demostración');
+  expect(await page.evaluate(()=>adventureGame.game.demoFailures)).toEqual([]);
+  const status=await page.evaluate(()=>({
+    installed:state.installed,fixings:state.fixings,power:state.power,
+    demo:adventureGame.game.demoMode
+  }));
+  expect(status.demo).toBe(true);
+  for(const k of ['case','motherboard','cpu','ram','cooler','storage','gpu','psu'])
+    expect(status.installed[k],k).toBe(true);
+  for(const k of ['motherboard','cooler','gpu','psu','storage'])
+    expect(status.fixings[k],k).toBe(true);
   await page.locator('#powerBtn').click();
   await expect(page.locator('#screen')).toContainText('POWER: ON');
   await page.locator('#biosBtn').click();
   await expect(page.locator('#screen')).toContainText('UEFI SETUP UTILITY');
+  await expect(page.locator('#adventurePanel [data-deliver]')).toHaveCount(0);
 });
 
 test('la demo exige confirmación dentro de la página si ya hubo compras', async ({ page }) => {
@@ -74,7 +93,11 @@ test('la demo exige confirmación dentro de la página si ya hubo compras', asyn
   await expect(page.locator('[data-select-item="case:tower"]')).toBeVisible();
   await page.locator('#autoBuild').click();
   await page.locator('[data-confirm-demo]').click();
-  await expect(page.locator('#legacyPanel')).toBeVisible();
+  await expect(page.locator('#legacyPanel')).toBeHidden();
+  await expect(page.locator('#adventurePanel')).toBeVisible();
+  await expect(page.locator('#adventurePanel')).toContainText('Montaje de demostración');
+  expect(await page.evaluate(()=>adventureGame.game.demoFailures)).toEqual([]);
+  expect(await page.evaluate(()=>adventureGame.game.demoMode)).toBe(true);
 });
 
 test('fuente primero bloquea placa, pero apartar mazos permite montarla', async ({ page }) => {
@@ -160,7 +183,7 @@ test('las cámaras enfocan por separado montaje, componentes, periféricos y vis
 test('la PCB se asienta sobre separadores de 6,5 mm', async ({ page }) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   const mount=await page.evaluate(() => window.PC3D.getMountAlignment());
   expect(mount.board).toBe('b650');
   expect(mount.gapMm).toBeLessThan(.6);
@@ -172,7 +195,7 @@ test('el ventilador trasero, los USB y el botón POWER están integrados en la t
   test.setTimeout(160_000); // pulsador físico y cámara WebGL
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#viewIso').click();
   const before=await page.evaluate(() => window.PC3D.getFrontIOState());
   expect(before.mounted).toBe(true);
@@ -229,7 +252,7 @@ test('los conectores USB frontales se conectan por separado y muestran sus cable
 test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de la PCB', async ({page}) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   // AutoBuild ya conecta teclado y ratón; esperar sincronización WebGL.
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getRearUsbAlignment().every(p=>p.visible)),
     {timeout:15000}).toBe(true);
@@ -250,7 +273,7 @@ test('las clavijas USB del teclado y ratón se alinean con las tomas traseras de
 test('ATX, EPS, PCIe, SATA y USB frontal tienen clavijas con geometría propia', async ({page}) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   const models=await page.evaluate(() => window.PC3D.getConnectorModels());
   for(const id of ['atx24','eps','gpu','sataData','sataPower',
     'frontPanel','frontUsb3','frontUsbC','fan','video']){
@@ -262,7 +285,7 @@ test('ATX, EPS, PCIe, SATA y USB frontal tienen clavijas con geometría propia',
 test('USB real: clavijas alineadas con objetos de la PCB en varios formatos', async ({page}) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#keyboardToggle').click();
   await page.locator('#mouseToggle').click();
   for(const id of ['b650','a520','z790','b650m']){
@@ -281,7 +304,7 @@ test('USB real: clavijas alineadas con objetos de la PCB en varios formatos', as
 test('HDMI de la placa y DisplayPort de GPU comparten posición con sus bocas físicas', async ({page}) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   const outputs=await page.evaluate(() => ({
     counts:window.PC3D.getRearPortCounts(),
     video:window.PC3D.getRearVideoAlignment()
@@ -300,7 +323,7 @@ test('HDMI de la placa y DisplayPort de GPU comparten posición con sus bocas f�
 test('la manguera termina al final del sobremolde, nunca en los contactos', async ({page}) => {
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.waitForTimeout(1000);
   const routes=await page.evaluate(() => window.PC3D.getCableExitAlignment());
   expect(routes.length).toBeGreaterThan(10);
@@ -333,7 +356,7 @@ test('la manguera termina al final del sobremolde, nunca en los contactos', asyn
 test('USB teclado/ratón y HDMI/DP terminan detrás de la parte rígida',async ({page})=>{
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#keyboardToggle').click();
   await page.locator('#mouseToggle').click();
   const rows=await page.evaluate(() => window.PC3D.getRearUsbAlignment());
@@ -348,7 +371,7 @@ test('USB teclado/ratón y HDMI/DP terminan detrás de la parte rígida',async (
 test('la orientación interna permanece perpendicular al cambiar de motherboard',async ({page})=>{
   await openGame(page);
   await page.waitForFunction(() => window.PC3D?.ready === true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   for(const id of ['b650','a520','z790']){
     await page.locator('select[data-cat="motherboard"]').selectOption(id);
     await page.waitForTimeout(500);
@@ -372,7 +395,7 @@ test('la orientación interna permanece perpendicular al cambiar de motherboard'
 test('las conexiones internas llegan a las tomas 3D y no a zonas vacías',async ({page})=>{
   await openGame(page);
   await page.waitForFunction(()=>window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   const sockets=await page.evaluate(()=>window.PC3D.getCableSocketAlignment());
   expect(sockets.length).toBeGreaterThan(18);
   for(const socket of sockets){
@@ -393,7 +416,7 @@ test('las conexiones internas llegan a las tomas 3D y no a zonas vacías',async 
 test('las placas ATX y mATX mantienen rutas y conexiones de ventiladores',async ({page})=>{
   await openGame(page);
   await page.waitForFunction(()=>window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   for(const id of ['b650','a520','z790']){
     await page.locator('select[data-cat="motherboard"]').selectOption(id);
     const result=await page.evaluate(()=>({
@@ -413,7 +436,7 @@ test('las placas ATX y mATX mantienen rutas y conexiones de ventiladores',async 
 test('HDD de 3,5 pulgadas encajado en la jaula del chasis, no en el lateral',async ({page})=>{
   await openGame(page);
   await page.waitForFunction(()=>window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   for(const disk of ['hdd','hdd4']){
     await page.locator('select[data-cat="storage"]').selectOption(disk);
     const bay=await page.evaluate(()=>window.PC3D.getHddBayAlignment());
@@ -442,7 +465,7 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
   test.setTimeout(120_000); // dos montajes 3D WebGL y cambio de cámara en CI
   await openGame(page);
   await page.waitForFunction(()=>window.PC3D?.ready===true);
-  await page.locator('#autoBuild').click(); // SSD SATA por defecto
+  await loadTechnicalFixture(page); // SSD SATA por defecto
   await page.locator('#viewDriveBays').click();
   await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','drives');
   let bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
@@ -456,7 +479,7 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
   expect(bay.rearSSDVisible).toBe(false);
   expect(bay.inspectionVisible).toBe(true);
   await page.locator('select[data-cat="storage"]').selectOption('hdd');
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
   expect(bay.selected).toBe('hdd');
   expect(bay.slot).toBe('upper');
@@ -477,7 +500,7 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
 
 test('sin SO ni USB válido el monitor muestra dispositivo no arrancable',async ({page})=>{
   await openGame(page);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#powerBtn').click();
   await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE',{timeout:15000});
   await expect(page.locator('#bootStatus')).toHaveText('No arranca');
@@ -489,7 +512,7 @@ test('sin SO ni USB válido el monitor muestra dispositivo no arrancable',async 
 test('NovaDesk comprueba Secure Boot y se instala antes de mostrar escritorio ficticio',async ({page})=>{
   test.setTimeout(185_000);
   await openGame(page);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#osUsbImage').selectOption('novadesk');
   await page.locator('#osUsbToggle').click();
   await page.locator('#powerBtn').click();
@@ -522,7 +545,7 @@ test('NovaDesk comprueba Secure Boot y se instala antes de mostrar escritorio fi
 test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco instalado',async ({page})=>{
   test.setTimeout(185_000);
   await openGame(page);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#osUsbImage').selectOption('libreforge');
   await page.locator('#osUsbToggle').click();
   await page.locator('#powerBtn').click();
@@ -543,7 +566,7 @@ test('LibreForge permite Secure Boot apagado, pero solo arranca en el disco inst
   // incluso si el HDD nuevo está vacío: es el comportamiento correcto.
   await page.locator('#osUsbToggle').click();
   await page.locator('select[data-cat="storage"]').selectOption('hdd');
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#powerBtn').click();
   await expect(page.locator('#screen')).toContainText('NO_BOOTABLE_DEVICE',{timeout:15000});
 });
@@ -623,7 +646,7 @@ test('profesor importa caso JSON con presupuesto y exporta montaje',async ({page
 test('fallo térmico provoca apagado protector y diagnóstico al volver a encender',async ({page})=>{
   test.setTimeout(85000);
   await openGame(page);
-  await page.locator('#autoBuild').click();
+  await loadTechnicalFixture(page);
   await page.locator('#faultSelect').selectOption('paste');
   await page.locator('#injectFault').click();
   await page.locator('#powerBtn').click();
@@ -1487,4 +1510,33 @@ test('v8.18: una placa montada no se puede devolver desde el 3D',async({page})=>
  const old=await page.evaluate(()=>adventureGame.game.spent);
  expect(await page.evaluate(()=>adventureGame.canReturn('motherboard:b650'))).toBe(false);
  expect(await page.evaluate(()=>adventureGame.game.spent)).toBe(old);
+});
+
+
+test('v8.19: la construcción recomendada no deja inventario antiguo ni piezas invisibles',async({page})=>{
+ await openGame(page);
+ await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+ await page.locator('#autoBuild').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel')).toBeVisible();
+ await expect(page.locator('#labWorkspace')).toBeVisible();
+ await expect(page.locator('#legacyPanel')).toBeHidden();
+ await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','assembly');
+ const result=await page.evaluate(()=>({
+  failures:adventureGame.game.demoFailures,
+  installed:state.installed,
+  stock:adventureGame.game.stock,
+  used:adventureGame.game.used,
+  in3d:!!window.PC3D?.ready,
+  demo:adventureGame.game.demoMode
+ }));
+ expect(result.failures).toEqual([]);
+ expect(result.demo).toBe(true);
+ expect(result.in3d).toBe(true);
+ expect(result.installed.motherboard).toBe(true);
+ expect(result.used['motherboard:b650']).toBe(1);
+ expect(result.stock['motherboard:b650']).toBe(0);
+ await page.evaluate(()=>partInspector.open('motherboard:b650','tower'));
+ await expect(page.locator('#partContextMenu')).toBeVisible();
+ await expect(page.locator('#partContextMenu')).toContainText('Placa');
+ await expect(page.locator('#partContextMenu [data-part-verb="return"]')).toBeDisabled();
 });
