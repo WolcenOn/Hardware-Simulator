@@ -43,21 +43,31 @@ export function createPinoutBoard(THREE,scene,definitions){
     const rows=def.rows,cols=def.columns;
     box(root,Math.max(1.1,cols*config.step+.23),rows*.43+.29,.2,
       config.x,config.y,-.03,inactive);
-    for(const p of def.pins){
+    for(const p of [...def.pins].sort((a,b)=>a.number-b.number)){
       const idx=p.number-1,row=Math.floor(idx/cols),col=idx%cols;
       const holder=new THREE.Group();
       holder.position.set(config.x+(col-(cols-1)/2)*config.step,
         config.y+(rows-1)/2*.43-row*.43,.23);
       holder.userData.pinoutConnector=id;holder.userData.pinoutPin=p.number;
-      holder.name=id+' · pin '+p.number+' · '+p.signal;
+      holder.name=id+' · pin '+p.number+' · '+p.signal+' · cable '+
+        (window.PC_PINOUTS?.colorName?.(p)||'sin referencia');
       root.add(holder);
-      const material=new THREE.MeshStandardMaterial({color:p.rail==='gnd'?0x667a85:
-        p.rail==='12v'?0xffc857:p.rail==='5v'?0xf26c65:
-        p.rail==='3v3'?0xf7a956:p.rail==='5vsb'?0xb392eb:
-        p.rail==='nc'?0x768d94:0x6de1bf,metalness:.55,roughness:.42,
-        emissive:0x000000,emissiveIntensity:.32});
+      // Mismo color de línea que el esquema 2D. El color real del cable no
+      // está garantizado por el estándar ni se aplica al lado modular PSU.
+      const hex=window.PC_PINOUTS?.COLORS?.[p.color]||'#80949e';
+      const material=new THREE.MeshStandardMaterial({color:parseInt(hex.slice(1),16),
+        metalness:.55,roughness:.42,emissive:0x000000,emissiveIntensity:.32});
+      const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.38,16),material);
+      sleeve.rotation.x=Math.PI/2;sleeve.position.z=-.21;holder.add(sleeve);
       const terminal=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.16,18),material);
       terminal.rotation.x=Math.PI/2;terminal.position.z=.05;holder.add(terminal);
+      if(p.wireColors?.length>1){
+        // P13 ATX: retorno marrón sense junto al +3,3 V naranja.
+        const extra=window.PC_PINOUTS?.COLORS?.[p.wireColors[1]]||'#a57b58';
+        const stripe=new THREE.Mesh(new THREE.BoxGeometry(.10,.30,.09),
+          new THREE.MeshStandardMaterial({color:parseInt(extra.slice(1),16)}));
+        stripe.position.set(.07,-.07,.14);holder.add(stripe);
+      }
       // Etiqueta numérica visible sobre el metal, seleccionable con click/raycast.
       const t=print(String(p.number),.32,.22);
       t.position.set(0,0,.15);holder.add(t);
