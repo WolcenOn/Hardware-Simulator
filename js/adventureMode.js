@@ -29,7 +29,7 @@ const OFFERS={
   psu:[['psu450',49],['psu550',69],['psu650',89],['psu750',115],['psu850',139],['psu1000',199]],
   case:[['tower',89],['towerWhite',94],['towerGraphite',94]],
   cooler:[['air',39],['stock',15],['twinTower',69],['aio240',109],['aio360',155]],
-  item:[['screwdriver',12],['screws',8],['paste',9],['ioShield',8],['sataCable',7],
+  item:[['screwdriver',12],['screws',8],['paste',9],['licenseNova',35],['ioShield',8],['sataCable',7],
     ['hdmi',10],['keyboard',22],['mouse',14],['esdStrap',16],['osusb',12],
     ['usbNova',39],['usbLibre',24],['usbTerminal',19],['fan',15],['rgbStrip',18]]
 };
@@ -47,6 +47,7 @@ const LABELS={
   'item:esdStrap':'Pulsera ESD con cable a masa',
   'item:screws':'Juego de tornillos (10)',
   'item:paste':'Pasta térmica (1 aplicación)',
+  'item:licenseNova':'Licencia ficticia NovaDesk 11 (1 equipo)',
   'item:ioShield':'Chapa I/O trasera ATX',
   'item:sataCable':'Cable SATA de datos',
   'item:hdmi':'Cable HDMI/DisplayPort',
@@ -60,9 +61,9 @@ const LABELS={
 };
 const CATEGORIES={case:'Caja',motherboard:'Placa',cpu:'CPU',ram:'RAM',
   cooler:'Disipador',storage:'Disco',gpu:'GPU',psu:'Fuente',
-  item:'Herramientas y accesorios'};
+  item:'Accesorios, consumibles y licencias',workshop:'Herramientas del taller'};
 const SHOP_ICONS={case:'🖥️',motherboard:'🧩',cpu:'⚙️',ram:'📏',
-  cooler:'❄️',storage:'💾',gpu:'🎮',psu:'🔌',item:'🧰'};
+  cooler:'❄️',storage:'💾',gpu:'🎮',psu:'🔌',item:'🧰',workshop:'🛠️'};
 // Datos técnicos didácticos ya usados por las fichas del visor 3D.
 // La tienda muestra estos datos, sin calcular la compatibilidad.
 const STORE_SPECIAL={
@@ -75,6 +76,7 @@ const STORE_SPECIAL={
   'cooler:aio360':{sizeMm:'360 × 120 mm',desc:'Radiador triple y bomba; requiere CPU_FAN.'},
   'cooler:air':{desc:'Requiere pasta térmica y conexión CPU_FAN.'},
   'item:paste':{desc:'Aplicar sobre la CPU antes de fijar el disipador.'},
+  'item:licenseNova':{desc:'El SO se puede instalar sin activar. Una licencia ficticia activa NovaDesk 11 para este equipo; LibreForge y Terminalis no la necesitan.'},
   'item:rgbStrip':{desc:'Instalar en chasis abierto, apagado.'},
   'item:screws':{desc:'Se consumen al fijar componentes instalados.'},
   'item:screwdriver':{desc:'Herramienta reutilizable de montaje.'},
@@ -120,6 +122,7 @@ function createAdventureGame(api){
   let game=null,importedSerial=0,clock=null,operationEngine=null,mishaps=null;
   const workshop=root.PC_WORKSHOP_TOOLS.createBank(root.localStorage);
   const equipment=root.PC_WORKSHOP_TOOLS.ITEMS;
+  OFFERS.workshop=Object.entries(equipment).filter(([id])=>id!=='screwdriver').map(([id,item])=>[id,item.price]);
   function buyTool(id){
     if(!game)return false;
     const r=workshop.buy(id);
@@ -129,6 +132,8 @@ function createAdventureGame(api){
   }
   function useTool(id){
     if(!game||!equipment[id]||!workshop.owns(id))return false;
+    if(id==='esdStrap')return toggleEsd();
+    if(id==='usbWriter'){message('USB permanente del taller: prepara el SO desde la consola de instalación.','ok');return true;}
     if(id==='multimeter')return openMeter();
     if(id==='screwdriver'){message('Destornillador ya disponible, sin recompra.','ok');return true;}
     if(api.state().power){
@@ -256,7 +261,7 @@ function createAdventureGame(api){
       message('Pulsera ESD desconectada de la masa del chasis.','ok');return true;
     }
     const st=api.state();
-    if(!owned('item:esdStrap')||!st.installed.case||st.power){
+    if(!(workshop.owns('esdStrap')||owned('item:esdStrap'))||!st.installed.case||st.power){
       message('Compra pulsera ESD, monta el chasis y apaga el PC para conectarla a masa.');
       return false;
     }
@@ -286,7 +291,7 @@ function createAdventureGame(api){
     // consume números aleatorios, ni puede generar una incidencia.
     const st=api.state(),powered=!!st.power;
     const esd={worn:!!game.esdConnected,
-      grounded:!!game.esdConnected&&owned('item:esdStrap')&&!!st.installed.case&&!powered};
+      grounded:!!game.esdConnected&&(workshop.owns('esdStrap')||owned('item:esdStrap'))&&!!st.installed.case&&!powered};
     // Reparar una avería conocida no debe provocar un ciclo interminable:
     // se comprueba la reparación, pero no se sortea una nueva avería SATA.
     const repairingSata=kind==='connect'&&target==='sataData'&&
@@ -353,6 +358,21 @@ function createAdventureGame(api){
       message(entry.code+' · '+entry.description+
         ' (+'+entry.delayMinutes+' min simulados).');
     }
+    if(record.status==='success'&&['fit','remove'].includes(kind)&&!game.demoMode){
+      const rate=root.PC_MISHAPS.componentEsdRisk?.(target,esd.grounded)||0;
+      if(rate>0){
+        const roll=game.esdRandom(),part=String(target).split(':')[0];
+        game.esdLastRisk={part,rate,roll,protected:esd.grounded};
+        if(roll<rate){
+          game.esdDamage[part]=true;
+          game.incidents.push({category:'esd',target,probability:rate,roll,
+            code:'ESD_'+part.toUpperCase(),outcome:'damage',resolved:false,
+            description:'Descarga electrostática educativa en '+part+'.'});
+          message('⚡ Descarga ESD simulada sobre '+part+
+            '. Riesgo '+Math.round(rate*100)+' %; revisa y sustituye la pieza afectada.','warn');
+        }
+      }
+    }
     paint();return record;
   }
   function revealLatentSataOnPower(){
@@ -393,6 +413,7 @@ function createAdventureGame(api){
       helpMode:game.meterHelpMode,face:game.meterFace,
       lastReading:game.meterReading?{...game.meterReading}:null},
     purchases:game.purchases.map(x=>({...x})),fixings:{...game.screwed},
+    esdDamage:{...game.esdDamage},osActivated:!!api.state().osActivated,
     operationHistory:operationEngine?.getHistory()||[],
     simulatedTime:clock?.getSummary()||null,
     incidentSimulation:{enabled:game.riskEnabled,seed:game.riskSeed,
@@ -446,11 +467,14 @@ function createAdventureGame(api){
       message('La superficie de la CPU ya está limpia. Compra otra dosis para aplicar pasta.','ok');
       return false;
     }
-    // No se recuperan dosis usadas. Limpieza didáctica básica del taller.
+    if(!workshop.useMany(['alcohol','wipes'])){
+      message('Faltan consumibles: compra alcohol isopropílico y toallitas sin pelusa en Herramientas del taller. Cada limpieza gasta un uso de cada uno.','warn');
+      return false;
+    }
     pasteUi?.close();
     pasteSpread=null;game.thermalPaste=null;game.pasteReview=null;
     game.pasteNeedsCleaning=false;st.paste=0;
-    game.thermalHistory.push({type:'clean',minutes:2,afterRemoval:true});
+    game.thermalHistory.push({type:'clean',minutes:2,afterRemoval:true,supplies:['alcohol','wipes']});
     clock?.add('technical',2,'paste-clean');
     message('Pasta térmica retirada. Superficie limpia: aplica una dosis nueva antes de montar otra vez el disipador.','ok');
     api.render();return true;
@@ -1085,6 +1109,7 @@ function createAdventureGame(api){
   const field=id=>api.document.getElementById(id);
   const query=(selector)=>panel.querySelector(selector);
   const label=(cat,id)=>{
+    if(cat==='workshop')return equipment[id]?.label||id;
     const k=key(cat,id);
     return LABELS[k]||api.catalog[{
       motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',
@@ -1114,7 +1139,7 @@ function createAdventureGame(api){
     api.reset();
     const state=api.state();
     state.adventureMode=true;state.fixings={};state.osInstalled=false;state.installedOs=null;
-    state.usbImage='none';state.usbConnected=false;state.usbMediaKey=null;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
+    state.usbImage='none';state.usbConnected=false;state.usbMediaKey=null;state.osActivated=false;state.paste=0;state.videoPort=which==='office'?'motherboard':'gpu';
     state.selected.gpu=which==='office'?'none':'rx7600';
     clock=root.PC_TIME.createClock();
     operationEngine=root.PC_OPERATIONS.createEngine({clock});
@@ -1131,7 +1156,7 @@ function createAdventureGame(api){
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
-      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,incidents:[],
+      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
@@ -1312,6 +1337,7 @@ function createAdventureGame(api){
     return available;
   }
   function purchase(cat,id){
+    if(cat==='workshop')return buyTool(id);
     const cost=price(cat,id);
     if(cost==null||!game)return;
     const k=key(cat,id);
@@ -2715,7 +2741,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.19.1</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.0</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+
