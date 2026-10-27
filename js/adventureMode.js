@@ -1158,7 +1158,7 @@ function createAdventureGame(api){
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
-      osControlsOpen:false,riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
+      osControlsOpen:false,briefOpen:false,riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
@@ -2098,8 +2098,9 @@ function createAdventureGame(api){
   function storeProductCards(){
     const query=(game.storeQuery||'').trim().toLocaleLowerCase('es');
     const entries=(OFFERS[game.shopCategory]||[]).filter(([id])=>
-      !query||label(game.shopCategory,id).toLocaleLowerCase('es').includes(query)||
-      id.toLocaleLowerCase('es').includes(query));
+      !(game.shopCategory==='item'&&['screwdriver','esdStrap'].includes(id))&&
+      (!query||label(game.shopCategory,id).toLocaleLowerCase('es').includes(query)||
+      id.toLocaleLowerCase('es').includes(query)));
     if(!entries.length)return '<p class="store-empty">No hay productos con ese nombre en esta categoría.</p>';
     return entries.map(([id,cost])=>{
       const cat=game.shopCategory,k=key(cat,id),
@@ -2638,6 +2639,11 @@ function createAdventureGame(api){
         '<span>'+safe(job.client)+' · '+safe(progressText())+'</span></div>'+
         '<div class="lab-job-money">Presupuesto libre: <b>'+format(game.budget-game.spent)+'</b>'+
         '<small>Fondo permanente del taller: '+format(tools.cash)+'</small></div></div>'+
+        '<details class="lab-brief"'+(game.briefOpen?' open':'')+'><summary>Objetivos del encargo</summary>'+
+        '<p>'+safe(job.story)+'</p><ul>'+job.goals.map(x=>'<li>'+safe(x)+'</li>').join('')+'</ul></details>'+
+        (game.pendingDemo?'<div class="lab-confirm-demo" role="alert">¿Sustituir las compras por el montaje recomendado? '+
+          '<button type="button" data-lab-confirm-demo>Confirmar</button> '+
+          '<button type="button" data-lab-cancel-demo>Cancelar</button></div>':'')+
         '<div class="lab-job-controls">'+
         '<label>Cliente <select id="labJobSelect">'+
         (game.demoMode?'<option value="demo" selected>Demostración 3D</option>':'')+
@@ -2998,10 +3004,17 @@ function createAdventureGame(api){
       if(event.target.id==='labJobSelect')start(event.target.value);
     });
     el.addEventListener('click',event=>{
-      const summary=event.target.closest('.lab-os-operations>summary');
-      if(summary&&game){game.osControlsOpen=!summary.parentElement.open;return;}
+      const summary=event.target.closest('.lab-os-operations>summary,.lab-brief>summary');
+      if(summary&&game){
+        if(summary.parentElement.classList.contains('lab-os-operations'))
+          game.osControlsOpen=!summary.parentElement.open;
+        else game.briefOpen=!summary.parentElement.open;
+        return;
+      }
       const btn=event.target.closest('button');
       if(!btn||!game)return;
+      if(btn.hasAttribute('data-lab-confirm-demo')){runTechnicalDemo();return;}
+      if(btn.hasAttribute('data-lab-cancel-demo')){cancelDemo();return;}
       if(btn.hasAttribute('data-lab-store')){openStore();return;}
       if(btn.hasAttribute('data-lab-inventory')){api.stagingView?.();return;}
       if(btn.hasAttribute('data-lab-esd')){toggleEsd();return;}
