@@ -1070,7 +1070,7 @@ function createAdventureGame(api){
     screwEngine=root.PC_SCREW_PRECISION.createEngine({seed:which+'-aula-1'});
     cpuEngine=root.PC_CPU_PRECISION.createEngine({seed:which+'-aula-1'});
     pasteUi?.close();pasteSpread=null;screwSessions.clear();
-    closeCpuPrecision();closeScrewPractice();
+    closeCpuPrecision();closeScrewPractice();closeMeter();
     ramPrecisionSession=null;ramPrecisionBypass=false;
     stopRamAnimation();ramCaptures={left:null,right:null};
     game={
@@ -1118,7 +1118,7 @@ function createAdventureGame(api){
   }
   function exit(){
     pasteUi?.close();pasteSpread=null;screwSessions.clear();
-    closeCpuPrecision();closeScrewPractice();
+    closeCpuPrecision();closeScrewPractice();closeMeter();
     stopRamAnimation();ramPrecisionSession=null;ramCaptures={left:null,right:null};
     api.stage?.([], '');api.tools?.([]);
     api.document.body.classList.remove('adventure-on');
@@ -1199,13 +1199,13 @@ function createAdventureGame(api){
   function purchase(cat,id){
     const cost=price(cat,id);
     if(cost==null||!game)return;
+    const k=key(cat,id);
+    if(k==='item:screwdriver'&&workshop.owns('screwdriver')){
+      message('El destornillador ya pertenece al taller, sin coste ni duplicación.','ok');return;
+    }
     if(game.spent+cost>game.budget){
       message('Saldo insuficiente: necesitas '+format(cost)+', te quedan '+format(game.budget-game.spent)+'.');
       return;
-    }
-    const k=key(cat,id);
-    if(k==='item:screwdriver'&&workshop.owns('screwdriver')){
-      message('Comprado: destornillador incluido permanentemente, coste 0 €.','ok');return;
     }
     if(cat==='gpu'&&id==='none')return;
     game.stock[k]=(game.stock[k]||0)+(k==='item:screws'?10:1);
