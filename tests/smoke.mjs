@@ -989,7 +989,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.17.1'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.17.2'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
