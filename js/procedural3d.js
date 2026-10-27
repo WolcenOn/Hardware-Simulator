@@ -13,7 +13,7 @@ import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-1-usb-market';
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
-import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
+import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
 import {createToolRack} from './toolRack3d.js?v=8-14-0-tools';
 import {createPinoutBoard} from './pinoutBoard3d.js?v=8-17-0-housing-keys';
 
@@ -630,6 +630,7 @@ window.PC3D={
     staging.update(items,selected);
     window.dispatchEvent(new CustomEvent('pc3d-stage-page',{detail:staging.getPageInfo()}));
   },
+  getStagingState:()=>staging.getSnapshot(),
   turnStagingPage:delta=>{
     staging.turnPage(delta);
     const detail=staging.getPageInfo();
