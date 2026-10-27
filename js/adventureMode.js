@@ -1156,7 +1156,7 @@ function createAdventureGame(api){
       selected:'',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
-      riskEnabled:false,riskSeed:which+'-aula-1',esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
+      riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
@@ -1377,6 +1377,7 @@ function createAdventureGame(api){
     if(!entry){message('Selecciona un sistema válido para preparar el USB.');return false;}
     const [id,p]=entry;
     if(!has('item:osusb')&&workshop.owns('usbWriter')){
+      workshop.setUsbOs(osId);
       game.workshopUsbOs=osId;
       message('Instalador '+p.label+' grabado en el USB reutilizable del taller.','ok');
       return true;
@@ -1394,6 +1395,7 @@ function createAdventureGame(api){
   }
   function connectInstallerUsb(item=game?.selected){
     if(!game)return false;
+    game.workshopUsbOs=workshop.snapshot().usbOs||game.workshopUsbOs;
     const profile=USB_PREPARED[String(item).split(':')[1]],st=api.state();
     const reusable=workshop.owns('usbWriter')&&!!game.workshopUsbOs&&
       (item==='workshop:usbWriter'||!has(item));
@@ -2616,9 +2618,46 @@ function createAdventureGame(api){
       '<div class="adv-accordion-body">'+content+'</div></details>';
   }
   function paint(){
-    if(!game){if(panel)panel.innerHTML='';paintRamPopup();paintScrewPopup();paintCpuPopup();return;}
+    const missionBar=api.document.getElementById('labMission');
+    if(!game){if(missionBar){missionBar.innerHTML='';missionBar.hidden=true;}if(panel)panel.innerHTML='';paintRamPopup();paintScrewPopup();paintCpuPopup();return;}
     const top=panel.scrollTop;
     const job=CASES[game.caseId];
+    if(missionBar){
+      const st=api.state(),tools=workshop.snapshot();
+      missionBar.hidden=false;
+      missionBar.innerHTML=
+        '<div class="lab-job-head"><div><small>ENCARGO ACTUAL</small>'+
+        '<strong>'+safe(job.name)+'</strong>'+
+        '<span>'+safe(job.client)+' · '+safe(progressText())+'</span></div>'+
+        '<div class="lab-job-money">Presupuesto libre: <b>'+format(game.budget-game.spent)+'</b>'+
+        '<small>Fondo permanente del taller: '+format(tools.cash)+'</small></div></div>'+
+        '<div class="lab-job-controls">'+
+        '<label>Cliente <select id="labJobSelect">'+
+        (game.demoMode?'<option value="demo" selected>Demostración 3D</option>':'')+
+        Object.entries(CASES).filter(([,c])=>!c.demo).map(([id,c])=>
+          '<option value="'+id+'"'+(id===game.caseId?' selected':'')+'>'+safe(c.name)+'</option>').join('')+
+        '</select></label>'+
+        '<button type="button" data-lab-store>🛒 Tienda</button>'+
+        '<button type="button" data-lab-inventory>📦 Mesa de piezas</button>'+
+        '<button type="button" data-lab-esd aria-pressed="'+!!game.esdConnected+'">'+
+         (game.esdConnected?'⚡ ESD protegida (÷10)':'⚡ Conectar pulsera ESD')+'</button>'+
+        '<button type="button" data-lab-deliver'+(game.demoMode?' disabled':'')+'>📋 Verificar entrega</button>'+
+        '<details class="lab-os-operations"><summary>💾 USB · SO · licencia</summary>'+
+        '<div class="lab-os-controls"><select id="labUsbOs">'+
+          '<option value="novadesk">NovaDesk 11 (licencia aparte)</option>'+
+          '<option value="libreforge">LibreForge (libre)</option>'+
+          '<option value="terminalis">Terminalis (libre)</option></select>'+
+        '<button type="button" data-lab-usb-prepare>Preparar USB del taller</button>'+
+        '<button type="button" data-lab-usb-connect>'+
+          (st.usbConnected?'Expulsar USB':'Conectar USB')+'</button>'+
+        '<button type="button" data-lab-license>Activar NovaDesk</button>'+
+        '<small>'+safe(st.osInstalled?('SO: '+(st.installedOs?.id||'instalado')+
+          (st.installedOs?.id==='novadesk'&&!st.osActivated?' · licencia pendiente':' · activado / libre')):
+          'No hay sistema instalado')+' · USB: '+(tools.usbOs||'sin preparar'))+'</small>'+
+        '</div></details>'+
+        '<button type="button" data-lab-legacy title="Abrir controles antiguos opcionales">Más acciones</button>'+
+        '</div>';
+    }
     const available=stagedItems();
     api.stage?.(available,game.selected);
     api.tools?.(workshop.list());
@@ -2943,6 +2982,34 @@ function createAdventureGame(api){
     game.selected=available;
     perform('fit');
   }
+  missionBarEvents();
+  function missionBarEvents(){
+    const el=api.document.getElementById('labMission');
+    if(!el||el.__labWired)return;
+    el.__labWired=true;
+    el.addEventListener('change',event=>{
+      if(event.target.id==='labJobSelect')start(event.target.value);
+    });
+    el.addEventListener('click',event=>{
+      const btn=event.target.closest('button');
+      if(!btn||!game)return;
+      if(btn.hasAttribute('data-lab-store')){openStore();return;}
+      if(btn.hasAttribute('data-lab-inventory')){api.stagingView?.();return;}
+      if(btn.hasAttribute('data-lab-esd')){toggleEsd();return;}
+      if(btn.hasAttribute('data-lab-deliver')){checkDelivery();return;}
+      if(btn.hasAttribute('data-lab-license')){activateOS();return;}
+      if(btn.hasAttribute('data-lab-usb-prepare')){prepareUsb(el.querySelector('#labUsbOs')?.value||'libreforge');return;}
+      if(btn.hasAttribute('data-lab-usb-connect')){
+        if(api.state().usbConnected)disconnectInstallerUsb();
+        else connectInstallerUsb('workshop:usbWriter');
+        return;
+      }
+      if(btn.hasAttribute('data-lab-legacy')){
+        api.document.body.classList.toggle('lab-legacy-open');
+        return;
+      }
+    });
+  }
   panel.addEventListener('click',event=>{
     const summary=event.target.closest('summary');
     if(summary&&panel.contains(summary)){
@@ -3128,7 +3195,7 @@ function createAdventureGame(api){
     selectMeterConnector,selectMeterPin,openMeterAtPin,
     getWorkshop:()=>workshop.snapshot(),
     storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,canReturn,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
-    hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id))||workshop.owns('usbWriter')&&!!game?.workshopUsbOs,
+    hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id))||workshop.owns('usbWriter')&&!!workshop.snapshot().usbOs,
     prepareUsb,connectInstallerUsb,disconnectInstallerUsb,toggleInstallerUsb,activateOS,
     hasPreparedUSB:k=>!!USB_PREPARED[String(k).split(':')[1]]&&has(k),
     importCases,getCase,getExport,operationSummary,setSpeed,
@@ -3138,6 +3205,8 @@ function createAdventureGame(api){
     toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
     togglePastePractice,finishCoolerPractice,thermalNext,continueCoolerMount,
     cleanThermalPaste,
+    getMission:()=>game?{id:game.caseId,...CASES[game.caseId],budget:game.budget,spent:game.spent,demo:!!game.demoMode,progress:progressText(),osActivated:!!api.state().osActivated}:null,
+    getToolState:()=>workshop.snapshot(),
     pasteUi:{getState:()=>pasteUi?.getState()||null,
       pump:down=>pasteUi?.pump(down),pointer:(x,y)=>pasteUi?.pointer(x,y),
       tick:ms=>pasteUi?.tick(ms),confirm:()=>pasteUi?.confirm()},
