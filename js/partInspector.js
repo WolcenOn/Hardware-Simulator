@@ -357,6 +357,13 @@ function createPartInspector(api){
         feedback={text:'No se pudo procesar la devolución.',level:'warn'};
         refresh();return;
       }
+      const notice=api.document.getElementById('partReturnNotice');
+      if(notice){
+        notice.textContent=ad.game?.lastFeedback?.text||
+          'Devolución registrada. Presupuesto actualizado.';
+        notice.hidden=false;
+        root.setTimeout?.(()=>{notice.hidden=true;},5500);
+      }
       // La mesa elimina el modelo al agotarse el stock. Cerramos su ficha
       // para no mantener un control flotante sobre una pieza inexistente.
       if(target.source==='table'&&!(ad.game?.stock?.[t.key]>0)){
