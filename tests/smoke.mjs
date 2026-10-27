@@ -601,7 +601,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-17-1-stage-fix'));
+assert(html.includes('adventureMode.js?v=8-17-2-cooler-service'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -751,7 +751,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-17-1-stage-fix'));
+assert(html.includes('adventureMode.js?v=8-17-2-cooler-service'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1216,3 +1216,53 @@ assert(get('adventureStorePage').innerHTML.includes('data-store-to-table'));
 assert(get('adventureStorePage').innerHTML.includes('En la mesa de piezas'));
 assert(stagedEvents.at(-1).items.some(x=>x.key==='motherboard:b650'));
 console.log('8.17.1: compra de placa base sincronizada con la mesa de piezas');
+
+
+// 8.17.2: retirar disipador atornillado, limpiar pasta gastada y repetir.
+g.start('office');
+buy('case','tower');fit('case:tower');
+buy('item','ioShield');fit('item:ioShield');
+buy('motherboard','b650');fit('motherboard:b650');
+buy('cpu','r7600');g.select('cpu:r7600');
+g.toggleCpuPrecision();assert.equal(g.perform('fit').status,'success');
+buy('item','paste');g.select('item:paste');g.togglePastePractice();
+assert.equal(g.perform('apply').status,'success');
+buy('cooler','air');fit('cooler:air');
+buy('item','screws');
+g.toggleScrewPractice();g.select('cooler:air');
+assert.equal(g.perform('screw').status,'success');
+assert.equal(l.s.fixings.cooler,true);
+assert(get('adventurePanel').innerHTML.includes('data-thermal-remove'),
+  'El disipador fijo ofrece retirada guiada');
+const screwsBeforeRemoval=g.game.stock['item:screws'];
+assert.equal(g.perform('screw').status,'rejected',
+  'Un segundo atornillado sin retirar no debe consumir tornillos');
+assert.equal(g.game.stock['item:screws'],screwsBeforeRemoval);
+assert.equal(g.perform('remove').status,'success');
+assert.equal(l.s.installed.cooler,false);
+assert.equal(l.s.paste,1,'Los restos permanecen hasta limpiar');
+assert.equal(g.game.pasteNeedsCleaning,true);
+assert.equal(g.game.stock['item:screws'],screwsBeforeRemoval+4);
+assert(get('adventurePanel').innerHTML.includes('data-thermal-clean'),
+  'Tras retirar el disipador debe verse Limpiar pasta térmica');
+const screwStockClean=g.game.stock['item:screws'];
+assert.equal(g.perform('fit'),null,'No se puede volver a usar la pasta anterior');
+assert.equal(l.s.installed.cooler,false);
+assert.equal(g.cleanThermalPaste(),true);
+assert.equal(l.s.paste,0);
+assert.equal(g.game.pasteNeedsCleaning,false);
+assert.equal(g.game.stock['item:screws'],screwStockClean);
+assert.equal(g.cleanThermalPaste(),false,'Limpieza repetida sin restos no cambia estado');
+assert.equal(g.game.stock['item:paste'],0,'Pasta gastada no se recupera');
+buy('item','paste');g.select('item:paste');
+assert.equal(g.perform('apply').status,'success');
+assert.equal(l.s.paste,1);
+g.select('cooler:air');
+assert.equal(g.perform('fit').status,'success');
+assert.equal(l.s.installed.cooler,true);
+g.select('cooler:air');
+assert.equal(g.perform('screw').status,'success');
+assert.equal(l.s.fixings.cooler,true);
+assert.equal(g.game.screwProgress.cooler.completed.length,4);
+assert.equal(g.game.pasteNeedsCleaning,false);
+console.log('8.17.2: repetición completa de disipador, limpieza y tornillos recuperados');

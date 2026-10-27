@@ -1378,3 +1378,41 @@ test('v8.17.1: si se compra antes de cargar WebGL, la mesa recupera el inventari
  });
  await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','staging');
 });
+
+
+test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',async({page})=>{
+ await openGame(page);
+ await buy(page,'case','tower');await fit(page,'case:tower');
+ await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+ await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+ await buy(page,'cpu','r7600');
+ await page.evaluate(()=>adventureGame.toggleCpuPrecision());
+ await fit(page,'cpu:r7600');
+ await buy(page,'item','paste');
+ await page.evaluate(()=>adventureGame.togglePastePractice());
+ await page.evaluate(()=>{adventureGame.select('item:paste');adventureGame.perform('apply');});
+ await buy(page,'cooler','air');await fit(page,'cooler:air');
+ await buy(page,'item','screws');
+ await page.evaluate(()=>{
+   adventureGame.toggleScrewPractice();
+   adventureGame.select('cooler:air');
+   adventureGame.perform('screw');
+ });
+ await expect(page.locator('#adventurePanel [data-thermal-remove]')).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>state.fixings.cooler)).toBe(true);
+ const first=await page.evaluate(()=>adventureGame.game.stock['item:screws']);
+ await page.locator('[data-thermal-remove]').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel [data-thermal-clean]')).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>adventureGame.game.pasteNeedsCleaning)).toBe(true);
+ expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(first+4);
+ await page.locator('[data-thermal-clean]').evaluate(el=>el.click());
+ await expect.poll(()=>page.evaluate(()=>state.paste)).toBe(0);
+ await expect(page.locator('#adventurePanel [data-thermal-clean]')).toHaveCount(0);
+ await buy(page,'item','paste');
+ await page.evaluate(()=>{adventureGame.select('item:paste');adventureGame.perform('apply');});
+ await page.evaluate(()=>{adventureGame.select('cooler:air');adventureGame.perform('fit');});
+ await expect.poll(()=>page.evaluate(()=>state.installed.cooler)).toBe(true);
+ await page.evaluate(()=>{adventureGame.select('cooler:air');adventureGame.perform('screw');});
+ await expect.poll(()=>page.evaluate(()=>state.fixings.cooler)).toBe(true);
+ await expect(page.locator('#adventurePanel [data-thermal-remove]')).toBeVisible();
+});
