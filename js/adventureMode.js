@@ -402,7 +402,7 @@ function createAdventureGame(api){
     cpuPrecision:{enabled:game.cpuPrecisionEnabled,
       attempts:game.cpuPrecisionHistory.map(x=>({...x})),
       active:cpuSession?.getState()||null},
-    thermalPaste:{enabled:game.thermalPasteEnabled,
+    thermalPaste:{enabled:game.thermalPasteEnabled,needsCleaning:!!game.pasteNeedsCleaning,
       application:game.thermalPaste?{...game.thermalPaste,
         dots:game.thermalPaste.dots.map(d=>({...d}))}:null,
       spread:pasteSpread?.getState()||null,
