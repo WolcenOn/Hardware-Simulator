@@ -615,7 +615,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-19-1-diagnostics-restored'));
+assert(html.includes('adventureMode.js?v=8-19-1-accordion-hotfix'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -765,7 +765,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-19-1-diagnostics-restored'));
+assert(html.includes('adventureMode.js?v=8-19-1-accordion-hotfix'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
