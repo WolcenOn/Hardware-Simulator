@@ -15,6 +15,7 @@ import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 import {createToolRack} from './toolRack3d.js?v=8-14-0-tools';
+import {createPinoutBoard} from './pinoutBoard3d.js?v=8-15-0-pinboard';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
@@ -77,6 +78,7 @@ const cables=createCableHarness(THREE,root,assembly,tower);
 const workbench=createWorkbench(THREE,scene,materials);
 const staging=createStagingTable(THREE,scene);
 const toolRack=createToolRack(THREE,scene);
+const pinBoard=createPinoutBoard(THREE,scene,window.PC_PINOUTS.CONNECTORS);
 
 // Salida de vídeo calculada en cada cambio de placa/GPU. Ya no termina
 // en una coordenada fija del taller; el conector metálico mira a rear I/O.
@@ -292,6 +294,11 @@ function hoverPart(e){
   pointer.set(2*(e.clientX-bounds.left)/bounds.width-1,
     1-2*(e.clientY-bounds.top)/bounds.height);
   raycaster.setFromCamera(pointer,camera);
+  const contactHits=raycaster.intersectObject(pinBoard.root,true);
+  for(const hit of contactHits){
+    const pin=pinBoard.identify(hit.object);
+    if(pin)return {key:pin.connector+':P'+pin.pin,source:'pinboard'};
+  }
   const rackHits=raycaster.intersectObject(toolRack.root,true);
   for(const hit of rackHits){const id=toolRack.identify(hit.object);
     if(id)return {key:id,source:'rack'};
@@ -408,6 +415,10 @@ view.addEventListener('pointerup',e=>{
     window.dispatchEvent(new CustomEvent('pc3d-usb-eject'));
     return;
   }
+  const point=raycaster.intersectObject(pinBoard.root,true)
+    .map(h=>pinBoard.identify(h.object)).find(Boolean);
+  if(point){window.dispatchEvent(new CustomEvent('pc3d-pin-select',
+    {detail:{...point,clientX:e.clientX,clientY:e.clientY}}));return;}
   const rackKey=raycaster.intersectObject(toolRack.root,true)
     .map(h=>toolRack.identify(h.object)).find(Boolean);
   if(rackKey){window.dispatchEvent(new CustomEvent('pc3d-tool-select',
@@ -510,6 +521,9 @@ function viewStaging(){
   // La mesa auxiliar vive en X=18.5; debe ocupar la mayor parte del canvas.
   focusCamera('staging',[18.5,13.9,19.3],[18.5,.35,.35]);
 }
+function viewPinouts(){
+  focusCamera('pinouts',[11.2,17.3,5.2],[11.2,12.3,-8.4]);
+}
 function viewTools(){
   focusCamera('tools',[11.7,12.5,6.3],[11.2,4.5,-8.4]);
 }
@@ -608,6 +622,9 @@ window.PC3D={
   update:sync,
   updateTools:keys=>toolRack.update(keys),
   getToolRack:()=>toolRack.visible(),
+  getPinBoardContacts:()=>pinBoard.contacts(),
+  selectPinout:(connector,red,black)=>pinBoard.highlight(connector,red,black),
+  viewPinouts,
   viewTools,
   updateStaging:(items,selected)=>{
     staging.update(items,selected);
