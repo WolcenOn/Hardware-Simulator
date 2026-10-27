@@ -106,7 +106,7 @@ const USB_PREPARED=Object.freeze({
   usbTerminal:{os:'terminalis',fee:7,label:'Terminalis'}
 });
 const VERBS=[['fit','Encajar'],['screw','Atornillar'],['connect','Conectar'],['disconnect','Desconectar'],
-  ['apply','Aplicar'],['route','Ordenar cables'],['remove','Retirar'],['boot','Encender / apagar'],
+  ['apply','Aplicar'],['clean','Limpiar pasta'],['route','Ordenar cables'],['remove','Retirar'],['boot','Encender / apagar'],
   ['bios','BIOS'],['os','Instalar SO'],['inspect','Inspeccionar']];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const format=amount=>amount.toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0});
@@ -402,7 +402,7 @@ function createAdventureGame(api){
     cpuPrecision:{enabled:game.cpuPrecisionEnabled,
       attempts:game.cpuPrecisionHistory.map(x=>({...x})),
       active:cpuSession?.getState()||null},
-    thermalPaste:{enabled:game.thermalPasteEnabled,
+    thermalPaste:{enabled:game.thermalPasteEnabled,needsCleaning:!!game.pasteNeedsCleaning,
       application:game.thermalPaste?{...game.thermalPaste,
         dots:game.thermalPaste.dots.map(d=>({...d}))}:null,
       spread:pasteSpread?.getState()||null,
@@ -427,9 +427,29 @@ function createAdventureGame(api){
     if(st.power||st.caseClosed)return 'Apaga el PC y abre la caja antes de aplicar pasta.';
     if(!st.installed.cpu||st.installed.cooler)
       return 'La pasta va sobre la CPU antes de instalar el disipador.';
-    if(st.paste>0)return 'Ya hay pasta aplicada; termina o retira el disipador.';
+    if(st.paste>0)return 'La CPU tiene pasta usada. Pulsa «Limpiar pasta térmica» antes de aplicar una nueva dosis.';
     if(!has('item:paste'))return 'Compra una dosis de pasta térmica.';
     return '';
+  }
+  function cleanThermalPaste(){
+    if(!game)return false;
+    const st=api.state();
+    if(st.power||st.caseClosed||!st.installed.cpu||st.installed.cooler){
+      message('Para limpiar la CPU, apaga el PC, abre la caja y retira primero el disipador.','warn');
+      return false;
+    }
+    if(st.paste<=0&&!game.pasteNeedsCleaning){
+      message('La superficie de la CPU ya está limpia. Compra otra dosis para aplicar pasta.','ok');
+      return false;
+    }
+    // No se recuperan dosis usadas. Limpieza didáctica básica del taller.
+    pasteUi?.close();
+    pasteSpread=null;game.thermalPaste=null;game.pasteReview=null;
+    game.pasteNeedsCleaning=false;st.paste=0;
+    game.thermalHistory.push({type:'clean',minutes:2,afterRemoval:true});
+    clock?.add('technical',2,'paste-clean');
+    message('Pasta térmica retirada. Superficie limpia: aplica una dosis nueva antes de montar otra vez el disipador.','ok');
+    api.render();return true;
   }
   function openPastePractice(){
     const issue=pastePrerequisites();
@@ -495,10 +515,7 @@ function createAdventureGame(api){
       closeScrewPractice();
       const record=perform('remove');
       if(record?.status!=='success')return false;
-      api.state().paste=0;game.thermalPaste=null;pasteSpread=null;
-      game.thermalHistory.push({type:'clean',minutes:2});
-      game.pasteReview=null;
-      clock.add('technical',2,'paste-clean');
+      cleanThermalPaste();
       message('Disipador retirado y pasta limpiada. Necesitas otra dosis para repetir.','warn');
       return true;
     }
@@ -798,7 +815,7 @@ function createAdventureGame(api){
     // poder seleccionarlo de nuevo desde Inventario.
     const st=api.state();
     if(!game||!st.installed.cooler||st.fixings?.cooler||game.screwed.cooler){
-      if(game)message('Primero encaja un disipador pendiente de fijación.','warn');
+      if(game)message(st.installed.cooler?'El disipador ya está atornillado. Para repetir el proceso, retíralo, limpia la pasta y vuelve a encajarlo.':'Primero encaja un disipador pendiente de fijación.','warn');
       return false;
     }
     const coolerId=st.selected.cooler||'air';
@@ -1116,7 +1133,7 @@ function createAdventureGame(api){
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
       screwPracticeEnabled:true,screwHistory:[],screwProgress:{},
       thermalPasteEnabled:true,thermalPaste:null,thermalHistory:[],pasteReview:null,
-      awaitingCoolerTools:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',lastPurchase:null,
+      awaitingCoolerTools:false,pasteNeedsCleaning:false,storeInfo:null,storeQuery:'',sellerTopic:'materials',lastPurchase:null,
        meterOpen:false,meterMode:'vdc',meterJack:'vohm',meterPoint:'psu12',
        meterTest:'pins',meterConnector:'atx24',meterRedPin:10,meterBlackPin:3,
        meterLead:'red',meterHelpMode:'signals',meterFace:'contacts',meterReading:null,meterShorts:0,benchTests:[],cleanings:[]
@@ -1391,6 +1408,11 @@ function createAdventureGame(api){
     if(!game)return;
     const verb=override||game.verb;
     if(verb==='fit'&&String(game.selected).startsWith('cooler:')&&
+       game.pasteNeedsCleaning){
+      message('La pasta anterior ya está usada. Pulsa «Limpiar pasta térmica» antes de volver a montar el disipador.','warn');
+      return null;
+    }
+    if(verb==='fit'&&String(game.selected).startsWith('cooler:')&&
       api.state().installed.cooler&&!api.state().fixings?.cooler){
       continueCoolerMount();return null;
     }
@@ -1417,6 +1439,7 @@ function createAdventureGame(api){
       !api.state().ramSeated){
       if(openRamPrecision())return null;
     }
+    if(verb==='clean')return cleanThermalPaste();
     if(verb==='route'){
       const st=api.state(),was=!!st.psuAccessRouted;
       return tracked('route','psu-cables',()=>performLegacy(override),
@@ -1440,9 +1463,15 @@ function createAdventureGame(api){
       if(record.status==='success'&&cat==='cpu'){
         closeCpuPrecision();pasteUi?.close();pasteSpread=null;
         game.thermalPaste=null;game.pasteReview=null;st.paste=0;
+        game.pasteNeedsCleaning=false;
       }
       if(record.status==='success'&&cat==='cooler'){
         game.pasteReview=null;game.awaitingCoolerTools=false;
+        // Tras levantar el disipador la pasta no puede reutilizarse.
+        game.pasteNeedsCleaning=st.paste>0;
+        pasteSpread=null;game.thermalPaste=null;
+        if(game.pasteNeedsCleaning)
+          message('Disipador retirado. Queda pasta térmica usada sobre la CPU: pulsa «Limpiar pasta térmica» antes de aplicar otra dosis.','warn');
       }
       if(record.status==='success'&&cat==='ram'){
         // Una retirada invalida la colocación física y cualquier sesión abierta.
@@ -1559,6 +1588,10 @@ function createAdventureGame(api){
         }
         return;
       }
+      if(cat==='cooler'&&game.pasteNeedsCleaning){
+        message('La CPU conserva pasta del montaje anterior. Límpiala y aplica una dosis nueva antes de encajar el disipador.','warn');
+        return;
+      }
       if(!has(k)){message('Ya has usado esa pieza o no está en el inventario.');return;}
       if(cat==='item'){
         if(id==='fan'){
@@ -1624,6 +1657,12 @@ function createAdventureGame(api){
       if(!st.installed[part]){message('Antes de atornillar debes encajar la pieza.');return;}
       if(st.power){message('Apaga el ordenador antes de utilizar el destornillador.');return;}
       if(st.caseClosed){message('Abre el panel lateral antes de atornillar el hardware.');return;}
+      if(st.fixings?.[part]||g.screwed[part]){
+        message(part==='cooler'?
+          'El disipador ya está atornillado. Para repetir el montaje: Retirar → Limpiar pasta → Aplicar nueva pasta → Encajar → Atornillar.':
+          'Esta pieza ya está atornillada. Retírala antes de volver a fijarla.','ok');
+        return;
+      }
       if(!owned('item:screwdriver')||!has('item:screws')){
         const missing=[
           !owned('item:screwdriver')?'destornillador':null,
@@ -1631,7 +1670,6 @@ function createAdventureGame(api){
         ].filter(Boolean).join(' y ');
         message('Falta '+missing+'. Compra el material en la tienda, luego repite Atornillar.');return;
       }
-      if(g.screwed[part]){message('Esta pieza ya está atornillada.','ok');return;}
       const points=screwLayout(k),progress=screwProgressFor(k);
       const remaining=points.filter(p=>!progress.completed.includes(p.id));
       if(stock('item:screws')<remaining.length){
@@ -2270,7 +2308,9 @@ function createAdventureGame(api){
       add('Instalar tira LED ARGB','Iluminación dentro del chasis, PC apagado','apply',
         has(k)&&!!st.installed.case&&!st.power&&!st.caseClosed);
     }else if(k==='item:paste'){
-      if(st.paste>0&&!st.installed.cooler)
+      if(game.pasteNeedsCleaning&&!st.installed.cooler)
+        add('Limpiar pasta térmica usada','Retira los restos para aplicar otra dosis','clean',true);
+      else if(st.paste>0&&!st.installed.cooler)
         add('✓ Pasta aplicada','Continúa con el disipador en Tienda o Inventario','inspect');
       else add('Aplicar pasta sobre CPU','Antes de montar el disipador','apply',
         has(k)&&!!st.installed.cpu&&!st.installed.cooler);
@@ -2290,7 +2330,8 @@ function createAdventureGame(api){
         add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
       else if(cat==='ram'&&!st.ramSeated)
         add('Fijar pestañas DIMM','Presiona la RAM hasta hacer clic','fit');
-      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&!game.screwed[cat]){
+      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&
+        !game.screwed[cat]&&!st.fixings?.[cat]){
         const p=game.screwProgress[cat],qty=screwLayout(k).length;
         const done=p?.target===k?p.completed.length:0;
         add('Atornillar '+label(cat,id)+' ('+done+'/'+qty+')',
@@ -2545,7 +2586,24 @@ function createAdventureGame(api){
       '<button type="button" class="primary" data-cooler-start>'+
       (game.screwPracticeEnabled?'Iniciar minijuego del disipador y la pasta':
        'Continuar con atornillado clásico')+'</button></div>':'';
+    const thermalService=stActions.installed.cpu&&
+      (stActions.installed.cooler||game.pasteNeedsCleaning)?
+      '<div class="adv-thermal-service" role="group" aria-label="Mantenimiento del disipador">'+
+      (stActions.installed.cooler?
+        '<p><strong>Disipador instalado.</strong> '+
+          (stActions.fixings?.cooler||game.screwed.cooler?
+          'Ya está atornillado. Para repetir el montaje, primero retíralo.':
+          'Está encajado pero todavía sin fijar.')+'</p>'+
+        '<button type="button" data-thermal-remove'+
+          (stActions.power||stActions.caseClosed?' disabled':'')+
+          '>Retirar disipador para repetir montaje</button>':
+        '<p><strong>Queda pasta térmica usada sobre la CPU.</strong> Limpia antes de repetir.</p>'+
+        '<button type="button" class="primary" data-thermal-clean'+
+          (stActions.power||stActions.caseClosed?' disabled':'')+
+          '>Limpiar pasta térmica de la CPU</button>')+
+      '</div>':'';
     const actions=
+      thermalService+
       '<p class="adv-current">Objeto: <b>'+safe(game.selected?label(...game.selected.split(':')):'Ninguno')+'</b></p>'+
       coolerContinue+
       '<div class="adv-quick-actions">'+
@@ -2584,7 +2642,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.1</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.17.2</span></div>'+
       '<p class="adv-stage-tip">Mesa auxiliar 3D → selecciona una pieza → elige una acción. '+
       '<button type="button" data-open-store>🛒 Ir a la tienda</button></p>'+
       section('mission','Encargo y progreso',mission)+
@@ -2775,6 +2833,13 @@ function createAdventureGame(api){
     if(button.hasAttribute('data-screw-toggle')){toggleScrewPractice();return;}
     if(button.hasAttribute('data-cpu-toggle')){toggleCpuPrecision();return;}
     if(button.hasAttribute('data-paste-toggle')){togglePastePractice();return;}
+    if(button.hasAttribute('data-thermal-clean')){cleanThermalPaste();return;}
+    if(button.hasAttribute('data-thermal-remove')){
+      const st=api.state();
+      if(!st.installed.cooler){message('No hay disipador montado.');return;}
+      game.selected='cooler:'+(st.selected.cooler||'air');
+      perform('remove');return;
+    }
     if(button.hasAttribute('data-thermal-next')){thermalNext();return;}
     if(button.hasAttribute('data-cooler-start')){continueCoolerMount();return;}
     if(button.dataset.quick){perform(button.dataset.quick);return;}
@@ -2927,6 +2992,7 @@ function createAdventureGame(api){
     toggleScrewPractice,screwPracticeState,screwMove,screwTurn,
     toggleCpuPrecision,cpuPrecisionState,cpuPrecisionStep,cpuPrecisionCapture,cpuPrecisionMove,
     togglePastePractice,finishCoolerPractice,thermalNext,continueCoolerMount,
+    cleanThermalPaste,
     pasteUi:{getState:()=>pasteUi?.getState()||null,
       pump:down=>pasteUi?.pump(down),pointer:(x,y)=>pasteUi?.pointer(x,y),
       tick:ms=>pasteUi?.tick(ms),confirm:()=>pasteUi?.confirm()},
