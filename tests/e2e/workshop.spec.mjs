@@ -10,6 +10,14 @@ async function openSection(page, name) {
   const details=page.locator(`#adventurePanel [data-section="${name}"]`);
   if (!(await details.evaluate(el=>el.open))) await details.locator('summary').click();
   await expect(details).toHaveAttribute('open', '');
+  // Acceso explícito a acciones de compatibilidad usadas por regresiones,
+  // cerradas por defecto en la nueva interfaz 3D.
+  if(name==='actions'){
+    const manual=details.locator('.adv-manual-ops');
+    if(!(await manual.evaluate(el=>el.open)))
+      await manual.locator('summary').click();
+    await expect(manual).toHaveAttribute('open','');
+  }
 }
 
 async function loadTechnicalFixture(page){
@@ -1073,6 +1081,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   await expect(page.locator('[data-thermal-next]')).toHaveCount(1);
   await buy(page,'cooler','air');
   await expect(page.locator('#adventurePanel [data-section="actions"]')).toHaveAttribute('open','');
+  await openSection(page,'actions');
   await expect(page.locator('[data-suggest="fit"]:not([disabled])')).toBeVisible();
   await fit(page,'cooler:air');
   expect(await page.evaluate(()=>state.installed.cooler)).toBe(true);
@@ -1443,33 +1452,35 @@ test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',
 });
 
 
-test('v8.18: el laboratorio 3D usa dos columnas, controles fuera del visor y foco a ancho completo',async({page})=>{
+test('v8.19.1: el taller mantiene diagnóstico y log con controles redundantes plegados',async({page})=>{
  await openGame(page);
  const compact=await page.evaluate(()=>{
    const lab=document.querySelector('#labWorkspace').getBoundingClientRect();
    const sidebar=document.querySelector('#adventurePanel').getBoundingClientRect();
    const area=document.querySelector('#viewportWrap').getBoundingClientRect();
    return {labWidth:lab.width,sidebarWidth:sidebar.width,height:area.height,
-     diagnosisHidden:getComputedStyle(document.getElementById('labDiagnostics')).display==='none',
+     diagnosisVisible:getComputedStyle(document.getElementById('labDiagnostics')).display!=='none',
      toolbarOutside:!document.getElementById('viewportWrap').contains(
        document.getElementById('viewStaging3d')),
      hasShop:!!document.querySelector('#adventurePanel [data-section="shop"]'),
      hasInstalled:!!document.querySelector('#adventurePanel [data-section="installed"]'),
      advancedClosed:!document.querySelector('#adventurePanel [data-section="advanced"]').open};
  });
- expect(compact.diagnosisHidden).toBe(true);
+ expect(compact.diagnosisVisible).toBe(true);
  expect(compact.toolbarOutside).toBe(true);
  expect(compact.hasShop).toBe(false);
  expect(compact.hasInstalled).toBe(false);
  expect(compact.advancedClosed).toBe(true);
- if(page.viewportSize().width>980){
-   expect(compact.labWidth).toBeGreaterThan(compact.sidebarWidth*1.75);
+ if(page.viewportSize().width>1230){
+   expect(compact.labWidth).toBeGreaterThan(compact.sidebarWidth*1.6);
    expect(compact.height).toBeGreaterThanOrEqual(620);
  }
  await page.locator('#labFocusToggle').evaluate(el=>el.click());
  await expect(page.locator('body')).toHaveClass(/lab-focus/);
  await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','true');
  await expect(page.locator('#adventurePanel')).toBeHidden();
+ await expect(page.locator('#labDiagnostics')).toBeVisible();
+ await expect(page.locator('#eventLog')).toBeVisible();
  await page.locator('#labFocusToggle').evaluate(el=>el.click());
  await expect(page.locator('#adventurePanel')).toBeVisible();
  await expect(page.locator('#labFocusToggle')).toHaveAttribute('aria-pressed','false');
@@ -1539,4 +1550,44 @@ test('v8.19: la construcción recomendada no deja inventario antiguo ni piezas i
  await expect(page.locator('#partContextMenu')).toBeVisible();
  await expect(page.locator('#partContextMenu')).toContainText('Placa');
  await expect(page.locator('#partContextMenu [data-part-verb="return"]')).toBeDisabled();
+});
+
+
+test('v8.19.1: bitácora y diagnóstico visibles después de comprar y montar',async({page})=>{
+ await openGame(page);
+ const diagnostic=page.locator('#labDiagnostics');
+ await expect(diagnostic).toBeVisible();
+ await expect(diagnostic.locator('#powerStatus')).toBeVisible();
+ await expect(diagnostic.locator('#postStatus')).toBeVisible();
+ await expect(diagnostic.locator('#compatPanel')).toBeVisible();
+ await expect(diagnostic.locator('#powerBreakdown')).toBeVisible();
+ await expect(diagnostic.locator('#eventLog')).toBeVisible();
+ await expect(page.locator('#diagnosticFaults')).toBeHidden();
+ await expect(page.locator('#adventurePanel .adv-manual-ops')).not.toHaveAttribute('open','');
+ await expect(page.locator('#adventurePanel [data-open-store]')).toHaveCount(0);
+ await buy(page,'case','tower');
+ await expect(diagnostic.locator('#eventLog')).toContainText('Comprado');
+ await fit(page,'case:tower');
+ await expect(diagnostic.locator('#eventLog')).toContainText('Caja');
+ await page.locator('#labFocusToggle').evaluate(el=>el.click());
+ await expect(page.locator('#adventurePanel')).toBeHidden();
+ await expect(diagnostic).toBeVisible();
+ await expect(diagnostic.locator('#eventLog')).toBeVisible();
+});
+
+test('v8.19.1: menú manual plegado conserva estado durante cambios de acción',async({page})=>{
+ await openGame(page);
+ await buy(page,'case','tower');
+ await openSection(page,'actions');
+ await expect(page.locator('.adv-manual-ops')).toHaveAttribute('open','');
+ await page.locator('[data-verb="inspect"]').evaluate(el=>el.click());
+ await expect(page.locator('.adv-manual-ops')).toHaveAttribute('open','');
+ await page.locator('[data-go]').evaluate(el=>el.click());
+ await expect(page.locator('.adv-manual-ops')).toHaveAttribute('open','');
+ await openSection(page,'inventory');
+ const extra=page.locator('.adv-inventory-extras');
+ await extra.locator('summary').evaluate(el=>el.click());
+ await expect(extra).toHaveAttribute('open','');
+ await page.evaluate(()=>adventureGame.select('case:tower'));
+ await expect(extra).toHaveAttribute('open','');
 });

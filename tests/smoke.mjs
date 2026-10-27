@@ -615,7 +615,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-19-0-demo-workshop'));
+assert(html.includes('adventureMode.js?v=8-19-1-diagnostics-restored'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -765,7 +765,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-19-0-demo-workshop'));
+assert(html.includes('adventureMode.js?v=8-19-1-diagnostics-restored'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1003,7 +1003,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.19.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.19.1'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1069,7 +1069,7 @@ assert(storeHTML.includes('¿Me falta material?'));
 assert(!storeHTML.includes('Este procesador es incompatible'));
 assert(!get('adventurePanel').innerHTML.includes('data-buy="case:tower"'),
   'No se debe comprar en el panel lateral');
-assert(get('adventurePanel').innerHTML.includes('data-open-store'));
+assert(html.includes('id="storeBtn"'));
 const facts=g.storeFacts('cpu','r7600');
 assert(facts.some(([key,value])=>key==='Zócalo'&&value==='AM5'),
   'Ficha de procesador accesible ANTES de comprarlo');
@@ -1290,13 +1290,13 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
  assert(compact.includes('data-section="'+section+'"'),'missing '+section);
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
-assert(compact.includes('data-open-store'));
-assert(compact.includes('Modo aventura · Motor 8.19.0'));
+assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
+assert(compact.includes('Modo aventura · Motor 8.19.1'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));
 assert(html.includes('id="partReturnNotice"'));
-assert(html.includes('body.adventure-on #labDiagnostics{display:none}'));
+assert(html.includes('body.adventure-on #labDiagnostics{')&&html.includes('display:block;min-width:0;position:sticky'));
 buy('motherboard','b650');
 assert.equal(g.canReturn('motherboard:b650'),true);
 const beforeRefund=g.game.spent;
@@ -1328,3 +1328,19 @@ assert.equal(g.checkDelivery(),false);
 assert.equal(g.game.spent,oldBudget);
 assert.equal(g.game.report,null);
 console.log('8.19: montaje recomendado completo sin abandonar el taller 3D');
+
+
+// 8.19.1 — derecho restaurado, acciones de 3D duplicadas plegadas.
+g.start('office');
+const panel19=get('adventurePanel').innerHTML;
+assert(panel19.includes('class="adv-manual-ops"'));
+assert(panel19.includes('class="adv-inventory-extras"'));
+assert(!panel19.includes('data-open-store'));
+assert(!panel19.includes('adv-quick-actions'));
+assert(!panel19.includes('data-demo-build'));
+for(const id of ['labDiagnostics','eventLog','powerStatus','postStatus','compatPanel','powerBreakdown','labFocusToggle'])
+ assert(html.includes('id="'+id+'"'),'Existe el control '+id);
+assert(html.includes('id="diagnosticFaults"'));
+assert(html.includes('body.adventure-on #diagnosticFaults{display:none}'));
+assert(html.includes('body.adventure-on.lab-focus #labDiagnostics{display:block}'));
+console.log('8.19.1: restaurados diagnóstico y log, eliminadas duplicidades del panel de acciones');
