@@ -45,11 +45,12 @@ function meterRead({mode='vdc',jack='vohm',point='psu12',powered=false,
    'Medición DC ficticia. Negro a COM/masa; rojo a VΩ.':'Punto sin alimentación: 0 V en esta simulación.'};
 }
 function createBank(storage){
- let state={cash:300,earned:0,tools:{screwdriver:true},supplies:{},rewarded:{},fuseBlown:false};
+ let state={cash:300,earned:0,tools:{screwdriver:true},supplies:{},rewarded:{},usbOs:null,fuseBlown:false};
  try{
    const raw=JSON.parse(storage?.getItem(STORAGE)||'null');
    if(raw&&Number.isFinite(raw.cash)&&raw.cash>=0){
      state.cash=raw.cash;state.earned=Number.isFinite(raw.earned)?raw.earned:0;
+     if(['novadesk','libreforge','terminalis'].includes(raw.usbOs))state.usbOs=raw.usbOs;
      for(const id of Object.keys(ITEMS)){
        if(!ITEMS[id].units&&raw.tools?.[id])state.tools[id]=true;
        if(ITEMS[id].units&&Number.isInteger(raw.supplies?.[id]))
@@ -89,13 +90,17 @@ function createBank(storage){
    if(!caseId||state.rewarded[caseId])return false;
    state.rewarded[caseId]=true;state.cash+=110;state.earned+=110;persist();return true;
  }
+ function setUsbOs(os){
+   if(!state.tools.usbWriter||!['novadesk','libreforge','terminalis'].includes(os))return false;
+   state.usbOs=os;persist();return true;
+ }
  function shortCircuit(){state.fuseBlown=true;persist();}
  function replaceFuse(){
    if(!state.fuseBlown||state.cash<5)return false;
    state.cash-=5;state.fuseBlown=false;persist();return true;
  }
  function snapshot(){return JSON.parse(JSON.stringify(state));}
- return {owns,buy,use,useMany,reward,shortCircuit,replaceFuse,snapshot,
+ return {owns,buy,use,useMany,setUsbOs,reward,shortCircuit,replaceFuse,snapshot,
    list:()=>Object.keys(ITEMS).filter(owns)};
 }
 root.PC_WORKSHOP_TOOLS=Object.freeze({ITEMS,createBank,meterRead,STORAGE});
