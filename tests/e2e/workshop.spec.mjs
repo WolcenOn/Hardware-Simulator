@@ -1221,3 +1221,27 @@ test('8.13 la tienda es una pantalla independiente con fichas previas y vendedor
   await openSection(page,'inventory');
   await expect(page.locator('[data-select-item="case:tower"]')).toBeVisible();
 });
+
+
+test('taller v8.14 mantiene el equipamiento de diagnóstico entre encargos',async ({page})=>{
+  await openGame(page);
+  await openSection(page,'workshop');
+  const panel=page.locator('#adventurePanel');
+  await expect(panel).toContainText('Fondo propio del taller');
+  await expect(panel).toContainText('Destornillador de precisión');
+  await panel.locator('[data-tool-buy="multimeter"]').evaluate(el=>el.click());
+  await panel.locator('[data-tool-use="multimeter"]').evaluate(el=>el.click());
+  await expect(page.locator('#multimeterLabPopup')).toBeVisible();
+  await page.locator('[data-meter-mode="adc"]').evaluate(el=>el.click());
+  await page.locator('#meterJack').selectOption('amp');
+  await page.locator('[data-meter-probe]').evaluate(el=>el.click());
+  await expect(page.locator('.meter-probes')).toContainText('corriente');
+  await page.locator('[data-meter-close]').evaluate(el=>el.click());
+  await expect(page.locator('#multimeterLabPopup')).toBeHidden();
+  await page.locator('#advClient').selectOption('gaming');
+  await openSection(page,'workshop');
+  await expect(panel.locator('[data-tool-buy="multimeter"]')).toBeDisabled();
+  await expect(panel.locator('[data-tool-use="multimeter"]')).toBeEnabled();
+  await page.locator('#viewTools3d').evaluate(el=>el.click());
+  await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','tools');
+});

@@ -28,7 +28,7 @@ const document={getElementById:get,querySelectorAll:()=>[],addEventListener(){},
 const window={PC3D:null,addEventListener(){},dispatchEvent(){}};
 const ctx=vm.createContext({window,document,console:{log(){},error(...a){errors.push(String(a[0]));}},
  setTimeout:()=>0,Date,Math,Intl});
-for(const path of ['js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/thermalPaste.js','js/pasteGameplay.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
+for(const path of ['js/workshopTools.js','js/classroom.js','js/osEmulation.js','js/timeEngine.js','js/mishapEngine.js','js/ramPrecision.js','js/screwPrecision.js','js/cpuPrecision.js','js/thermalPaste.js','js/pasteGameplay.js','js/operationEngine.js','js/hardwareExpansion.js','js/adventureMode.js','js/partInspector.js'])
  vm.runInContext(read(path),ctx,{filename:path});
 vm.runInContext(source+';globalThis.lab={get s(){return state},get g(){return adventureGame},autoBuild,power,bios,calculateThermals};',
  ctx,{filename:'index.html'});
@@ -984,7 +984,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.13.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.14.0'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1088,3 +1088,30 @@ assert(get('adventureStorePage').innerHTML.includes('data-store-buy="item:paste"
 g.setStoreCategory('cpu');
 assert(get('adventureStorePage').innerHTML.includes('data-store-buy="cpu:r7600"'));
 console.log('8.13: tienda independiente, fichas previas, vendedor y presupuesto verificados');
+
+
+// 8.14: patrimonio persistente dentro de la sesión y consumibles independientes.
+g.start('office');
+assert.equal(g.getWorkshop().cash,300);
+assert.equal(g.getWorkshop().tools.screwdriver,true);
+const money=g.game.spent;
+g.purchase('item','screwdriver');
+assert.equal(g.game.spent,money,'El destornillador permanente no se cobra');
+assert.equal(g.buyTool('multimeter'),true);
+assert.equal(g.getWorkshop().cash,252);
+assert.equal(g.openMeter(),true);
+assert.equal(g.probeMeter().value,'0.0 V⎓');
+g.closeMeter();
+g.start('gaming');
+assert.equal(g.getWorkshop().tools.multimeter,true,'Multímetro permanente tras cambiar de cliente');
+assert.equal(g.buyTool('alcohol'),true);
+assert.equal(g.getWorkshop().supplies.alcohol,4);
+assert.equal(g.useTool('alcohol'),true);
+assert.equal(g.getWorkshop().supplies.alcohol,3);
+assert.equal(g.buyTool('gpuTest'),true);
+assert.equal(g.useTool('gpuTest'),true);
+assert.equal(g.game.benchTests.length,1);
+assert(get('adventurePanel').innerHTML.includes('data-tool-use="multimeter"'));
+assert(get('adventurePanel').innerHTML.includes('Fondo propio del taller'));
+assert.equal(g.getExport().workshop.tools.gpuTest,true);
+console.log('8.14: patrimonio de taller, compras, inventario y multímetro verificados');

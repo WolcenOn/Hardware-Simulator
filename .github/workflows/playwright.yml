@@ -24,6 +24,9 @@ jobs:
           node --check tests/smoke.mjs
           node --check playwright.config.mjs
           node --check js/adventureMode.js
+          node --check js/workshopTools.js
+          node --check js/toolRack3d.js
+          node --check tests/workshopTools.test.mjs
           node --check js/timeEngine.js
           node --check js/operationEngine.js
           node --check js/mishapEngine.js
