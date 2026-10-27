@@ -2889,10 +2889,15 @@ function createAdventureGame(api){
       const name=details?.dataset.section;
       if(!game)return;
       if(details.classList?.contains('adv-manual-ops')){
-        game.manualOpsOpen=!details.open;return;
+        // El listener ya ha cancelado el click nativo de <summary>.
+        // Alternamos también el DOM; solo guardar el flag dejaría cerrado
+        // el contenido y bloquearía las operaciones alternativas.
+        details.open=!details.open;
+        game.manualOpsOpen=details.open;return;
       }
       if(details.classList?.contains('adv-inventory-extras')){
-        game.inventoryExtrasOpen=!details.open;return;
+        details.open=!details.open;
+        game.inventoryExtrasOpen=details.open;return;
       }
       if(!name)return;
       if(details.open)game.openSections=game.openSections.filter(x=>x!==name);
