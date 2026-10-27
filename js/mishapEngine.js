@@ -13,6 +13,16 @@ const OPERATION_RISKS=Object.freeze({
  route:['mechanical','procedure'],inspect:['procedure']
 });
 const SPEED_FACTOR=Object.freeze({careful:.60,normal:1,fast:1.8});
+/* Tasas ficticias de un simulador, NO estadísticas del mundo real.
+   Componentes más delicados = probabilidad inicial mayor.
+   Con pulsera bien conectada la tasa se reduce exactamente diez veces. */
+const COMPONENT_ESD=Object.freeze({ram:.20,cpu:.18,motherboard:.15,gpu:.12,storage:.10});
+function componentEsdRisk(part,protectedByWristband=false){
+  const type=String(part||'').split(':')[0];
+  const base=COMPONENT_ESD[type]||0;
+  return Math.round(base*(protectedByWristband?.1:1)*10000)/10000;
+}
+
 function createSeededRandom(seed){
   if(typeof seed!=='string'&&typeof seed!=='number')
     throw new TypeError('La semilla debe ser un texto o número.');
@@ -52,7 +62,7 @@ function calculateRisks({kind,speed='normal',difficulty=1,experience=0,
     let factor=speedFactor*skillFactor*difficultyFactor;
     if(category==='esd'){
       // Pulsera solamente protege ESD, nunca impactos ni descuidos.
-      factor*=esd.worn===true&&esd.grounded===true?.30:1;
+      factor*=esd.worn===true&&esd.grounded===true?.10:1;
       if(environment.dry===true)factor*=1.6;
     }
     if(category==='mechanical'){
@@ -117,5 +127,5 @@ function createEngine({seed='workshop-1',random=null,rates=DEFAULT_RATES}={}){
   return Object.freeze({assess,getDrawCount:()=>draws,seed:String(seed)});
 }
 root.PC_MISHAPS=Object.freeze({CATEGORIES,OPERATION_RISKS,DEFAULT_RATES,
- SPEED_FACTOR,createSeededRandom,calculateRisks,createEngine});
+ SPEED_FACTOR,COMPONENT_ESD,componentEsdRisk,createSeededRandom,calculateRisks,createEngine});
 })(typeof window!=='undefined'?window:globalThis);
