@@ -809,7 +809,7 @@ buy('motherboard','b650');fit('motherboard:b650');
 buy('cpu','r5600');g.select('cpu:r5600');
 assert.equal(g.toggleCpuPrecision(),false);
 assert.equal(g.perform('fit'),null);
-assert.equal(l.s.installed.cpu,false,'CPU AM4 no puede entrar en placa AM5 ni en modo clásico');
+assert.equal(!!l.s.installed.cpu,false,'CPU AM4 no puede entrar en placa AM5 ni en modo clásico');
 console.log('8.11 CPU precisión OK: orientación, zócalo, palanca, fallo y compatibilidad');
 
 // Regresión 8.11.1: bajar la CPU NO puede desplazarla verticalmente.
