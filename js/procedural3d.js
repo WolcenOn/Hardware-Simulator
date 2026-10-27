@@ -15,7 +15,7 @@ import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-4-1-gameplay-e2e';
 import {createToolRack} from './toolRack3d.js?v=8-14-0-tools';
-import {createPinoutBoard} from './pinoutBoard3d.js?v=8-15-0-pinboard';
+import {createPinoutBoard} from './pinoutBoard3d.js?v=8-16-0-wire-colors';
 
 const view=document.getElementById('viewport'),stage=document.getElementById('viewportWrap');
 const renderer=new THREE.WebGLRenderer({canvas:view,antialias:true});
