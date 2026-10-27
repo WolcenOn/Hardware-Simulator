@@ -2651,8 +2651,8 @@ function createAdventureGame(api){
         '<button type="button" data-lab-usb-connect>'+
           (st.usbConnected?'Expulsar USB':'Conectar USB')+'</button>'+
         '<button type="button" data-lab-license>Activar NovaDesk</button>'+
-        '<small>'+safe(st.osInstalled?('SO: '+(st.installedOs?.id||'instalado')+
-          (st.installedOs?.id==='novadesk'&&!st.osActivated?' · licencia pendiente':' · activado / libre')):
+        '<small>'+safe((st.osInstalled?'SO: '+(st.installedOs?.id||'instalado')+
+          (st.installedOs?.id==='novadesk'&&!st.osActivated?' · licencia pendiente':' · activado / libre'):
           'No hay sistema instalado')+' · USB: '+(tools.usbOs||'sin preparar'))+'</small>'+
         '</div></details>'+
         '<button type="button" data-lab-legacy title="Abrir controles antiguos opcionales">Más acciones</button>'+
