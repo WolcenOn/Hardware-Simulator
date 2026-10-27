@@ -2330,7 +2330,8 @@ function createAdventureGame(api){
         add('Encajar '+label(cat,id),'Desde mesa auxiliar al anclaje de la torre','fit',has(k));
       else if(cat==='ram'&&!st.ramSeated)
         add('Fijar pestañas DIMM','Presiona la RAM hasta hacer clic','fit');
-      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&!game.screwed[cat]){
+      else if(['motherboard','psu','storage','gpu','cooler'].includes(cat)&&
+        !game.screwed[cat]&&!st.fixings?.[cat]){
         const p=game.screwProgress[cat],qty=screwLayout(k).length;
         const done=p?.target===k?p.completed.length:0;
         add('Atornillar '+label(cat,id)+' ('+done+'/'+qty+')',

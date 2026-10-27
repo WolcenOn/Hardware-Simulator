@@ -916,13 +916,22 @@ body.adventure-on.adventure-store-on #storeBtn{background:#1b725a;border-color:#
 .store-on-table strong{color:#fff;font-weight:750}
 .store-on-table button{min-height:37px;font-size:.78rem;border-color:#6ec2aa}
 @media(max-width:650px){.store-on-table button{width:100%}}
+
+/* 8.17.2: guía de mantenimiento térmico accesible incluso sin pasta en mochila. */
+.adv-thermal-service{border:1px solid #5d998f;background:#103a37;
+ border-radius:12px;padding:.7rem .8rem;margin:.65rem 0;
+ display:grid;gap:.45rem;line-height:1.4}
+.adv-thermal-service p{margin:0;color:#e1fff5;font-size:.86rem}
+.adv-thermal-service button{min-height:40px;max-width:100%;
+ font-size:.84rem;justify-self:start}
+@media(max-width:650px){.adv-thermal-service button{width:100%;justify-self:stretch}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
 </head>
 <body>
-<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.17.1-alpha: mesa 3D sincronizada con las compras</h1></div><div class="actions"><button id="adventureBtn" class="primary">Taller y encargos</button><button id="storeBtn" class="store-nav-btn">🛒 Tienda</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
+<header><div><p class="eyebrow">AI assisted 3D hardware training</p><h1>PC Lab 8.17.2-alpha: mantenimiento del disipador y pasta térmica</h1></div><div class="actions"><button id="adventureBtn" class="primary">Taller y encargos</button><button id="storeBtn" class="store-nav-btn">🛒 Tienda</button><button id="assemblyBtn" class="active">Montaje técnico</button><button id="diagnosticBtn">Diagnóstico IA</button><button id="exportPcJson" class="okbtn">Exportar montaje JSON</button><button id="toggleTeacher">Crear / importar caso</button><button id="soundBtn">Sonido: ON</button><button id="resetBtn" class="danger">Reiniciar</button></div></header>
 <details id="teacherTools" class="panel teacher-tools"><summary><strong>Herramientas docentes · Caso práctico JSON</strong></summary>
 <p>El profesor puede redactar un encargo y su presupuesto, descargarlo en JSON o importar uno para resolverlo en «Tienda y encargos».</p>
 <div class="teacher-fields">
@@ -971,7 +980,7 @@ body.adventure-on.adventure-store-on #storeBtn{background:#1b725a;border-color:#
 <script src="./js/operationEngine.js?v=8-8-2-latent-sata"></script>
 <script src="./js/workshopTools.js?v=8-14-0-bank"></script>
 <script src="./js/pinoutLab.js?v=8-17-0-orientation"></script>
-<script src="./js/adventureMode.js?v=8-17-1-stage-fix"></script>
+<script src="./js/adventureMode.js?v=8-17-2-cooler-service"></script>
 <script src="./js/partInspector.js?v=8-4-4-front-io"></script>
 <script>
 const $=id=>document.getElementById(id);
