@@ -282,7 +282,8 @@ export function createWorkbench(THREE,scene,materials) {
   function updateScreen(consoleText, powered=false, bios=false, signal=false, osVisual=null){
     currentOsVisual=osVisual?.kind||null;
     const signature=[consoleText, powered, bios, signal,osVisual?.kind,
-      osVisual?.progress,osVisual?.code].join('\u0001');
+      osVisual?.progress,osVisual?.code,osVisual?.selection,osVisual?.mediaId,
+      osVisual?.images?.map(x=>x.id).join(',')].join('\u0001');
     if(signature===lastSignature)return;
     lastSignature=signature;
     const width=canvas.width,height=canvas.height;
@@ -334,6 +335,18 @@ export function createWorkbench(THREE,scene,materials) {
     for(let y=110;y<height-45;y+=9)ctx.fillRect(32,y,width-64,1);
     tex.needsUpdate=true;
   }
+  function hitVentoyOption(uv){
+    if(!uv)return null;
+    const x=uv.x*canvas.width,y=(1-uv.y)*canvas.height;
+    if(currentOsVisual==='ventoy'){
+      if(x<75||x>1495||y<216)return null;
+      const i=Math.floor((y-216)/72);
+      if(i>=0&&i<7&&(y-216)%72<=60)return {kind:'choose',index:i};
+    }
+    if(currentOsVisual==='installer'&&x>=900&&x<=1405&&y>=510&&y<=568)
+      return {kind:'install'};
+    return null;
+  }
   function hitBootOption(uv){
     if(!uv)return -1;
     const x=uv.x*canvas.width,y=(1-uv.y)*canvas.height;
@@ -347,7 +360,7 @@ export function createWorkbench(THREE,scene,materials) {
   updateScreen('Sistema apagado.',false,false,false);
   updateConnections({});
   return {root,updateScreen,updateConnections,getRearUsbAlignment,
-    installerUsb,getInstallerUsbPose,hitBootOption,display,
+    installerUsb,getInstallerUsbPose,hitBootOption,hitVentoyOption,display,
     getOSMonitorKind:()=>currentOsVisual,
     screen,keyboard,mouseGroup,texture:tex,layout:WORKBENCH_LAYOUT};
 }

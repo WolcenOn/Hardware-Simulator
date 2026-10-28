@@ -11,7 +11,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-21-3-pcb-edge-routing';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-21-0-four-boot-choices';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-0-ventoy-screen';
 import { createATXTower } from './towerATX.js?v=8-21-3-header-layout';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
@@ -407,6 +407,18 @@ view.addEventListener('pointerup',e=>{
       if(row>=0)window.dispatchEvent(
         new CustomEvent('pc3d-boot-move',{detail:{index:row}}));
       return;
+    }
+  }
+  // El mismo monitor permite elegir una ISO en Ventoy o iniciar el
+  // instalador, sin depender de un panel externo al ordenador virtual.
+  if(current?.power&&!current?.bios&&current?.mouseConnected){
+    const hits=raycaster.intersectObject(workbench.display,false);
+    if(hits.length){
+      const action=workbench.hitVentoyOption(hits[0].uv);
+      if(action){
+        window.dispatchEvent(new CustomEvent('pc3d-ventoy-select',{detail:action}));
+        return;
+      }
     }
   }
   // El pendrive montado sobre USB-A trasero es interactivo y se puede

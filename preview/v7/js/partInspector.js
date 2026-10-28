@@ -42,6 +42,8 @@ function createPartInspector(api){
   function parse(ref){
     if(!ref)return null;
     const raw=String(ref);
+    if(/^item:osusb:USB-\d+$/.test(raw))
+      return {category:'item',id:'osusb',key:'item:osusb',mediaId:raw.split(':')[2]};
     if(raw==='storage2')return {category:'storage2',id:api.state()?.secondaryStorage?.id||'',key:'storage2'};
     if(raw.startsWith('fan')&&/^fan[0-2]$/.test(raw))
       return {category:raw,id:raw,key:raw};
@@ -60,7 +62,8 @@ function createPartInspector(api){
     const t=parse(ref);if(!t)return null;
     const catalog=api.catalog?.[t.category==='storage2'?'storage':groups[t.category]];
     const model=catalog?.[t.id]||special[t.key]||{};
-    const name=t.category==='storage2'?'Unidad 2 · '+(model.name||'Almacenamiento SATA'):
+    const name=t.mediaId?t.mediaId+' · USB físico de 32 GB':
+      t.category==='storage2'?'Unidad 2 · '+(model.name||'Almacenamiento SATA'):
       model.name||titles[t.category]||t.id;
     return {...t,name,model};
   }
@@ -217,6 +220,14 @@ function createPartInspector(api){
         enabled,reason:enabled?'Devolver una unidad sin instalar':'Primero retira la pieza o desconecta el cable para devolverlo.'});
     };
     if(t.category==='item'){
+      if(t.id==='osusb'){
+        const media=ad.usbDrives?.()||[];
+        const hasMedia=media.length>0;
+        actions.push({verb:'usbStation',label:'Preparar USB / instalar Ventoy / copiar ISO',
+          enabled:hasMedia});
+        actions.push({verb:'usbInsert',label:'Insertar memoria seleccionada en USB-A',
+          enabled:hasMedia&&!st.usbConnected&&!!st.installed.motherboard});
+      }
       if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'||t.id==='rgbStrip'){
         const mountedIO=(t.id==='ioShield'&&st.ioShield)||(t.id==='rgbStrip'&&st.rgbInstalled);
         if(!mountedIO)actions.push({verb:(t.id==='paste'||t.id==='rgbStrip')?'apply':'fit',
@@ -416,6 +427,16 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
+    if(verb==='usbStation'){
+      ad.openUsbStation?.();close();return;
+    }
+    if(verb==='usbInsert'){
+      const id=ad.game?.usbSelected||ad.usbDrives?.()[0]?.id;
+      const ok=ad.connectInstallerUsb?.(id);
+      feedback={text:ad.game?.lastFeedback?.text||(ok?'USB insertado.':'No se pudo insertar.'),
+        level:ok?'ok':'warn'};
+      refresh();return;
+    }
     if(verb==='installSecond'){
       const ok=ad.installSecondHdd?.(t.key);
       feedback={text:ad.game?.lastFeedback?.text||(ok?'Unidad adicional encajada.':'No se pudo instalar la unidad adicional.'),
