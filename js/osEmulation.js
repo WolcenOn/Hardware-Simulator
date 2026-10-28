@@ -13,7 +13,13 @@ const CATALOG=Object.freeze({
     detail:'Sistema de consola ficticio',minGb:8,minRamGb:1,
     requiresUefi:false,requiresSecureBoot:false,accent:'#84f4b8'})
 });
-const BOOT_LABELS=Object.freeze({ssd:'Disco interno',usb:'USB',pxe:'Red PXE'});
+const BOOT_LABELS=Object.freeze({ssd:'Disco 1 (principal)',hdd2:'Disco 2 (HDD SATA)',usb:'USB',pxe:'Red PXE'});
+function bootOrder(state){
+  const saved=state?.biosCfg?.bootOrder||[state?.biosCfg?.boot||'ssd','usb','pxe'];
+  const order=[...new Set(saved.filter(x=>BOOT_LABELS[x]))];
+  if(state?.secondaryStorage?.installed&&!order.includes('hdd2'))order.splice(1,0,'hdd2');
+  return order;
+}
 function storageCapacityGb(id,name=''){
   const known={sataSSD:1000,nvmeSSD:500,hdd:2000,hdd4:4000,
     sataSSD2:2000,nvme2:2000};
@@ -22,11 +28,29 @@ function storageCapacityGb(id,name=''){
   if(!m)return 0;
   return Math.round(Number(m[1].replace(',','.'))*(m[2].toUpperCase()==='TB'?1000:1));
 }
-function installedDiskReady(state,disk={}){
+function installedDiskReady(state,disk={},device='ssd'){
+  if(device==='hdd2'){
+    const second=state?.secondaryStorage;
+    return !!second?.installed&&!!second?.sataData&&!!second?.sataPower&&
+      state?.biosCfg?.sata==='AHCI';
+  }
   if(!state?.installed?.storage)return false;
   if(disk.interface==='SATA'&&(!state.sataData||!state.sataPower))return false;
   if(disk.interface==='SATA'&&state.biosCfg?.sata!=='AHCI')return false;
   return true;
+}
+function availableDrives(state,hardware={}){
+  const primary=state?.installed?.storage?{
+    device:'ssd',id:state.selected?.storage,name:hardware.disk?.name||'Unidad principal',
+    ready:installedDiskReady(state,hardware.disk),os:state.installedOs||null
+  }:null;
+  const second=state?.secondaryStorage?.installed?{
+    device:'hdd2',id:state.secondaryStorage.id,
+    name:hardware.secondaryDisk?.name||'HDD SATA (bahía inferior)',
+    ready:installedDiskReady(state,hardware.secondaryDisk,'hdd2'),
+    os:state.secondaryStorage.installedOs||null
+  }:null;
+  return [primary,second].filter(Boolean);
 }
 function requirement(image,state,hardware={}){
   const os=CATALOG[image];
@@ -46,14 +70,18 @@ function canInstall(state,hardware={}){
   if(!state?.usbConnected||!CATALOG[image])
     return {ok:false,code:'NO_INSTALLER_USB',
       reason:'Conecta un USB con un instalador válido.'};
-  if(!state?.installed?.storage)
+  const device=state?.osInstallTarget==='hdd2'?'hdd2':'ssd';
+  const target=availableDrives(state,hardware).find(d=>d.device===device);
+  if(!target)
     return {ok:false,code:'NO_TARGET_DISK',reason:'No hay disco de destino instalado.'};
-  if(!installedDiskReady(state,hardware.disk))
+  if(!target.ready)
     return {ok:false,code:'DISK_NOT_READY',
-      reason:'La unidad no está disponible: revisa cables SATA y modo AHCI.'};
+      reason:'La unidad '+BOOT_LABELS[device]+' no está disponible: revisa SATA y modo AHCI.'};
   const check=requirement(image,state,hardware);
   if(!check.ok)return check;
-  const gb=hardware.diskGb||storageCapacityGb(state.selected?.storage,hardware.disk?.name);
+  const gb=device==='hdd2'?
+    storageCapacityGb(target.id,target.name):
+    hardware.diskGb||storageCapacityGb(state.selected?.storage,hardware.disk?.name);
   if(gb<CATALOG[image].minGb)
     return {ok:false,code:'DISK_TOO_SMALL',reason:CATALOG[image].name+
       ' necesita '+CATALOG[image].minGb+' GB; disco detectado: '+gb+' GB.'};
@@ -67,7 +95,8 @@ function canInstall(state,hardware={}){
   if(state.biosCfg?.bootOrder?.[0]!=='usb'&&state.biosCfg?.boot!=='usb')
     return {ok:false,code:'USB_NOT_FIRST',
       reason:'Selecciona USB como primera prioridad de arranque en UEFI.'};
-  return {ok:true,code:'READY',reason:'Instalador listo.',os:CATALOG[image],diskGb:gb};
+  return {ok:true,code:'READY',reason:'Instalador listo.',os:CATALOG[image],
+    device,diskGb:gb};
 }
 function resolveBoot(state,hardware={}){
   if(!state?.power)return {kind:'off',code:'OFF',message:'Equipo apagado.'};
@@ -75,11 +104,8 @@ function resolveBoot(state,hardware={}){
     message:'El hardware no ha completado el POST.'};
   if(state.osInstalling)return {kind:'installing',code:'INSTALLING',os:CATALOG[state.usbImage],
     progress:state.osInstallProgress||0,message:'Instalación ficticia en curso.'};
-  const order=state.biosCfg?.bootOrder||[state.biosCfg?.boot||'ssd','usb','pxe'];
-  const media=state.installedOs;
-  const diskValid=!!media&&!!CATALOG[media.id]&&
-    media.storageId===state.selected?.storage&&installedDiskReady(state,hardware.disk);
-  for(const device of order){
+  const drives=availableDrives(state,hardware);
+  for(const device of bootOrder(state)){
     if(device==='usb'&&state.usbConnected&&CATALOG[state.usbImage]){
       const check=requirement(state.usbImage,state,hardware);
       if(!check.ok)return {kind:'blocked',device:'usb',code:check.code,
@@ -87,34 +113,38 @@ function resolveBoot(state,hardware={}){
       return {kind:'installer',code:'USB_INSTALLER',device:'usb',
         os:CATALOG[state.usbImage],message:'Instalador USB detectado.'};
     }
-    if(device==='ssd'&&diskValid){
-      const check=requirement(media.id,state,hardware);
-      if(!check.ok)return {kind:'blocked',device:'ssd',code:check.code,
-        message:check.reason,os:CATALOG[media.id]};
-      return {kind:'desktop',code:'DISK_OS',device:'ssd',
-        os:CATALOG[media.id],message:'Sistema instalado en '+(hardware.disk?.name||'disco')+'.'};
-    }
+    const disk=drives.find(d=>d.device===device);
+    if(!disk||!disk.ready||!disk.os||!CATALOG[disk.os.id]||
+      disk.os.storageId!==disk.id)continue;
+    const check=requirement(disk.os.id,state,hardware);
+    if(!check.ok)return {kind:'blocked',device,code:check.code,
+      message:check.reason,os:CATALOG[disk.os.id]};
+    return {kind:'desktop',code:'DISK_OS',device,
+      os:CATALOG[disk.os.id],message:'Sistema instalado en '+disk.name+'.'};
   }
-  if(state.installed?.storage&&!installedDiskReady(state,hardware.disk))
+  if(drives.some(d=>!d.ready))
     return {kind:'no-boot',code:'DISK_NOT_READY',
-      message:'Disco sin comunicación o alimentación. Revisa SATA/UEFI.'};
+      message:'Una o más unidades no se detectan: revisa cables SATA y modo AHCI.'};
   return {kind:'no-boot',code:'NO_BOOTABLE_DEVICE',
-    message:state.installed?.storage?
-      'No hay un sistema instalado ni USB de arranque válido.':
+    message:drives.length?
+      'Ningún disco tiene un sistema arrancable ni hay USB válido.':
       'No hay disco ni USB de arranque válido.'};
 }
 function installRecord(state,hardware={}){
   const check=canInstall(state,hardware);
   if(!check.ok)return check;
-  state.installedOs={id:state.usbImage,storageId:state.selected.storage,
-    storageInterface:hardware.disk?.interface||'unknown'};
-  // La licencia corresponde al PC instalado, no al medio USB. NovaDesk
-  // es propietario ficticio y puede arrancar sin activación; las
-  // distribuciones libres no requieren una compra adicional.
-  state.osActivated=state.usbImage!=='novadesk';
+  const device=check.device;
+  const target=availableDrives(state,hardware).find(d=>d.device===device);
+  const record={id:state.usbImage,storageId:target.id,
+    storageInterface:device==='hdd2'?'SATA':hardware.disk?.interface||'unknown',
+    activated:state.usbImage!=='novadesk'};
+  if(device==='hdd2')state.secondaryStorage.installedOs=record;
+  else state.installedOs=record;
+  state.osActivated=record.activated;
   state.osInstalled=true;state.osInstalling=false;state.osInstallProgress=100;
-  return {ok:true,code:'INSTALLED',os:CATALOG[state.usbImage],
-    reason:'Instalación completada. Retira el USB o coloca el disco primero en la BIOS.'};
+  return {ok:true,code:'INSTALLED',device,os:CATALOG[state.usbImage],
+    reason:'Instalación completada en '+BOOT_LABELS[device]+
+      '. Retira el USB o selecciona esa unidad en la BIOS.'};
 }
 function presentation(state,hardware={}){
   const boot=resolveBoot(state,hardware);
@@ -185,6 +215,7 @@ function paint(ctx,w,h,visual){
   ctx.fillText('PC LAB · No es un sistema operativo real',55,h-33);
   return true;
 }
-root.PC_OS=Object.freeze({CATALOG,BOOT_LABELS,storageCapacityGb,installedDiskReady,
+root.PC_OS=Object.freeze({CATALOG,BOOT_LABELS,bootOrder,availableDrives,
+  storageCapacityGb,installedDiskReady,
   requirement,canInstall,resolveBoot,installRecord,presentation,paint});
 })(typeof window!=='undefined'?window:globalThis);
