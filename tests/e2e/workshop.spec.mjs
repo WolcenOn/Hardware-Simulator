@@ -20,14 +20,14 @@ async function openModernGame(page){
 
 async function openSection(page, name) {
   const details=page.locator(`#adventurePanel [data-section="${name}"]`);
-  if (!(await details.evaluate(el=>el.open))) await details.locator('summary').click();
+  if (!(await details.evaluate(el=>el.open))) await details.locator(':scope > summary').click();
   await expect(details).toHaveAttribute('open', '');
   // Acceso explícito a acciones de compatibilidad usadas por regresiones,
   // cerradas por defecto en la nueva interfaz 3D.
   if(name==='actions'){
     const manual=details.locator('.adv-manual-ops');
     if(!(await manual.evaluate(el=>el.open)))
-      await manual.locator('summary').click();
+      await manual.locator(':scope > summary').click();
     await expect(manual).toHaveAttribute('open','');
   }
 }
@@ -173,9 +173,9 @@ test('el catálogo ofrece refrigeración líquida, RGB y varios colores de caja'
   await store.locator('[data-store-back]').evaluate(el=>el.click());
 });
 
-test('el panel lateral conserva las cajas y selectores dentro de su ancho', async ({ page }) => {
+test('el panel técnico de compatibilidad conserva los controles sin desbordar su ancho', async ({ page }) => {
   await openGame(page);
-  await openSection(page,'shop');
+  await openSection(page,'inventory');
   const outside=await page.locator('#adventurePanel').evaluate(panel => {
     const parent=panel.getBoundingClientRect();
     const children=[...panel.querySelectorAll('select,button,.adv-card')].filter(
@@ -464,6 +464,9 @@ test('HDD de 3,5 pulgadas encajado en la jaula del chasis, no en el lateral',asy
   await loadTechnicalFixture(page);
   for(const disk of ['hdd','hdd4']){
     await page.locator('select[data-cat="storage"]').selectOption(disk);
+    // Elegir otro modelo desmonta el anterior. Hay que encajar la unidad nueva.
+    await page.locator('#installList [data-drag-part="storage"] button').first().click();
+    expect(await page.evaluate(()=>state.installed.storage)).toBe(true);
     const bay=await page.evaluate(()=>window.PC3D.getHddBayAlignment());
     expect(bay.selected).toBe(disk);
     expect(bay.slot).toBe('upper');
@@ -507,6 +510,10 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
   // Cambiar HDD DESPUÉS del montaje, y no antes de resetearlo.
   await loadTechnicalFixture(page);
   await page.locator('select[data-cat="storage"]').selectOption('hdd');
+  // El cambio de disco anula su montaje: invisible hasta instalarlo otra vez.
+  expect((await page.evaluate(()=>window.PC3D.getStorageBayAlignment())).visible).toBe(false);
+  await page.locator('#installList [data-drag-part="storage"] button').first().click();
+  expect(await page.evaluate(()=>state.installed.storage)).toBe(true);
   bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
   expect(bay.selected).toBe('hdd');
   expect(bay.slot).toBe('upper');
@@ -612,6 +619,7 @@ test('USB de tienda: preparar y conectar a USB-A real',async ({page})=>{
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
   await buy(page,'item','osusb');
+  await openSection(page,'usb');
   await page.locator('#advPrepareOS').selectOption('novadesk');
   await page.locator('[data-prepare-usb]').click();
   await expect(page.locator('#advUsbSelection')).toHaveValue('item:usbNova');
@@ -637,12 +645,14 @@ test('USB de tienda: comprar y alternar dos instaladores preparados',async ({pag
   await buy(page,'item','ioShield');await fit(page,'item:ioShield');
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
   await buy(page,'item','usbNova');
+  await openSection(page,'usb');
   await page.locator('#advUsbSelection').selectOption('item:usbNova');
   await page.locator('[data-connect-usb]').evaluate(button=>button.click());
   await expect(page.locator('#advUsbStatus')).toContainText('NovaDesk 11');
   await page.locator('[data-eject-usb]').evaluate(button=>button.click());
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getInstallerUsbPose().visible)).toBe(false);
   await buy(page,'item','usbLibre');
+  await openSection(page,'usb');
   await page.locator('#advUsbSelection').selectOption('item:usbLibre');
   await page.locator('[data-connect-usb]').evaluate(button=>button.click());
   await expect(page.locator('#advUsbStatus')).toContainText('LibreForge');
@@ -1250,7 +1260,8 @@ test('8.12.2 el disipador abre el minijuego al encajarlo con herramientas dispon
 test('8.13 la tienda es una pantalla independiente con fichas previas y vendedor de consumibles', async ({page})=>{
   await openGame(page);
   const store=await openStore(page,'cpu');
-  await expect(store.locator('.store-categories button')).toHaveCount(9);
+  await expect(store.locator('.store-categories button')).toHaveCount(10);
+  await expect(store.locator('[data-store-category="workshop"]')).toContainText('Herramientas del taller');
   await expect(store.locator('.store-seller')).toContainText('Vendedor');
   await expect(store.locator('.store-seller')).toContainText('tornillos');
   await store.locator('[data-store-info="cpu:r7600"]').evaluate(el=>el.click());
@@ -1568,7 +1579,7 @@ test('v8.19: la construcción recomendada no deja inventario antiguo ni piezas i
  expect(result.stock['motherboard:b650']).toBe(0);
  await page.evaluate(()=>partInspector.open('motherboard:b650','tower'));
  await expect(page.locator('#partContextMenu')).toBeVisible();
- await expect(page.locator('#partContextMenu')).toContainText('Placa');
+ await expect(page.locator('#partContextMenu')).toContainText('B650 ATX AM5');
  await expect(page.locator('#partContextMenu [data-part-verb="return"]')).toBeDisabled();
 });
 
