@@ -503,8 +503,10 @@ test('SSD y HDD se alojan en la jaula real y la cámara permite inspeccionarlos'
   expect(bay.ssdAdapterVisible).toBe(true);
   expect(bay.rearSSDVisible).toBe(false);
   expect(bay.inspectionVisible).toBe(true);
-  await page.locator('select[data-cat="storage"]').selectOption('hdd');
+  // Recargar la fixture técnica reinicializa el catálogo seleccionado.
+  // Cambiar HDD DESPUÉS del montaje, y no antes de resetearlo.
   await loadTechnicalFixture(page);
+  await page.locator('select[data-cat="storage"]').selectOption('hdd');
   bay=await page.evaluate(()=>window.PC3D.getStorageBayAlignment());
   expect(bay.selected).toBe('hdd');
   expect(bay.slot).toBe('upper');
