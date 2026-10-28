@@ -2,7 +2,7 @@
 // Separa los cables de alimentación que nacen en los cuatro puertos de la misma
 // cara modular de la PSU de las conexiones de datos, vídeo y panel frontal.
 import { PSU_CABLE_PORTS, MOTHERBOARD_MOUNT, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
-  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-4-11-drive-bays';
+  getInternalHeaderAnchor, getGpuPowerAnchor } from './partsRealScale.js?v=8-21-3-pcb-edge-headers';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-9-routed-cables';
 import {planCableRoute,createSafeCableCurve,routeCollisions}
   from './cableRouting3d.js?v=8-4-11-drive-bays';
@@ -179,6 +179,23 @@ export function createCableHarness(THREE,scene,assembly,tower){
     // los pasacables del borde derecho, antes de llegar al conector.
     const channelY=-.665;
     const crossY=1.22;
+    const boardRight=cfg.x+cfg.w/2,boardBottom=cfg.z+cfg.d/2;
+    const ingressX=Math.min(1.54,boardRight+.20);
+    // Los mazos pasan por detrás del PCB y rodean su canto; ningún
+    // waypoint debe seguir apuntando a la antigua zona del chipset.
+    const frontUsbPath=(kind,lead,first)=>{
+      const end=getInternalHeaderAnchor(cfg,kind);
+      const bottomSide=end[0]<boardRight-.95;
+      const via=bottomSide?[
+        [ingressX,channelY,boardBottom+.22],
+        [end[0],channelY,boardBottom+.22],
+        [end[0],1.03+boardY,boardBottom+.22]
+      ]:[
+        [ingressX,channelY,end[2]+.09],
+        [ingressX,1.55,end[2]+.09]
+      ];
+      return [lead,first,[4.70,channelY,-1.80],...via,end];
+    };
     const routeRight=(end)=>[
       [1.76,channelY,4.38],[1.71,channelY,end[2]],
       [1.53,crossY,end[2]],[...end]
@@ -206,31 +223,27 @@ export function createCableHarness(THREE,scene,assembly,tower){
       PSU_CABLE_PORTS.sataPower,[1.60,channelY,4.91],
       [1.58,channelY,drive[2]],[...drive]
     ],.033,boardId);
+    const sataHeader=getInternalHeaderAnchor(cfg,'sataData');
     make('sataData',[
-      getInternalHeaderAnchor(cfg,'sataData'),
-      [1.51,1.46,cfg.sataZ+.16],[1.51,.24+boardY,cfg.sataZ+.16],
+      sataHeader,
+      [ingressX,1.46,sataHeader[2]+.09],
+      [ingressX,.24+boardY,sataHeader[2]+.09],
       [1.55,channelY,drive[2]],[...drive]
     ],.023,boardId);
 
     // POWER SW y los dos mazos USB parten del frontal superior del chasis.
     // Los puntos de placa se comparten con los alojamientos físicos.
+    const frontHeader=getInternalHeaderAnchor(cfg,'frontPanel');
     make('frontPanel',[
       FRONT_IO_LAYOUT.powerLead,[4.70,2.93,-1.70],
-      [4.72,channelY,-1.80],[1.66,channelY,2.54],
-      [1.66,1.61,2.54],getInternalHeaderAnchor(cfg,'frontPanel')
+      [4.72,channelY,-1.80],
+      [ingressX,channelY,frontHeader[2]+.10],
+      [ingressX,1.61,frontHeader[2]+.10],frontHeader
     ],.018,boardId);
-    make('frontUsb3',[
-      FRONT_IO_LAYOUT.usbALead,[4.75,1.94,-1.62],
-      [4.70,channelY,-1.80],[1.72,channelY,getInternalHeaderAnchor(cfg,'frontUsb3')[2]],
-      [1.72,1.56,getInternalHeaderAnchor(cfg,'frontUsb3')[2]],
-      getInternalHeaderAnchor(cfg,'frontUsb3')
-    ],.029,boardId);
-    make('frontUsbC',[
-      FRONT_IO_LAYOUT.usbCLead,[4.73,.98,-1.63],
-      [4.68,channelY,-1.80],[1.63,channelY,getInternalHeaderAnchor(cfg,'frontUsbC')[2]],
-      [1.63,1.54,getInternalHeaderAnchor(cfg,'frontUsbC')[2]],
-      getInternalHeaderAnchor(cfg,'frontUsbC')
-    ],.023,boardId);
+    make('frontUsb3',frontUsbPath('frontUsb3',
+      FRONT_IO_LAYOUT.usbALead,[4.75,1.94,-1.62]),.029,boardId);
+    make('frontUsbC',frontUsbPath('frontUsbC',
+      FRONT_IO_LAYOUT.usbCLead,[4.73,.98,-1.63]),.023,boardId);
     make('fan',[
       getInternalHeaderAnchor(cfg,'fan'),
       [cfg.cpuX+1.03,.93+boardY,cfg.cpuZ+.85],

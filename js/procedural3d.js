@@ -3,15 +3,16 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
-  getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
-  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-2-ssd-second-bay';
+import { buildRealScale, BOARD_LAYOUTS, MOTHERBOARD_MOUNT, MM_PER_UNIT,
+  getMotherboardMountPoints, getRearVideoAnchor, getGpuVideoAnchor,
+  getInternalHeaderAnchor, HDD_BAY_LAYOUT, SSD_BAY_LAYOUT }
+  from './partsRealScale.js?v=8-21-3-pcb-edge-headers';
 import { createProceduralFan } from './fanProcedural.js';
-import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
+import { createCableHarness } from './cablesProcedural.js?v=8-21-3-pcb-edge-routing';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
 import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-21-0-four-boot-choices';
-import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
+import { createATXTower } from './towerATX.js?v=8-21-3-header-layout';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
 import {createToolRack} from './toolRack3d.js?v=8-20-0-permanent';
@@ -652,6 +653,19 @@ window.PC3D={
     target:controls.target.toArray()
   }),
   getCaseFinish:()=>tower.getFinish(),
+  // Coordenadas físicas de las tomas del PCB y su malla real. La misma
+  // función alimenta pruebas de geometría y verificación de cables.
+  getMotherboardInternalHeaders:()=>{
+    root.updateMatrixWorld(true);
+    const id=current?.selected?.motherboard||'b650';
+    const cfg=BOARD_LAYOUTS[id]||BOARD_LAYOUTS.b650;
+    return ['sataData','frontPanel','frontUsb3','frontUsbC'].map(kind=>{
+      const model=assembly.internalHeaderModels[id]?.[kind];
+      const actual=model?
+        root.worldToLocal(model.getWorldPosition(new THREE.Vector3())).toArray():null;
+      return {kind,board:id,actual,expected:getInternalHeaderAnchor(cfg,kind)};
+    });
+  },
   getOSMonitorKind:()=>workbench.getOSMonitorKind(),
   getMechanicalFault:()=>current?.mechanicalFault||null,
   getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,

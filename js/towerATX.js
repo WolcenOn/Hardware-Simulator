@@ -5,7 +5,7 @@ import {createInternalHeader3d} from './connectors3d.js?v=8-4-9-routed-cables';
 // La silueta y cotas son didácticas, no una réplica del diseño industrial de Corsair.
 import { BOARD_LAYOUTS, MOTHERBOARD_MOUNT, getMotherboardMountPoints, REAR_CASE_FAN_Y, FRONT_IO_LAYOUT,
   HDD_BAY_LAYOUT,SSD_BAY_LAYOUT,getHddBayPosition,getSsdBayPosition
-} from './partsRealScale.js?v=8-4-11-drive-bays';
+} from './partsRealScale.js?v=8-21-3-pcb-edge-headers';
 export const TOWER_CASE_MM={depth:453,width:230,height:466,maxGpu:360,maxCooler:170};
 export function createATXTower(THREE,parent,materials){
   const tower=new THREE.Group();tower.name='Torre ATX 4000D - distribución';parent.add(tower);

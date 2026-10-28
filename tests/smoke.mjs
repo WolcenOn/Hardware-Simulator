@@ -5,7 +5,7 @@ import {REAR_PORT_SPECS,portOutline} from '../js/portProfiles.js';
 import {getPlugExitDistance,INTERNAL_HEADER_SPECS} from '../js/connectors3d.js';
 import {planCableRoute,routeCollisions,cableObstacles}
   from '../js/cableRouting3d.js';
-import {getInternalHeaderAnchor,getGpuPowerAnchor,
+import {getInternalHeaderAnchor,getBoardEdgeHeaders,getGpuPowerAnchor,
   HDD_BAY_LAYOUT,getHddBayPosition,
   SSD_BAY_LAYOUT,getSsdBayPosition} from '../js/partsRealScale.js';
 import assert from 'node:assert/strict';
@@ -209,6 +209,35 @@ for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
   for(const gpu of ['rx7600','rtx4070'])
     assert(getGpuPowerAnchor(cfg,gpu).every(Number.isFinite));
 }
+// Regresión 8.21.3: puertos internos pegados al perímetro, sin pisar el
+// disipador de chipset. Las bocas visibles y las rutas comparten el origen.
+for(const [id,cfg] of Object.entries(BOARD_LAYOUTS)){
+  const edges=getBoardEdgeHeaders(cfg),right=cfg.x+cfg.w/2,
+    bottom=cfg.z+cfg.d/2,left=cfg.x-cfg.w/2,top=cfg.z-cfg.d/2;
+  const chip={x:right-.64,z:bottom-.94,w:.83,d:.85};
+  const kinds=['sataData','frontPanel','frontUsb3','frontUsbC'];
+  for(const kind of kinds){
+    const [x,z]=edges[kind],size=INTERNAL_HEADER_SPECS[kind];
+    assert(x-size.w/2>left&&x+size.w/2<right,id+' '+kind+' fuera del ancho PCB');
+    assert(z-size.d/2>top&&z+size.d/2<bottom,id+' '+kind+' fuera del largo PCB');
+    const overlapX=Math.abs(x-chip.x)<(size.w+chip.w)/2+.06,
+      overlapZ=Math.abs(z-chip.z)<(size.d+chip.d)/2+.06;
+    assert(!(overlapX&&overlapZ),id+' '+kind+' invade el disipador del chipset');
+    const anchor=getInternalHeaderAnchor(cfg,kind);
+    assert(Math.abs(anchor[0]-x)<1e-9&&Math.abs(anchor[2]-z)<1e-9,
+      id+' '+kind+' la malla y el cable tienen anclajes diferentes');
+    for(const other of kinds){
+      if(kind>=other)continue;
+      const [ox,oz]=edges[other],dims=INTERNAL_HEADER_SPECS[other];
+      const clashX=Math.abs(x-ox)<(size.w+dims.w)/2+.035,
+        clashZ=Math.abs(z-oz)<(size.d+dims.d)/2+.035;
+      assert(!(clashX&&clashZ),id+' '+kind+' solapa '+other);
+    }
+  }
+  assert.equal(cfg.sataX,edges.sataData[0],id+' SATA X obsoleta');
+  assert.equal(cfg.sataZ,edges.sataData[1],id+' SATA Z obsoleta');
+  assert(edges.frontPanel[1]>bottom-1,id+' F_PANEL debe quedar al borde inferior');
+}
 const cableSource=read('js/cablesProcedural.js');
 const workbenchSource=read('js/workbench3d.js');
 const proceduralSource=read('js/procedural3d.js');
@@ -216,6 +245,9 @@ assert(cableSource.includes('const exits=plugs.map(plug=>getCableExit'));
 assert(workbenchSource.includes('const tail=getCableExit(THREE,plug)'));
 assert(proceduralSource.includes('const flex=getCableExit(THREE,plug)'));
 assert(cableSource.includes("getInternalHeaderAnchor(cfg,'frontPanel')"));
+assert(cableSource.includes("getInternalHeaderAnchor(cfg,'sataData')"));
+assert(cableSource.includes("frontUsbPath('frontUsb3'"));
+assert(!cableSource.includes('[1.66,1.61,2.54]'),'Cable F_PANEL usa waypoint antiguo sobre el chipset');
 assert(read('js/partsRealScale.js').includes('psuCableSockets'));
 // Regresión 8.4.8: el eje de la clavija lo determina el puerto, NO la curva.
 const harness=read('js/cablesProcedural.js');
@@ -641,7 +673,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-21-2-sata-instances'));
+assert(html.includes('adventureMode.js?v=8-21-3-pcb-edge-headers'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -791,7 +823,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-21-2-sata-instances'));
+assert(html.includes('adventureMode.js?v=8-21-3-pcb-edge-headers'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1030,7 +1062,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.21.2'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.21.3'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1325,7 +1357,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
-assert(compact.includes('Modo aventura · Motor 8.21.2'));
+assert(compact.includes('Modo aventura · Motor 8.21.3'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));

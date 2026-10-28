@@ -1134,7 +1134,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.2');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.3');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1822,4 +1822,28 @@ test('8.21.2: un SSD idéntico en la mesa se instala en segunda bahía sin susti
     disk:catalog.storage.sataSSD,secondaryDisk:catalog.storage.sataSSD}));
   expect(ready.map(d=>d.id)).toEqual(['sataSSD','sataSSD']);
   expect(ready.map(d=>d.ready)).toEqual([true,true]);
+});
+
+test('8.21.3: conectores internos de PCB en perímetro real de ATX y mATX',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await loadTechnicalFixture(page);
+  for(const id of ['b650','a520','z790','b650m','h610']){
+    await page.locator('select[data-cat="motherboard"]').selectOption(id);
+    const ports=await page.evaluate(()=>window.PC3D.getMotherboardInternalHeaders());
+    expect(ports.map(p=>p.kind)).toEqual(['sataData','frontPanel','frontUsb3','frontUsbC']);
+    for(const port of ports){
+      expect(port.board).toBe(id);
+      expect(port.actual).toHaveLength(3);
+      const error=Math.hypot(...port.actual.map((n,i)=>n-port.expected[i]))*50;
+      expect(error,id+' '+port.kind+' se separa del header físico').toBeLessThan(.1);
+    }
+    const cablePorts=await page.evaluate(()=>window.PC3D.getCableSocketAlignment()
+      .filter(p=>p.side===1&&['sataData','frontPanel','frontUsb3','frontUsbC'].includes(p.id)));
+    expect(cablePorts).toHaveLength(4);
+    for(const port of cablePorts){
+      expect(port.gapMm,id+' '+port.id+' no encaja con la boca').toBeLessThan(.25);
+      expect(port.angleDegrees,id+' '+port.id+' desorientado').toBeLessThan(.15);
+    }
+  }
 });
