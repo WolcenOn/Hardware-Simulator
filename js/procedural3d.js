@@ -5,12 +5,12 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
-  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-4-11-drive-bays';
+  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-0-dual-hdd';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-1-usb-market';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-21-0-four-boot-choices';
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
