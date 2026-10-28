@@ -1693,10 +1693,21 @@ test('v8.21: se compran e instalan dos HDD 3D distintos sin sustituir el primero
   expect(geometry.upper.id).toBe('hdd');
   expect(geometry.lower.id).toBe('hdd4');
   expect(geometry.upper.position[1]).toBeGreaterThan(geometry.lower.position[1]);
+  await buy(page,'psu','psu650');await fit(page,'psu:psu650');
+  await buy(page,'item','sataCable');await buy(page,'item','sataCable');
+  await page.evaluate(()=>{
+    adventureGame.select('storage:hdd');
+    adventureGame.connect('sataData');
+    adventureGame.connect('sataPower');
+  });
+  await expect.poll(()=>page.evaluate(()=>state.sataData&&state.sataPower)).toBe(true);
   await page.evaluate(()=>partInspector.open('storage2','tower'));
   await expect(menu).toContainText('HDD 2');
-  await expect(menu.locator('[data-part-verb="secondaryData"]')).toBeVisible();
-  await expect(menu.locator('[data-part-verb="secondaryPower"]')).toBeVisible();
+  await expect(menu.locator('[data-part-verb="secondaryData"]')).toBeEnabled();
+  await menu.locator('[data-part-verb="secondaryData"]').evaluate(el=>el.click());
+  await menu.locator('[data-part-verb="secondaryPower"]').evaluate(el=>el.click());
+  await expect.poll(()=>page.evaluate(()=>
+    state.secondaryStorage.sataData&&state.secondaryStorage.sataPower)).toBe(true);
   await expect(page.locator('#biosBoot option[value="hdd2"]')).toBeEnabled();
   const drives=await page.evaluate(()=>window.PC_OS.availableDrives(state,{
     disk:catalog.storage[state.selected.storage],
@@ -1704,4 +1715,10 @@ test('v8.21: se compran e instalan dos HDD 3D distintos sin sustituir el primero
   }));
   expect(drives).toHaveLength(2);
   expect(drives.map(d=>d.id)).toEqual(['hdd','hdd4']);
+  expect(drives.map(d=>d.ready)).toEqual([true,true]);
+  await page.evaluate(()=>partInspector.open('storage2','tower'));
+  await menu.locator('[data-part-verb="secondaryBoot"]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.biosCfg.boot)).toBe('hdd2');
+  await menu.locator('[data-part-verb="secondaryTarget"]').evaluate(el=>el.click());
+  expect(await page.evaluate(()=>state.osInstallTarget)).toBe('hdd2');
 });
