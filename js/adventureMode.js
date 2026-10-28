@@ -1281,8 +1281,10 @@ function createAdventureGame(api){
       'item:keyboard':st.keyboardConnected,
       'item:mouse':st.mouseConnected
     };
-    // No se puede devolver un cable, teclado o ratón todavía en uso.
-    if(connected[k]&&stock(k)<=1)return false;
+    // Cada HDD conectado necesita su propio cable de datos SATA.
+    const sataNeeded=Number(!!st.sataData)+Number(!!st.secondaryStorage?.sataData);
+    if(k==='item:sataCable'&&stock(k)<=sataNeeded)return false;
+    if(connected[k]&&k!=='item:sataCable'&&stock(k)<=1)return false;
     if(api.state().usbConnected&&api.state().usbMediaKey===k)return false;
     if(k==='item:esdStrap'&&game?.esdConnected)return false;
     return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
@@ -1523,7 +1525,7 @@ function createAdventureGame(api){
     if(!game)return false;
     const st=api.state(),disk=st.secondaryStorage;
     if(!disk?.installed){message('No hay segundo disco instalado.');return false;}
-    if(st.power||st.caseClosed){
+    if(['remove','sataData','sataPower'].includes(verb)&&(st.power||st.caseClosed)){
       message('Apaga el ordenador y abre el chasis antes de manipular el segundo HDD.');return false;
     }
     if(verb==='remove'){
@@ -1537,7 +1539,7 @@ function createAdventureGame(api){
       if(st.biosCfg.boot==='hdd2')st.biosCfg.boot='ssd';
       message('Segundo HDD retirado de la jaula y devuelto al inventario.','ok');
     }else if(verb==='sataData'||verb==='sataPower'){
-      if(verb==='sataData'&&(!st.installed.motherboard||stock('item:sataCable')<2)){
+      if(verb==='sataData'&&!disk.sataData&&(!st.installed.motherboard||stock('item:sataCable')<2)){
         message('Para dos HDD necesitas dos cables SATA de datos comprados y la placa instalada.');return false;
       }
       if(verb==='sataPower'&&!st.installed.psu){
