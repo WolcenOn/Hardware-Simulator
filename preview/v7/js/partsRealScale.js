@@ -65,16 +65,46 @@ export const FRONT_IO_LAYOUT=Object.freeze({
   usbALead:[4.36,1.94,-3.12],
   usbCLead:[4.36,.98,-3.12]
 });
-export const getFrontUsbHeaders=cfg=>({
-  usb3:[cfg.x+cfg.w/2-.62,cfg.z+cfg.d/2-1.13],
-  usbC:[cfg.x+cfg.w/2-.77,cfg.z+cfg.d/2-1.70]
-});
+// Coordenadas del centro de cada socket en el plano X/Z del PCB.
+// 1 unidad = 50 mm. Los cuatro puntos se calculan desde los bordes,
+// no desde la zona central del chipset ni desde offsets del chasis.
+// El mATX compacto utiliza además una franja inferior libre de PCIe.
+export function getBoardEdgeHeaders(cfg){
+  const right=cfg.x+cfg.w/2,bottom=cfg.z+cfg.d/2;
+  const micro=cfg.d<mm(270);
+  const frontPanel=[right-.56,bottom-.25];
+  if(!micro)return {
+    sataData:[right-.30,bottom-1.70],
+    frontPanel,
+    frontUsb3:[right-.34,bottom-2.22],
+    frontUsbC:[right-.29,bottom-2.85]
+  };
+  if(cfg.dimms>=4)return {
+    // mATX de cuatro DIMM: USB-C en la tira a la derecha de los DIMM,
+    // USB 19p en la franja inferior entre PCIe y el chipset.
+    sataData:[right-.28,bottom-1.57],
+    frontPanel,
+    frontUsb3:[right-1.50,bottom-.23],
+    frontUsbC:[right-.21,bottom-2.85]
+  };
+  return {
+    // mATX de dos DIMM: 19p y Type-E caben sobre el borde inferior,
+    // sin ocupar la superficie del chipset ni las ranuras PCIe.
+    sataData:[right-.28,bottom-1.57],
+    frontPanel,
+    frontUsb3:[right-1.50,bottom-.23],
+    frontUsbC:[right-2.16,bottom-.23]
+  };
+}
+export const getFrontUsbHeaders=cfg=>{
+  const edges=getBoardEdgeHeaders(cfg);
+  return {usb3:edges.frontUsb3,usbC:edges.frontUsbC};
+};
 
 // Orígenes de conexión a ras del labio de cada toma REAL, ya con offset
 // de PCB. La malla del header y el extremo de la clavija usan este objeto.
 export function getInternalHeaderAnchor(cfg,kind){
-  const usb=getFrontUsbHeaders(cfg);
-  const fp=[cfg.x+cfg.w/2-.42,cfg.z+cfg.d/2-.32];
+  const edges=getBoardEdgeHeaders(cfg);
   const yz=(x,y,z)=>[x,MOTHERBOARD_MOUNT.offsetY+y,z];
   // Cara inferior de las tomas situada en el mismo plano superior de PCB.
   // Un header que flota en Y se ve como una clavija conectada al aire.
@@ -83,10 +113,10 @@ export function getInternalHeaderAnchor(cfg,kind){
   const ports={
     atx24:yz(cfg.atxX,.355+.40,cfg.atxZ),
     eps:yz(cfg.epsX,.355+.34,cfg.epsZ),
-    sataData:yz(cfg.sataX,.355+.21,cfg.sataZ),
-    frontPanel:yz(fp[0],.355+.17,fp[1]),
-    frontUsb3:yz(usb.usb3[0],.355+.27,usb.usb3[1]),
-    frontUsbC:yz(usb.usbC[0],.355+.28,usb.usbC[1]),
+    sataData:yz(...[edges.sataData[0],.355+.21,edges.sataData[1]]),
+    frontPanel:yz(...[edges.frontPanel[0],.355+.17,edges.frontPanel[1]]),
+    frontUsb3:yz(...[edges.frontUsb3[0],.355+.27,edges.frontUsb3[1]]),
+    frontUsbC:yz(...[edges.frontUsbC[0],.355+.28,edges.frontUsbC[1]]),
     // CPU_FAN cerca del borde superior y a la derecha, fuera del disipador
     // y de la huella longitudinal de los módulos de memoria.
     fan:yz(right-.30,.355+.26,top+.13),
@@ -163,6 +193,12 @@ Object.assign(BOARD_LAYOUTS.h610,{
   w:mm(220),d:mm(244),z:-.60,slots:2,dimms:2,m2:1,
   sataZ:1.12,atxZ:-1.27
 });
+// Mantener las propiedades históricas del layout coherentes con el socket
+// físico (incluidas las variantes heredadas de ATX y micro-ATX).
+for(const cfg of Object.values(BOARD_LAYOUTS)){
+  const [x,z]=getBoardEdgeHeaders(cfg).sataData;
+  cfg.sataX=x;cfg.sataZ=z;
+}
 export function buildRealScale(p) {
   const {THREE, scene, group, rounded, box, cylinder, trace, label, fan, materials} = p;
   const board=group('board'),cpu=group('cpu'),ram=group('ram');
@@ -694,7 +730,7 @@ export function buildRealScale(p) {
     });
     anchors.eps.set(cfg.epsX,.94+MOTHERBOARD_MOUNT.offsetY,cfg.epsZ);
     anchors.atx.set(cfg.atxX,.82+MOTHERBOARD_MOUNT.offsetY,cfg.atxZ);
-    anchors.frontPanel.set(cfg.x+cfg.w/2-.42,.59+MOTHERBOARD_MOUNT.offsetY,cfg.z+cfg.d/2-.32);
+    anchors.frontPanel.set(...getInternalHeaderAnchor(cfg,'frontPanel'));
     anchors.ram.set(modules[0].position.x,1.50+MOTHERBOARD_MOUNT.offsetY,cfg.cpuZ+.05);
     // Diagnóstico SATA fijado al conector real de la unidad instalada.
     const chosenSata=hddDrive.visible?sataHddPorts.sataData:sataSsdPorts.sataData;
