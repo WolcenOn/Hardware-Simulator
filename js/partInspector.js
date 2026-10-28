@@ -231,7 +231,9 @@ function createPartInspector(api){
       const target=t.category;
       const flag=target==='monitor'?'monitorCable':target+'Connected';
       actions.push({verb:st[flag]?'disconnect':'connect',target,label:st[flag]?'Desconectar':'Conectar',enabled:true});
-      if(target==='monitor'&&st.osInstalled&&st.installedOs?.id==='novadesk'&&!st.osActivated)
+      const os=st.biosCfg?.boot==='hdd2'?st.secondaryStorage?.installedOs:st.installedOs;
+      if(target==='monitor'&&os?.id==='novadesk'&&!os.activated&&
+        !(st.biosCfg?.boot!=='hdd2'&&st.osActivated))
         actions.push({verb:'activate',label:'Activar NovaDesk con licencia',enabled:true});
       return actions;
     }
