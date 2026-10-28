@@ -1584,7 +1584,8 @@ state.caseFans=[{installed:true,connected:true},{installed:true,connected:true},
 state.paste=1;state.selected.cooler='air';state.selected.caseVariant='tower';state.biosCfg=safeBios();state.activeFaults=[];state.fixed={};state.power=false;state.bios=false;state.stress=false;state.bootStage=0;state.bootToken=++bootEpoch;syncBiosUI();addLog('ok','Montaje recomendado aplicado con BIOS segura.');render()}function mode(m){$('assemblyBtn').classList.toggle('active',m==='assembly');$('diagnosticBtn').classList.toggle('active',m==='diagnostic');if(m==='diagnostic'){autoBuild();let ids=Object.keys(faults);addFault(ids[Math.floor(Math.random()*ids.length)])}else addLog('ok','Modo montaje activado.');render()}function syncBiosUI(){
   if(!$('biosBoot'))return;
   $('biosBoot').value=state.biosCfg.boot;
-  $('biosBoot').querySelector('option[value="hdd2"]').disabled=!state.secondaryStorage?.installed;
+  const secondaryBootOption=$('biosBoot').querySelector('option[value="hdd2"]');
+  if(secondaryBootOption)secondaryBootOption.disabled=!state.secondaryStorage?.installed;
   $('biosSata').value=state.biosCfg.sata;
   $('biosXmp').value=state.biosCfg.xmp;
   $('biosFan').value=state.biosCfg.fan;
@@ -1863,8 +1864,8 @@ $('peripheralStatus').textContent='USB teclado: '+(state.keyboardConnected?'ON':
  consumption.issues.map(i=>`<div class="issue ${i.severity==='trip'?'error':'warn'}">${i.text}</div>`).join('');$('tempStatus').textContent=e.temp+' °C';$('activeFaults').innerHTML=e.faults.filter(x=>faults[x]).map(id=>`<span class="tag bad">${faults[id].name}</span>`).join('')||'<span class="tag ok">Sin averías</span>';$('monitorTitle').textContent=state.bios?'BIOS / UEFI simulada':'Monitor virtual';$('biosPanel').style.display=state.bios?'block':'none';syncBiosUI();const consoleText=monitorText(e);$('screen').textContent=consoleText;
 $('osUsbImage').value=state.usbImage;
 $('osInstallTarget').value=state.osInstallTarget||'ssd';
-$('osInstallTarget').querySelector('option[value="hdd2"]').disabled=
-  !state.secondaryStorage?.installed;
+const secondaryInstallOption=$('osInstallTarget').querySelector('option[value="hdd2"]');
+if(secondaryInstallOption)secondaryInstallOption.disabled=!state.secondaryStorage?.installed;
 $('osUsbImage').disabled=!!state.adventureMode;
 $('osUsbImage').title=state.adventureMode?'Selecciona el USB comprado y preparado en el inventario':'Imagen de demostración técnica';
 $('osUsbToggle').textContent=state.usbConnected?'Expulsar USB del puerto trasero':
