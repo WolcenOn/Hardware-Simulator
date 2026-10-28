@@ -2785,10 +2785,8 @@ function createAdventureGame(api){
         '<button type="button" data-thermal-remove'+
           (stActions.power||stActions.caseClosed?' disabled':'')+
           '>Retirar disipador para repetir montaje</button>':
-        '<p><strong>Queda pasta térmica usada sobre la CPU.</strong> Limpia antes de repetir.</p>'+
-        '<button type="button" class="primary" data-thermal-clean'+
-          (stActions.power||stActions.caseClosed?' disabled':'')+
-          '>Limpiar pasta térmica de la CPU</button>')+
+        '<p><strong>Queda pasta térmica usada sobre la CPU.</strong> '+
+          'Selecciona la CPU en 3D y usa «Limpiar pasta térmica» desde su ficha.</p>')+
       '</div>':'';
     const actions=
       thermalService+
