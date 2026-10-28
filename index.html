@@ -1256,9 +1256,23 @@ caseFans:[{installed:false,connected:false},{installed:false,connected:false},{i
 bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),usbImage:'none',usbConnected:false,usbMediaKey:null,installedOs:null,osInstalled:false,osInstalling:false,osInstallProgress:0,osInstallToken:0,power:false,stress:false,bios:false,explode:false,activeFaults:[],log:[],focus:'motherboard'};addLog('ok','Versión 7.0: taller, monitor 3D y conexiones cargados.')}function p(c){return catalog[{motherboard:'motherboards',cpu:'cpus',ram:'ram',storage:'storage',gpu:'gpus',psu:'psus'}[c]][state.selected[c]]}function addLog(l,m){
   state.log.unshift({l,m,t:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});
   state.log=state.log.slice(0,36);
+  paintEventLog();
   const notice=$('workshopFeedback');
   if(notice){notice.textContent=m;notice.dataset.level=l;}
-}function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?(window.PC_COOLER_OPTIONS?.[state.selected.cooler]?.watts||4):0)+
+}
+function paintEventLog(){
+  const list=$('eventLog');
+  if(!list)return;
+  list.replaceChildren(...state.log.map(entry=>{
+    const item=document.createElement('li');
+    const timestamp=document.createElement('span');
+    timestamp.className='log'+entry.l;
+    timestamp.textContent='['+entry.t+']';
+    item.append(timestamp,document.createTextNode(' '+entry.m));
+    return item;
+  }));
+}
+function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?(window.PC_COOLER_OPTIONS?.[state.selected.cooler]?.watts||4):0)+
  (state.caseFans||[]).filter(f=>f.installed).length*3}
 function powerReport(){return window.PC_CLASSROOM.diagnose(state,watts(),
  state.installed.psu?p('psu').max:0);}
@@ -1850,7 +1864,7 @@ $('osStatus').textContent='Arranque: '+(media.message||media.code)+
   ' · SO instalado: '+(state.installedOs?.id?
     window.PC_OS.CATALOG[state.installedOs.id]?.name||'desconocido':'ninguno')+
   (state.osInstalling?' · Instalación '+state.osInstallProgress+'%':
-   state.osInstallProgress===100&&state.installedOs?' · Instalación completada':'');let cpu=state.power?(state.stress?84:(e.boot?18:6)):0,gpu=state.power&&state.installed.gpu?(state.stress?92:(e.boot?8:0)):0,tempPct=Math.min(100,Math.round(e.temp/110*100));[['cpu',cpu],['gpu',gpu],['psu',state.power?e.load:0]].forEach(([k,v])=>{$(k+'LoadText').textContent=v+'%';$(k+'Bar').style.setProperty('--w',v+'%')});$('tempLoadText').textContent=e.temp+'°C';$('tempBar').style.setProperty('--w',tempPct+'%');$('ledPower').classList.toggle('on',state.power);$('ledPost').classList.toggle('on',state.power&&e.post);$('ledBoot').classList.toggle('on',state.power&&e.boot);$('eventLog').innerHTML=state.log.map(x=>`<li><span class="log${x.l}">[${x.t}]</span> ${x.m}</li>`).join('');$('fallback').innerHTML=window.PC3D?.ready?'':fallbackHTML();window.PC3D?.update?.(state,{part:p,consoleText,videoSignal:outputAvailable(e),
+   state.osInstallProgress===100&&state.installedOs?' · Instalación completada':'');let cpu=state.power?(state.stress?84:(e.boot?18:6)):0,gpu=state.power&&state.installed.gpu?(state.stress?92:(e.boot?8:0)):0,tempPct=Math.min(100,Math.round(e.temp/110*100));[['cpu',cpu],['gpu',gpu],['psu',state.power?e.load:0]].forEach(([k,v])=>{$(k+'LoadText').textContent=v+'%';$(k+'Bar').style.setProperty('--w',v+'%')});$('tempLoadText').textContent=e.temp+'°C';$('tempBar').style.setProperty('--w',tempPct+'%');$('ledPower').classList.toggle('on',state.power);$('ledPost').classList.toggle('on',state.power&&e.post);$('ledBoot').classList.toggle('on',state.power&&e.boot);paintEventLog();$('fallback').innerHTML=window.PC3D?.ready?'':fallbackHTML();window.PC3D?.update?.(state,{part:p,consoleText,videoSignal:outputAvailable(e),
   osVisual:osPresentation(e)});if(adventureGame?.active)adventureGame.paint();partInspector?.refresh()}catch(err){state.lastRenderError=err?.message||String(err);console.error('Error al actualizar controles',err);showResourceError('Error en los controles: '+state.lastRenderError);}}function biosRulesHTML(e){let cfg=state.biosCfg,out=[];if(cfg.boot==='usb')out.push(['warn','USB primero: el instalador arrancará si está conectado y es compatible.']);
 if(cfg.boot==='pxe')out.push(['warn','Red PXE: se saltará si no hay un servidor de arranque.']);if(cfg.sata!=='AHCI'&&state.installed.storage&&p('storage').interface==='SATA')out.push(['error','BIOS SATA no está en AHCI para este SO.']);if(cfg.xmp==='Aggressive')out.push(['error','Perfil RAM agresivo puede impedir POST o causar BSOD.']);if(cfg.fan==='Silent')out.push(['warn','Curva Silent puede causar apagado térmico en test de estrés.']);if(cfg.pcie==='Gen5'&&state.installed.gpu)out.push(['error','PCIe Gen5 only puede impedir inicialización de GPU Gen4.']);return out.map(([l,t])=>`<div class="issue ${l}">🧬 ${t}</div>`).join('')}function bind(){
   // No depender de las variables globales implícitas de los id HTML:
