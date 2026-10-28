@@ -106,6 +106,18 @@ function resolveBoot(state,hardware={}){
     progress:state.osInstallProgress||0,message:'Instalación ficticia en curso.'};
   const drives=availableDrives(state,hardware);
   for(const device of bootOrder(state)){
+    if(device==='usb'&&state.usbConnected&&state.usbMedia?.mode==='ventoy'){
+      const images=state.usbMedia.images||[];
+      if(!images.length)continue; // Ventoy vacío: UEFI continúa al siguiente disco.
+      if(state.usbMenuActive||!CATALOG[state.usbImage]||
+        !images.includes(state.usbImage)){
+        return {kind:'ventoy',device:'usb',code:'VENTOY_MENU',
+          mediaId:state.usbMediaKey,images:images.map(id=>({
+            ...root.PC_USB.ISO[id],name:CATALOG[id]?.name||id})),
+          selection:Math.max(0,Math.min(images.length-1,state.usbMenuIndex||0)),
+          message:'Elige una ISO con las flechas, Enter o clic en el monitor.'};
+      }
+    }
     if(device==='usb'&&state.usbConnected&&CATALOG[state.usbImage]){
       const check=requirement(state.usbImage,state,hardware);
       if(!check.ok)return {kind:'blocked',device:'usb',code:check.code,
@@ -160,8 +172,27 @@ function presentation(state,hardware={}){
   return boot;
 }
 function paint(ctx,w,h,visual){
-  if(!visual||!['installer','installing','installed','desktop','splash','blocked','no-boot'].includes(visual.kind))
+  if(!visual||!['ventoy','installer','installing','installed','desktop','splash','blocked','no-boot'].includes(visual.kind))
     return false;
+  if(visual.kind==='ventoy'){
+    ctx.fillStyle='#101a30';ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#6df1bd';ctx.fillRect(52,45,12,64);
+    ctx.fillStyle='#f0f8ff';ctx.font='bold 44px monospace';
+    ctx.fillText('VENTOY  ·  PC LAB / UEFI',88,86);
+    ctx.font='26px monospace';ctx.fillStyle='#b6cde1';
+    ctx.fillText('Medio: '+visual.mediaId+' · Selecciona una imagen ISO',88,151);
+    visual.images.slice(0,7).forEach((img,i)=>{
+      const y=216+i*72,selected=i===visual.selection;
+      ctx.fillStyle=selected?'#276d61':'#182c41';ctx.fillRect(75,y,1420,60);
+      ctx.fillStyle=selected?'#edfff9':'#afcbe1';ctx.font='bold 27px monospace';
+      ctx.fillText((selected?'▶  ':'   ')+img.file,100,y+40,1150);
+      ctx.font='23px monospace';ctx.fillText(img.gb+' GB',1290,y+40);
+    });
+    ctx.fillStyle='#b8d8e6';ctx.font='25px monospace';
+    ctx.fillText('↑ ↓ Seleccionar   ·   ENTER Arrancar ISO   ·   Clic en la fila',86,h-92);
+    ctx.font='19px monospace';ctx.fillText('SIMULACIÓN EDUCATIVA · No ejecuta Ventoy ni ISO reales',86,h-39);
+    return true;
+  }
   const os=visual.os||{},accent=os.accent||'#78ddeb';
   const modern=os.family==='modern',terminal=os.family==='terminal';
   const bg=ctx.createLinearGradient(0,0,w,h);
@@ -188,10 +219,16 @@ function paint(ctx,w,h,visual){
     ctx.fillText(visual.kind==='installer'?'Preparar instalación':
       visual.kind==='installing'?'Instalando sistema':visual.kind==='installed'?'Instalación completada':'Iniciando sesión',76,282);
     ctx.fillStyle='#cbdaef';ctx.font='30px sans-serif';
-    ctx.fillText(visual.kind==='installer'?'Selecciona «Instalar SO» desde el panel de arranque.':
+    ctx.fillText(visual.kind==='installer'?
+      'Disco 1 [1] / Disco 2 [2] · ENTER para instalar desde esta pantalla.':
       visual.kind==='installing'?'Copiando archivos ficticios y preparando servicios…':
       visual.kind==='installed'?'Retira el USB o cambia el orden para arrancar desde el disco.':
       'Iniciando servicios y escritorio simulado…',76,340);
+    if(visual.kind==='installer'){
+      ctx.fillStyle='#1e5b54';ctx.fillRect(900,377,505,58);
+      ctx.fillStyle='#f3fff9';ctx.font='bold 28px monospace';
+      ctx.fillText('ENTER · INSTALAR SO',940,417);
+    }
     const progress=visual.kind==='installer'?0:(visual.progress||0);
     ctx.fillStyle='#26384d';ctx.fillRect(76,415,w-160,18);
     ctx.fillStyle=accent;ctx.fillRect(76,415,(w-160)*progress/100,18);

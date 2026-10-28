@@ -29,6 +29,8 @@ jobs:
           node --check js/pinoutBoard3d.js
           node --check tests/pinoutLab.test.mjs
           node --check tests/dualStorage.test.mjs
+          node --check js/usbMedia.js
+          node --check tests/usbMedia.test.mjs
           node --check js/toolRack3d.js
           node --check tests/workshopTools.test.mjs
           node --check js/timeEngine.js

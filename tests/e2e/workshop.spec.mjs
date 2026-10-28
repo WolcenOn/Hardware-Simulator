@@ -1134,7 +1134,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.3');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.0');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1846,4 +1846,46 @@ test('8.21.3: conectores internos de PCB en perímetro real de ATX y mATX',async
       expect(port.angleDegrees,id+' '+port.id+' desorientado').toBeLessThan(.15);
     }
   }
+});
+
+test('8.22: USB comprado con Ventoy y dos ISO arranca menú en monitor 3D',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await page.locator('#autoBuild').click();
+  await expect.poll(()=>page.evaluate(()=>state.installed.motherboard)).toBe(true);
+  await buy(page,'item','osusb');
+  await openSection(page,'usb');
+  await expect(page.locator('#advVentoyDrive')).toHaveValue(/USB-/);
+  await expect(page.locator('[data-ventoy-install]')).toBeEnabled();
+  await page.locator('#advVentoyConfirm').check();
+  await page.locator('[data-ventoy-install]').click();
+  await expect(page.locator('#advUsbTools')).toContainText('Ventoy');
+  await page.locator('[data-ventoy-copy]').click();
+  await page.locator('#advVentoyISO').selectOption('libreforge');
+  await page.locator('[data-ventoy-copy]').click();
+  const before=await page.evaluate(()=>adventureGame.usbDrives());
+  expect(before).toHaveLength(1);
+  expect(before[0].images.map(i=>i.id)).toEqual(['novadesk','libreforge']);
+  expect(before[0].mode).toBe('ventoy');
+  await page.locator('[data-ventoy-connect]').click();
+  expect(await page.evaluate(()=>state.usbMedia?.images)).toEqual(['novadesk','libreforge']);
+  await page.evaluate(()=>{
+    state.biosCfg.bootOrder=['usb','ssd','pxe'];
+    state.biosCfg.boot='usb';
+  });
+  await page.locator('#powerBtn').click();
+  await expect.poll(()=>page.evaluate(()=>state.bootStage)).toBeGreaterThanOrEqual(4);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('ventoy');
+  await page.keyboard.press('ArrowDown');
+  expect(await page.evaluate(()=>state.usbMenuIndex)).toBe(1);
+  await page.keyboard.press('Enter');
+  expect(await page.evaluate(()=>state.usbImage)).toBe('libreforge');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('installer');
+  await page.keyboard.press('Enter');
+  await expect.poll(()=>page.evaluate(()=>state.osInstalling||state.osInstallProgress===100)).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>state.osInstallProgress)).toBe(100);
+  expect(await page.evaluate(()=>state.installedOs?.id)).toBe('libreforge');
+  await page.evaluate(()=>adventureGame.disconnectInstallerUsb());
+  expect(await page.evaluate(()=>state.usbConnected)).toBe(false);
+  expect(await page.evaluate(()=>adventureGame.usbDrives()[0].images.length)).toBe(2);
 });
