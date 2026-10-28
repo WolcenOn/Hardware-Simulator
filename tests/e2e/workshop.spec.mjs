@@ -1671,3 +1671,37 @@ test('v8.20: limpieza contextual CPU requiere alcohol y toallitas multiuso',asyn
  expect(after.alcohol).toBe(before.alcohol-1);
  expect(after.wipes).toBe(before.wipes-1);
 });
+
+
+test('v8.21: se compran e instalan dos HDD 3D distintos sin sustituir el primero',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await buy(page,'case','tower');await fit(page,'case:tower');
+  await buy(page,'item','ioShield');await fit(page,'item:ioShield');
+  await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
+  await buy(page,'storage','hdd');await buy(page,'storage','hdd4');
+  await fit(page,'storage:hdd');
+  await expect.poll(()=>page.evaluate(()=>state.installed.storage)).toBe(true);
+  await page.evaluate(()=>partInspector.open('storage:hdd4','table'));
+  const menu=page.locator('#partContextMenu');
+  await expect(menu.locator('[data-part-verb="installSecond"]')).toBeEnabled();
+  await menu.locator('[data-part-verb="installSecond"]').evaluate(el=>el.click());
+  await expect.poll(()=>page.evaluate(()=>state.secondaryStorage?.id)).toBe('hdd4');
+  const geometry=await page.evaluate(()=>window.PC3D.getDualHddState());
+  expect(geometry.upper.installed).toBe(true);
+  expect(geometry.lower.installed).toBe(true);
+  expect(geometry.upper.id).toBe('hdd');
+  expect(geometry.lower.id).toBe('hdd4');
+  expect(geometry.upper.position[1]).toBeGreaterThan(geometry.lower.position[1]);
+  await page.evaluate(()=>partInspector.open('storage2','tower'));
+  await expect(menu).toContainText('HDD 2');
+  await expect(menu.locator('[data-part-verb="secondaryData"]')).toBeVisible();
+  await expect(menu.locator('[data-part-verb="secondaryPower"]')).toBeVisible();
+  await expect(page.locator('#biosBoot option[value="hdd2"]')).toBeEnabled();
+  const drives=await page.evaluate(()=>window.PC_OS.availableDrives(state,{
+    disk:catalog.storage[state.selected.storage],
+    secondaryDisk:catalog.storage[state.secondaryStorage.id]
+  }));
+  expect(drives).toHaveLength(2);
+  expect(drives.map(d=>d.id)).toEqual(['hdd','hdd4']);
+});
