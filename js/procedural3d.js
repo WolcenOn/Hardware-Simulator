@@ -656,6 +656,21 @@ window.PC3D={
   getMechanicalFault:()=>current?.mechanicalFault||null,
   getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
+  getDualHddState:()=>{
+    root.updateMatrixWorld(true);
+    const upper=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
+    const lower=root.worldToLocal(assembly.hddDrive2.getWorldPosition(new THREE.Vector3()));
+    return {
+      upper:{id:current?.selected?.storage,
+        installed:!!current?.installed?.storage&&!!assembly.hddDrive.visible,
+        position:upper.toArray(),sataData:!!current?.sataData,sataPower:!!current?.sataPower},
+      lower:{id:current?.secondaryStorage?.id,
+        installed:!!current?.secondaryStorage?.installed&&!!assembly.hddDrive2.visible,
+        position:lower.toArray(),
+        sataData:!!current?.secondaryStorage?.sataData,
+        sataPower:!!current?.secondaryStorage?.sataPower}
+    };
+  },
   getHddBayAlignment:()=>{
     root.updateMatrixWorld(true);
     const disk=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
