@@ -139,8 +139,10 @@ function installRecord(state,hardware={}){
     storageInterface:device==='hdd2'?'SATA':hardware.disk?.interface||'unknown',
     activated:state.usbImage!=='novadesk'};
   if(device==='hdd2')state.secondaryStorage.installedOs=record;
-  else state.installedOs=record;
-  state.osActivated=record.activated;
+  else{
+    state.installedOs=record;
+    state.osActivated=record.activated;
+  }
   state.osInstalled=true;state.osInstalling=false;state.osInstallProgress=100;
   return {ok:true,code:'INSTALLED',device,os:CATALOG[state.usbImage],
     reason:'Instalación completada en '+BOOT_LABELS[device]+
