@@ -152,7 +152,8 @@ function presentation(state,hardware={}){
   const boot=resolveBoot(state,hardware);
   if(state.power&&state.bootStage<4)return {kind:'post',code:'POST_RUNNING'};
   if(boot.kind==='installer'&&state.osInstallProgress===100&&
-      state.installedOs?.id===state.usbImage)
+      (state.osInstallTarget==='hdd2'?state.secondaryStorage?.installedOs:
+        state.installedOs)?.id===state.usbImage)
     return {...boot,kind:'installed',progress:100};
   if(boot.kind==='desktop'&&state.bootStage>=4&&state.bootStage<6)
     return {...boot,kind:'splash',progress:state.bootStage===4?30:75};
