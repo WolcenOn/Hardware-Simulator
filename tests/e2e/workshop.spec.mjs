@@ -2,13 +2,14 @@ import { test, expect } from '@playwright/test';
 
 async function openGame(page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  // El taller real abre sin lateral. Las pruebas históricas habilitan
+  // expresamente el panel de compatibilidad ANTES de comprobar visibilidad.
+  await expect(page.locator('#labMission')).toBeVisible();
+  await page.evaluate(()=>document.body.classList.add('lab-legacy-open'));
   await expect(page.locator('#adventurePanel')).toBeVisible();
   await expect(page.locator('#advClient')).toHaveValue('office');
-  // Montajes heredados prueban geometría y mecanismos sin daño ESD aleatorio.
+  // Geometría/montajes antiguos se prueban sin ESD aleatorio.
   await page.evaluate(()=>{adventureGame.game.esdRandom=()=>.999999;});
-  // Compatibilidad de regresiones antiguas: el usuario entra sin lateral,
-  // mientras estos escenarios prueban el formulario alternativo.
-  await page.evaluate(()=>document.body.classList.add('lab-legacy-open'));
 }
 async function openModernGame(page){
   await openGame(page);
