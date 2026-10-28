@@ -1136,7 +1136,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.0');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.1');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1878,6 +1878,8 @@ test('8.22: USB comprado con Ventoy y dos ISO arranca menú en monitor 3D',async
   await page.locator('#powerBtn').click();
   await expect.poll(()=>page.evaluate(()=>state.bootStage)).toBeGreaterThanOrEqual(4);
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('ventoy');
+  await page.locator('#virtualKeyboardToggle').click();
+  await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','true');
   await page.keyboard.press('ArrowDown');
   expect(await page.evaluate(()=>state.usbMenuIndex)).toBe(1);
   await page.keyboard.press('Enter');
@@ -1890,4 +1892,83 @@ test('8.22: USB comprado con Ventoy y dos ISO arranca menú en monitor 3D',async
   await page.evaluate(()=>adventureGame.disconnectInstallerUsb());
   expect(await page.evaluate(()=>state.usbConnected)).toBe(false);
   expect(await page.evaluate(()=>adventureGame.usbDrives()[0].images.length)).toBe(2);
+});
+
+test('8.22.1: ficha 3D de USB conserva serie y permite formatear, ISO, conectar y expulsar',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await page.locator('#autoBuild').click();
+  await expect.poll(()=>page.evaluate(()=>state.installed.motherboard)).toBe(true);
+  await buy(page,'item','osusb');
+  const id=await page.evaluate(()=>adventureGame.usbDrives().at(-1).id);
+  await page.evaluate(id=>partInspector.open('item:osusb:'+id,'table'),id);
+  const menu=page.locator('#partContextMenu');
+  await expect(menu).toContainText(id);
+  await expect(menu.locator('[data-part-verb="usbFormat"]')).toBeEnabled();
+  await expect(menu.locator('[data-part-verb="usbInsert"]')).toBeEnabled();
+  await menu.locator('[data-part-verb="usbFormat"]').click();
+  await expect(menu.locator('[data-part-verb="usbFormatConfirm"]')).toBeVisible();
+  expect(await page.evaluate(id=>adventureGame.usbDrives().find(d=>d.id===id).mode,id))
+    .toBe('blank');
+  await menu.locator('[data-part-verb="usbFormatConfirm"]').click();
+  expect(await page.evaluate(id=>adventureGame.usbDrives().find(d=>d.id===id).mode,id))
+    .toBe('ventoy');
+  await expect(menu.locator('#partUsbIso')).toBeVisible();
+  await menu.locator('#partUsbIso').selectOption('libreforge');
+  await menu.locator('[data-part-verb="usbCopyIso"]').click();
+  expect(await page.evaluate(id=>adventureGame.usbDrives().find(d=>d.id===id)
+    .images.map(i=>i.id),id)).toEqual(['libreforge']);
+  await menu.locator('[data-part-verb="usbInsert"]').click();
+  expect(await page.evaluate(()=>state.usbMediaKey)).toBe(id);
+  expect(await page.evaluate(()=>state.usbMedia?.images)).toEqual(['libreforge']);
+  await expect(menu.locator('[data-part-verb="usbEject"]')).toBeEnabled();
+  await menu.locator('[data-part-verb="usbEject"]').click();
+  expect(await page.evaluate(()=>state.usbConnected)).toBe(false);
+  await menu.locator('#partUsbIso').selectOption('libreforge');
+  await menu.locator('[data-part-verb="usbDeleteIso"]').click();
+  expect(await page.evaluate(id=>adventureGame.usbDrives().find(d=>d.id===id).images.length,id))
+    .toBe(0);
+});
+
+test('8.22.1: clic real en monitor elige ISO y teclado puede activarse y liberarse',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await page.locator('#autoBuild').click();
+  await expect.poll(()=>page.evaluate(()=>state.installed.motherboard)).toBe(true);
+  await buy(page,'item','osusb');
+  const id=await page.evaluate(()=>adventureGame.usbDrives().at(-1).id);
+  await page.evaluate(id=>{
+    adventureGame.installVentoyDrive(id,'GPT',true);
+    adventureGame.copyUsbISO(id,'novadesk');
+    adventureGame.copyUsbISO(id,'libreforge');
+    adventureGame.connectInstallerUsb(id);
+    state.biosCfg.bootOrder=['usb','ssd','pxe'];
+    state.biosCfg.boot='usb';
+  },id);
+  await page.locator('#powerBtn').click();
+  await expect.poll(()=>page.evaluate(()=>state.bootStage)).toBeGreaterThanOrEqual(4);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('ventoy');
+  // Fuera del modo virtual, el teclado anfitrión no modifica el arranque.
+  await page.keyboard.press('ArrowDown');
+  expect(await page.evaluate(()=>state.usbMenuIndex)).toBe(0);
+  await page.locator('#viewMonitor3d').click();
+  await page.waitForTimeout(1250);
+  // Pixel exacto de la segunda fila en la textura 1536 x 864, proyectado
+  // sobre el plano del monitor 3D; clic mediante ratón real del navegador.
+  const uv={u:.25,v:1-(216+72+30)/864};
+  const screen=await page.evaluate(({u,v})=>window.PC3D.getMonitorInputPoint(u,v),uv);
+  expect(screen.inside).toBe(true);
+  await page.mouse.click(screen.x,screen.y);
+  await expect.poll(()=>page.evaluate(()=>state.usbImage)).toBe('libreforge');
+  await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('installer');
+  // Probar captación explícita, F2/Esc y liberación al cambiar de vista.
+  await page.locator('#virtualKeyboardToggle').click();
+  await expect(page.locator('#virtualKeyboardPanel')).toBeVisible();
+  await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#virtualKeyboardPanel')).toBeHidden();
+  await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#virtualKeyboardToggle').click();
+  await page.locator('#viewIso').click();
+  await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','false');
 });

@@ -112,6 +112,18 @@ function createPartInspector(api){
   }
   function checks(t,source=target?.source||'tower'){
     const st=api.state(),ad=api.adventure?.(),g=ad?.game;
+    if(t.id==='osusb'&&t.category==='item'){
+      const media=ad?.usbDrives?.().find(d=>d.id===t.mediaId)||
+        ad?.usbDrives?.().find(d=>d.id===ad.game?.usbSelected);
+      if(media)return [
+        info('Número de serie',media.id),
+        info('Ubicación',st.usbConnected&&st.usbMediaKey===media.id?
+          'USB-A del PC · insertado':'Mesa del técnico · disponible'),
+        info('Capacidad libre',media.freeGb.toFixed(2)+' GB / '+media.capacityGb+' GB'),
+        info('Contenido',media.mode==='ventoy'?
+          'Ventoy '+media.partition+' · '+media.images.length+' ISO':'Memoria vacía'),
+        ...media.images.map(i=>info('ISO',i.file+' · '+i.gb+' GB'))];
+    }
     if(source==='table')return [
       info('Ubicación física','Mesa de componentes · sin instalar'),
       info('Unidades disponibles',String(g?.stock?.[t.key]||0)),
@@ -221,12 +233,28 @@ function createPartInspector(api){
     };
     if(t.category==='item'){
       if(t.id==='osusb'){
-        const media=ad.usbDrives?.()||[];
-        const hasMedia=media.length>0;
-        actions.push({verb:'usbStation',label:'Preparar USB / instalar Ventoy / copiar ISO',
-          enabled:hasMedia});
-        actions.push({verb:'usbInsert',label:'Insertar memoria seleccionada en USB-A',
-          enabled:hasMedia&&!st.usbConnected&&!!st.installed.motherboard});
+        const media=(ad.usbDrives?.()||[]).find(d=>d.id===t.mediaId)||
+          (ad.usbDrives?.()||[]).find(d=>d.id===ad.game?.usbSelected);
+        const connected=!!media&&st.usbConnected&&st.usbMediaKey===media.id;
+        const available=!!media&&!st.usbConnected&&!!st.installed.motherboard;
+        actions.push({verb:'usbStation',label:'Abrir estación del técnico · '+(media?.id||'USB'),
+          enabled:!!media});
+        if(media&&media.mode==='blank'){
+          actions.push({verb:'usbFormat',label:'Formatear e instalar Ventoy (GPT)',enabled:!connected,
+            reason:'Requiere confirmar: se perderá el contenido de la memoria'});
+        }else if(media&&media.mode==='ventoy'){
+          actions.push({verb:'usbFormat',label:'Reinstalar Ventoy / formatear',enabled:!connected,
+            reason:'Elimina TODAS las ISO guardadas en la memoria'});
+          actions.push({verb:'usbCopyIso',label:'Copiar ISO seleccionada',enabled:!connected,
+            reason:'La imagen ocupa espacio disponible en esta memoria'});
+          actions.push({verb:'usbDeleteIso',label:'Eliminar ISO seleccionada',enabled:!connected&&!!media.images.length});
+        }
+        if(target?.formatConfirm&&media?.id===target.formatConfirm)
+          actions.push({verb:'usbFormatConfirm',label:'CONFIRMAR: borrar memoria e instalar Ventoy',enabled:!connected});
+        if(target?.formatConfirm)actions.push({verb:'usbFormatCancel',label:'Cancelar formateo',enabled:true});
+        if(connected)actions.push({verb:'usbEject',label:'Expulsar USB del PC',enabled:!st.osInstalling});
+        else actions.push({verb:'usbInsert',label:'Conectar '+(media?.id||'USB')+' al puerto trasero',
+          enabled:available,reason:st.usbConnected?'Expulsa el USB conectado primero':'Requiere placa instalada'});
       }
       if(t.id==='paste'||t.id==='ioShield'||t.id==='fan'||t.id==='rgbStrip'){
         const mountedIO=(t.id==='ioShield'&&st.ioShield)||(t.id==='rgbStrip'&&st.rgbInstalled);
@@ -356,7 +384,17 @@ function createPartInspector(api){
     return rows||'<p class="muted">Todavía no hay piezas instaladas. Compra una caja y colócala en el banco.</p>';
   }
   function contextButtons(t){
-    return '<div class="part-context-actions">'+actionList(t).map(a=>
+    const media=t.id==='osusb'&&t.category==='item'?
+      (api.adventure?.()?.usbDrives?.()||[]).find(d=>d.id===t.mediaId||
+        !t.mediaId&&d.id===api.adventure?.()?.game?.usbSelected):null;
+    const images=window.PC_USB?.ISO||{};
+    const isoPicker=media?.mode==='ventoy'?
+      '<label class="part-usb-iso-label" for="partUsbIso">Imagen ISO de la memoria</label>'+
+      '<select id="partUsbIso" aria-label="Imagen ISO">'+
+      Object.values(images).map(i=>'<option value="'+escape(i.id)+'"'+
+        ((target?.iso||'novadesk')===i.id?' selected':'')+'>'+
+        escape(i.file)+' · '+i.gb+' GB</option>').join('')+'</select>':'';
+    return isoPicker+'<div class="part-context-actions">'+actionList(t).map(a=>
       '<button type="button" data-part-verb="'+escape(a.verb)+'"'+
       (a.target?' data-part-target="'+escape(a.target)+'"':'')+
       (a.verb==='return'?' class="part-return-action"':'')+
@@ -406,7 +444,7 @@ function createPartInspector(api){
   }
   function open(ref,source='tower',x=null,y=null){
     const t=getInfo(ref);if(!t)return false;
-    target={ref:t.key,source};
+    target={ref:t.mediaId?'item:osusb:'+t.mediaId:t.key,source,iso:'novadesk',formatConfirm:null};
     feedback=null;detailsOpen=false;sheet.hidden=true;
     const box=mount.getBoundingClientRect();
     const w=Math.max(230,Math.min(325,box.width-18));
@@ -427,13 +465,29 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
-    if(verb==='usbStation'){
-      ad.openUsbStation?.();close();return;
-    }
-    if(verb==='usbInsert'){
-      const id=ad.game?.usbSelected||ad.usbDrives?.()[0]?.id;
-      const ok=ad.connectInstallerUsb?.(id);
-      feedback={text:ad.game?.lastFeedback?.text||(ok?'USB insertado.':'No se pudo insertar.'),
+    if(t.id==='osusb'&&t.category==='item'){
+      const id=t.mediaId||ad.game?.usbSelected||ad.usbDrives?.()[0]?.id;
+      if(verb==='usbStation'){ad.openUsbStation?.(id);close();return;}
+      if(verb==='usbFormat'){
+        target.formatConfirm=id;
+        feedback={text:'Atención: esta operación BORRA todas las ISO del USB '+id+
+          '. Pulsa CONFIRMAR para continuar.',level:'warn'};
+        refresh();return;
+      }
+      if(verb==='usbFormatCancel'){
+        target.formatConfirm=null;feedback=null;refresh();return;
+      }
+      let ok=false;
+      if(verb==='usbFormatConfirm'){
+        if(target.formatConfirm!==id)return;
+        ok=!!ad.installVentoyDrive?.(id,'GPT',true);
+        target.formatConfirm=null;
+      }else if(verb==='usbCopyIso')ok=!!ad.copyUsbISO?.(id,target.iso||'novadesk');
+      else if(verb==='usbDeleteIso')ok=!!ad.removeUsbISO?.(id,target.iso||'novadesk');
+      else if(verb==='usbInsert')ok=!!ad.connectInstallerUsb?.(id);
+      else if(verb==='usbEject')ok=!!ad.disconnectInstallerUsb?.();
+      else return;
+      feedback={text:ad.game?.lastFeedback?.text||(ok?'Operación USB completada.':'No se pudo completar.'),
         level:ok?'ok':'warn'};
       refresh();return;
     }
@@ -542,6 +596,12 @@ function createPartInspector(api){
     }
     refresh();
   }
+  pop.addEventListener('change',e=>{
+    if(e.target.id==='partUsbIso'&&target)target.iso=e.target.value;
+  });
+  sheet.addEventListener('change',e=>{
+    if(e.target.id==='partUsbIso'&&target)target.iso=e.target.value;
+  });
   pop.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
     if(b.hasAttribute('data-part-close')){close();return;}

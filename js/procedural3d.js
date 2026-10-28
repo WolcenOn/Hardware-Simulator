@@ -11,7 +11,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-21-3-pcb-edge-routing';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-0-ventoy-screen';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-1-virtual-pointer';
 import { createATXTower } from './towerATX.js?v=8-21-3-header-layout';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
@@ -400,7 +400,7 @@ view.addEventListener('pointerup',e=>{
     Object.values(partGroups).filter(g=>g.visible),true);
   // En UEFI, un clic sobre la pantalla virtual selecciona la entrada
   // del orden de arranque y la desplaza una posición hacia arriba.
-  if(current?.power&&current?.bios&&current?.mouseConnected){
+  if(current?.power&&current?.bios){
     const monitorHits=raycaster.intersectObject(workbench.display,false);
     if(monitorHits.length){
       const row=workbench.hitBootOption(monitorHits[0].uv);
@@ -411,7 +411,7 @@ view.addEventListener('pointerup',e=>{
   }
   // El mismo monitor permite elegir una ISO en Ventoy o iniciar el
   // instalador, sin depender de un panel externo al ordenador virtual.
-  if(current?.power&&!current?.bios&&current?.mouseConnected){
+  if(current?.power&&!current?.bios){
     const hits=raycaster.intersectObject(workbench.display,false);
     if(hits.length){
       const action=workbench.hitVentoyOption(hits[0].uv);
@@ -419,6 +419,9 @@ view.addEventListener('pointerup',e=>{
         window.dispatchEvent(new CustomEvent('pc3d-ventoy-select',{detail:action}));
         return;
       }
+      // El monitor virtual recibe los clics como un ratón local. Una
+      // zona vacía de pantalla no debe abrir la ficha del monitor.
+      return;
     }
   }
   // El pendrive montado sobre USB-A trasero es interactivo y se puede
@@ -679,6 +682,17 @@ window.PC3D={
     });
   },
   getOSMonitorKind:()=>workbench.getOSMonitorKind(),
+  getMonitorInputPoint:(u,v)=>{
+    // Proyección exacta de una coordenada UV del monitor a píxeles del
+    // canvas. Útil para pruebas E2E reales de pointerdown/pointerup.
+    const rect=view.getBoundingClientRect();
+    root.updateMatrixWorld(true);camera.updateMatrixWorld(true);
+    const p=workbench.display.localToWorld(new THREE.Vector3(
+      (u-.5)*10.52,(v-.5)*5.92,0)).project(camera);
+    return {x:rect.left+(p.x+1)*rect.width/2,
+      y:rect.top+(1-p.y)*rect.height/2,
+      inside:p.z>=-1&&p.z<=1};
+  },
   getMechanicalFault:()=>current?.mechanicalFault||null,
   getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
