@@ -79,3 +79,23 @@ test('no se puede instalar ni arrancar desde un segundo disco sin SATA datos',()
   st.biosCfg.bootOrder=['hdd2','ssd','usb','pxe'];
   assert.equal(OS.resolveBoot(st,hardware).device,'ssd');
 });
+
+test('un SSD SATA secundario idéntico al principal conserva su identidad y orden UEFI',()=>{
+  const st=machine();
+  st.selected.storage='sataSSD';
+  st.installedOs={id:'libreforge',storageId:'sataSSD'};
+  st.secondaryStorage={id:'sataSSD',installed:true,sataData:true,sataPower:true,
+    bay:'upper',installedOs:{id:'terminalis',storageId:'sataSSD'}};
+  st.biosCfg.bootOrder=['hdd2','ssd','usb','pxe'];
+  const hw={...hardware,disk:{name:'SSD SATA 1 TB',interface:'SATA'},
+    secondaryDisk:{name:'SSD SATA 1 TB',interface:'SATA'},diskGb:1000};
+  const disks=OS.availableDrives(st,hw);
+  assert.equal(disks.length,2);
+  assert.equal(disks[0].id,'sataSSD');
+  assert.equal(disks[1].id,'sataSSD');
+  assert.equal(disks[0].device,'ssd');
+  assert.equal(disks[1].device,'hdd2');
+  assert.equal(OS.resolveBoot(st,hw).os.id,'terminalis');
+  st.secondaryStorage.sataPower=false;
+  assert.equal(OS.resolveBoot(st,hw).os.id,'libreforge');
+});

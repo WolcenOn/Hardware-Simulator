@@ -13,7 +13,7 @@ const CATALOG=Object.freeze({
     detail:'Sistema de consola ficticio',minGb:8,minRamGb:1,
     requiresUefi:false,requiresSecureBoot:false,accent:'#84f4b8'})
 });
-const BOOT_LABELS=Object.freeze({ssd:'Disco 1 (principal)',hdd2:'Disco 2 (HDD SATA)',usb:'USB',pxe:'Red PXE'});
+const BOOT_LABELS=Object.freeze({ssd:'Disco 1 (principal)',hdd2:'Disco 2 (SATA)',usb:'USB',pxe:'Red PXE'});
 function bootOrder(state){
   const saved=state?.biosCfg?.bootOrder||[state?.biosCfg?.boot||'ssd','usb','pxe'];
   const order=[...new Set(saved.filter(x=>BOOT_LABELS[x]))];
@@ -46,7 +46,7 @@ function availableDrives(state,hardware={}){
   }:null;
   const second=state?.secondaryStorage?.installed?{
     device:'hdd2',id:state.secondaryStorage.id,
-    name:hardware.secondaryDisk?.name||'HDD SATA (bahía inferior)',
+    name:hardware.secondaryDisk?.name||'Unidad SATA adicional',
     ready:installedDiskReady(state,hardware.secondaryDisk,'hdd2'),
     os:state.secondaryStorage.installedOs||null
   }:null;

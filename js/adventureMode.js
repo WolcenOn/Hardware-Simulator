@@ -1502,8 +1502,8 @@ function createAdventureGame(api){
   function installSecondHdd(k){
     if(!game)return false;
     const st=api.state(),id=String(k||'').split(':')[1];
-    if(!['hdd','hdd4'].includes(id)||!has(k)){
-      message('Compra un HDD SATA de 3,5 pulgadas para la segunda bahía.');return false;
+    if(!['hdd','hdd4','sataSSD','sataSSD2'].includes(id)||!has(k)){
+      message('Selecciona una unidad HDD o SSD SATA comprada y disponible en la mesa.');return false;
     }
     if(st.power||st.caseClosed||!st.installed.case||!st.installed.motherboard){
       message('Apaga el equipo, abre la caja e instala primero chasis y placa.');return false;
@@ -1512,15 +1512,19 @@ function createAdventureGame(api){
       message('Instala primero la unidad principal: HDD, SSD SATA o NVMe.');return false;
     }
     if(st.secondaryStorage?.installed){
-      message('La bahía inferior ya tiene un HDD instalado.');return false;
+      message('Ya hay dos unidades instaladas. Retira la segunda antes de añadir otra.');return false;
     }
-    const upper=!['hdd','hdd4'].includes(st.selected.storage);
+    const first=st.selected.storage;
+    // La unidad principal SATA SSD utiliza el adaptador inferior; los
+    // HDD principales usan la superior y un NVMe no ocupa la jaula.
+    const upper=['sataSSD','sataSSD2'].includes(first)||
+      (!['hdd','hdd4'].includes(first)&&['hdd','hdd4'].includes(id));
     if(!expend(k))return false;
     st.secondaryStorage={id,installed:true,sataData:false,sataPower:false,installedOs:null,
       bay:upper?'upper':'lower'};
     st.osInstallTarget='ssd';
-    message('HDD adicional instalado en la bahía '+(upper?'superior':'inferior')+
-      '. El disco principal sigue en su sitio. Conecta datos y alimentación desde el HDD nuevo en 3D.','ok');
+    message('Unidad adicional '+label('storage',id)+' instalada en bahía '+
+      (upper?'superior':'inferior')+'. La unidad principal sigue montada. Conecta sus cables SATA propios.','ok');
     api.render();
     return true;
   }
@@ -1540,7 +1544,7 @@ function createAdventureGame(api){
       st.osInstallTarget='ssd';
       st.biosCfg.bootOrder=(st.biosCfg.bootOrder||[]).filter(x=>x!=='hdd2');
       if(st.biosCfg.boot==='hdd2')st.biosCfg.boot='ssd';
-      message('Segundo HDD retirado de la jaula y devuelto al inventario.','ok');
+      message('Unidad 2 retirada de la jaula y devuelta al inventario.','ok');
     }else if(verb==='sataData'||verb==='sataPower'){
       const cableCount=api.part('storage').interface==='SATA'?2:1;
       if(verb==='sataData'&&!disk.sataData&&(!st.installed.motherboard||stock('item:sataCable')<cableCount)){
@@ -1551,15 +1555,15 @@ function createAdventureGame(api){
         message('Instala la fuente antes de alimentar el segundo HDD.');return false;
       }
       disk[verb]=!disk[verb];
-      message('Segundo HDD: '+(verb==='sataData'?'cable de datos':'alimentación')+
+      message('Unidad 2: '+(verb==='sataData'?'cable de datos':'alimentación')+
         (disk[verb]?' conectado.':' desconectado.'),'ok');
     }else if(verb==='target'){
       st.osInstallTarget='hdd2';
-      message('HDD 2 seleccionado como destino del instalador USB.','ok');
+      message('Unidad 2 seleccionada como destino del instalador USB.','ok');
     }else if(verb==='boot'){
       st.biosCfg.boot='hdd2';
       st.biosCfg.bootOrder=['hdd2','ssd','usb','pxe'];
-      message('HDD 2 seleccionado como primera unidad de arranque UEFI.','ok');
+      message('Unidad 2 seleccionada como primera opción de arranque UEFI.','ok');
     }else return false;
     api.render();return true;
   }
@@ -1878,7 +1882,7 @@ function createAdventureGame(api){
         message('La caja no se puede retirar mientras queden componentes en su interior.');return;
       }
       if(cat==='storage'&&st.secondaryStorage?.installed){
-        message('Retira antes el segundo HDD de la bahía inferior.');return;
+        message('Retira antes la unidad adicional de su bahía.');return;
       }
       if(cat==='storage'&&st.selected.storage==='nvmeSSD'&&st.installed.gpu){
         message('Desmonta la GPU para acceder al tornillo M.2.');return;
@@ -2907,7 +2911,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.21.1</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.21.2</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+

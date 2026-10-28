@@ -5,7 +5,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
-  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-1-physical-bays';
+  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-2-ssd-second-bay';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
@@ -662,25 +662,27 @@ window.PC3D={
     const mainHdd=['hdd','hdd4'].includes(main);
     const mainSsd=['sataSSD','sataSSD2'].includes(main);
     const second=!!s.secondaryStorage?.installed;
-    const secondaryBay=mainHdd?'lower':'upper';
+    const extra=s.secondaryStorage||{};
+    const secondaryBay=extra.bay||(mainHdd?'lower':mainSsd?'upper':
+      ['hdd','hdd4'].includes(extra.id)?'upper':'lower');
+    const secondaryMesh=['sataSSD','sataSSD2'].includes(extra.id)?
+      assembly.sataDrive2:assembly.hddDrive2;
     const diskInfo=(obj,id,installed,data,power,role)=>{
       const p=root.worldToLocal(obj.getWorldPosition(new THREE.Vector3()));
       return {id,installed:!!installed,position:p.toArray(),
         sataData:!!data,sataPower:!!power,role};
     };
+    const empty={id:null,installed:false,position:null,sataData:false,
+      sataPower:false,role:null};
+    const primaryUpper=mainHdd?diskInfo(assembly.hddDrive,main,
+      s.installed?.storage&&assembly.hddDrive.visible,s.sataData,s.sataPower,'primary'):null;
+    const primaryLower=mainSsd?diskInfo(assembly.sataDrive,main,
+      s.installed?.storage&&assembly.sataDrive.visible,s.sataData,s.sataPower,'primary'):null;
+    const secondary=second?diskInfo(secondaryMesh,extra.id,secondaryMesh.visible,
+      extra.sataData,extra.sataPower,'secondary'):null;
     return {
-      upper:mainHdd?
-        diskInfo(assembly.hddDrive,main,s.installed?.storage&&assembly.hddDrive.visible,
-          s.sataData,s.sataPower,'primary'):
-        diskInfo(assembly.hddDrive2,s.secondaryStorage?.id,second&&assembly.hddDrive2.visible,
-          s.secondaryStorage?.sataData,s.secondaryStorage?.sataPower,'secondary'),
-      lower:mainSsd?
-        diskInfo(assembly.sataDrive,main,s.installed?.storage&&assembly.sataDrive.visible,
-          s.sataData,s.sataPower,'primary'):
-        mainHdd?
-          diskInfo(assembly.hddDrive2,s.secondaryStorage?.id,second&&assembly.hddDrive2.visible,
-            s.secondaryStorage?.sataData,s.secondaryStorage?.sataPower,'secondary'):
-          {id:null,installed:false,position:null,sataData:false,sataPower:false,role:null},
+      upper:primaryUpper||(secondaryBay==='upper'?secondary:empty)||empty,
+      lower:primaryLower||(secondaryBay==='lower'?secondary:empty)||empty,
       secondaryBay
     };
   },

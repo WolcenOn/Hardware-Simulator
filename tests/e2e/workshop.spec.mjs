@@ -1134,7 +1134,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.1');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.2');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1713,7 +1713,7 @@ test('v8.21: se compran e instalan dos HDD 3D distintos sin sustituir el primero
   });
   await expect.poll(()=>page.evaluate(()=>state.sataData&&state.sataPower)).toBe(true);
   await page.evaluate(()=>partInspector.open('storage2','tower'));
-  await expect(menu).toContainText('HDD 2');
+  await expect(menu).toContainText('Unidad 2');
   await expect(menu.locator('[data-part-verb="secondaryData"]')).toBeEnabled();
   await menu.locator('[data-part-verb="secondaryData"]').evaluate(el=>el.click());
   await menu.locator('[data-part-verb="secondaryPower"]').evaluate(el=>el.click());
@@ -1746,9 +1746,9 @@ test('8.21.1: el montaje recomendado permite añadir un HDD sin confundir piezas
   await page.evaluate(()=>partInspector.open('storage:sataSSD','table'));
   const context=page.locator('#partContextMenu');
   await expect(context.locator('.part-context-sub')).toContainText('Sin instalar');
-  await expect(context).toContainText('Mesa de componentes · sin instalar');
+  await expect(context.locator('.part-context-sub')).toContainText('Mesa auxiliar');
   await expect(context.locator('[data-part-verb="fit"]')).toHaveCount(0);
-  await expect(context.locator('[data-part-verb="installSecond"]')).toHaveCount(0);
+  await expect(context.locator('[data-part-verb="installSecond"]')).toBeEnabled();
 
   await buy(page,'storage','hdd');
   await page.evaluate(()=>partInspector.open('storage:hdd','table'));
@@ -1779,5 +1779,47 @@ test('8.21.1: el montaje recomendado permite añadir un HDD sin confundir piezas
   expect(snapshot.geometry.lower.installed).toBe(true);
   expect(snapshot.geometry.upper.position[1]).toBeGreaterThan(snapshot.geometry.lower.position[1]);
   await expect(context.locator('.part-context-sub')).toContainText('Montado');
-  await expect(context).toContainText('HDD 2');
+  await expect(context).toContainText('Unidad 2');
+});
+
+test('8.21.2: un SSD idéntico en la mesa se instala en segunda bahía sin sustituir el principal',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await page.locator('#autoBuild').click();
+  await expect.poll(()=>page.evaluate(()=>state.installed.storage)).toBe(true);
+  await buy(page,'storage','sataSSD');
+  await buy(page,'item','sataCable');
+  await page.evaluate(()=>partInspector.open('storage:sataSSD','table'));
+  const menu=page.locator('#partContextMenu');
+  await expect(menu.locator('.part-context-sub')).toContainText('Sin instalar');
+  await expect(menu.locator('[data-part-verb="installSecond"]')).toBeEnabled();
+  await menu.locator('[data-part-verb="installSecond"]').evaluate(el=>el.click());
+  const before=await page.evaluate(()=>({
+    selected:state.selected.storage,
+    primary:state.installed.storage,primaryData:state.sataData,primaryPower:state.sataPower,
+    secondary:{...state.secondaryStorage},remaining:adventureGame.game.stock['storage:sataSSD'],
+    mesh:window.PC3D.getDualHddState()
+  }));
+  expect(before.selected).toBe('sataSSD');
+  expect(before.primary).toBe(true);
+  expect(before.primaryData).toBe(true);
+  expect(before.primaryPower).toBe(true);
+  expect(before.secondary.id).toBe('sataSSD');
+  expect(before.secondary.bay).toBe('upper');
+  expect(before.secondary.sataData).toBe(false);
+  expect(before.remaining).toBe(0);
+  expect(before.mesh.upper.id).toBe('sataSSD');
+  expect(before.mesh.upper.role).toBe('secondary');
+  expect(before.mesh.upper.installed).toBe(true);
+  expect(before.mesh.lower.id).toBe('sataSSD');
+  expect(before.mesh.lower.role).toBe('primary');
+  expect(before.mesh.lower.installed).toBe(true);
+  expect(before.mesh.upper.position[1]).toBeGreaterThan(before.mesh.lower.position[1]);
+  await expect(menu).toContainText('Unidad 2');
+  await menu.locator('[data-part-verb="secondaryData"]').evaluate(el=>el.click());
+  await menu.locator('[data-part-verb="secondaryPower"]').evaluate(el=>el.click());
+  const ready=await page.evaluate(()=>window.PC_OS.availableDrives(state,{
+    disk:catalog.storage.sataSSD,secondaryDisk:catalog.storage.sataSSD}));
+  expect(ready.map(d=>d.id)).toEqual(['sataSSD','sataSSD']);
+  expect(ready.map(d=>d.ready)).toEqual([true,true]);
 });

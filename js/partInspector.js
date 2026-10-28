@@ -60,7 +60,7 @@ function createPartInspector(api){
     const t=parse(ref);if(!t)return null;
     const catalog=api.catalog?.[t.category==='storage2'?'storage':groups[t.category]];
     const model=catalog?.[t.id]||special[t.key]||{};
-    const name=t.category==='storage2'?'HDD 2 · '+(model.name||'SATA 3,5 pulgadas'):
+    const name=t.category==='storage2'?'Unidad 2 · '+(model.name||'Almacenamiento SATA'):
       model.name||titles[t.category]||t.id;
     return {...t,name,model};
   }
@@ -121,7 +121,7 @@ function createPartInspector(api){
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
     if(t.category==='storage2'){
       const disk=st.secondaryStorage||{};
-      return [good('Bahía inferior · HDD 2',!!disk.installed),
+      return [good('Unidad 2 · bahía '+(disk.bay==='upper'?'superior':'inferior'),!!disk.installed),
         good('SATA datos 2',!!disk.sataData),
         good('Alimentación SATA 2',!!disk.sataPower),
         info('Sistema instalado',window.PC_OS?.CATALOG?.[disk.installedOs?.id]?.name||'Ninguno'),
@@ -246,18 +246,26 @@ function createPartInspector(api){
       return actions;
     }
     if(t.category==='storage'&&target?.source==='table'&&st.installed.storage){
-      // No permitir que el disco libre use la ficha / tornillos / cable
-      // de la unidad instalada con el mismo modelo de catálogo.
-      const free=!!ad.game?.stock?.[t.key];
-      if(['hdd','hdd4'].includes(t.id)&&free&&!st.secondaryStorage?.installed){
-        const primaryHdd=['hdd','hdd4'].includes(st.selected.storage);
+      // SKU y ubicación son entidades distintas. Si un SSD/HDD se encuentra
+      // en la mesa, nunca hereda las conexiones del ejemplar instalado.
+      const free=(ad.game?.stock?.[t.key]||0)>0;
+      const sata=['hdd','hdd4','sataSSD','sataSSD2'].includes(t.id);
+      if(free&&sata&&!st.secondaryStorage?.installed){
+        const primary=st.selected.storage;
+        const upper=['sataSSD','sataSSD2'].includes(primary)||
+          (!['hdd','hdd4'].includes(primary)&&['hdd','hdd4'].includes(t.id));
         actions.push({verb:'installSecond',
-          label:'Encajar HDD adicional · bahía '+(primaryHdd?'inferior':'superior'),
+          label:'Encajar unidad adicional · bahía '+(upper?'superior':'inferior'),
           enabled:!st.power&&!st.caseClosed,
-          reason:'El disco original permanece instalado'});
-      }else actions.push({verb:'occupiedStorage',label:st.secondaryStorage?.installed?
-        'Dos unidades ocupan las bahías disponibles':'Ya existe una unidad principal; selecciona un HDD para añadirlo',
-        enabled:false});
+          reason:st.power?'Apaga el PC para instalarla':
+            st.caseClosed?'Abre el panel lateral':'La unidad principal se conserva sin cambios'});
+      }else{
+        const reason=st.secondaryStorage?.installed?
+          'Ya hay dos unidades: retira una para liberar espacio':
+          !free?'No quedan unidades de este modelo en la mesa':
+          'Una segunda NVMe requiere otra ranura M.2; elige SSD SATA o HDD';
+        actions.push({verb:'occupiedStorage',label:reason,enabled:false});
+      }
       returnAction();return actions;
     }
     if(!on){
@@ -410,7 +418,7 @@ function createPartInspector(api){
     const prev=ad.game?.lastFeedback;
     if(verb==='installSecond'){
       const ok=ad.installSecondHdd?.(t.key);
-      feedback={text:ad.game?.lastFeedback?.text||(ok?'Segundo HDD encajado.':'No se pudo instalar el segundo HDD.'),
+      feedback={text:ad.game?.lastFeedback?.text||(ok?'Unidad adicional encajada.':'No se pudo instalar la unidad adicional.'),
         level:ok?'ok':'warn'};
       if(ok&&target?.source==='table'&&!ad.game?.stock?.[t.key]){
         // La pieza desaparece de la mesa y ahora se selecciona el disco
