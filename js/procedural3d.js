@@ -678,7 +678,9 @@ window.PC3D={
         minZ-cageMinZ,cageMaxZ-maxZ)*50,
       fitted:disk.y>mid&&disk.y+height<high&&minX>limits[0]&&maxX<limits[1]
         &&minZ>cageMinZ&&maxZ<cageMaxZ,
-      visible:!!assembly.hddDrive.visible,
+      // Una malla hija puede estar marcada visible aunque el grupo storage
+      // siga oculto porque el disco seleccionado aún no se ha montado.
+      visible:!!assembly.hddDrive.visible&&!!partGroups.storage.visible,
       selected:current?.selected?.storage||'none'
     };
   },
