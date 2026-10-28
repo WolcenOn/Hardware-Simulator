@@ -609,6 +609,15 @@ export function buildRealScale(p) {
   const hddText=label('HDD 3.5',.79,.17);
   hddText.position.set(0,mm(26.1)+.025,0);hddDrive.add(hddText);
 
+  // Bahía inferior independiente: geometría HDD 3,5" y puertos propios.
+  // La segunda unidad no sustituye el disco de la bahía superior.
+  const hddDrive2=hddDrive.clone(true);
+  hddDrive2.name='HDD SATA 2 · bahía inferior';
+  hddDrive2.userData.partId='storage2';
+  hddDrive2.position.set(...getHddBayPosition('lower'));
+  hddDrive2.visible=false;
+  storage.add(hddDrive2);
+
   // M.2 2280 sobre su conector PCIe/M.2 propio de la placa.
   const m2Drive=new THREE.Group();storage.add(m2Drive);
   rounded(mm(80),.046,mm(22),.01,materials.pcbdark,m2Drive,0,0,0);
@@ -650,6 +659,7 @@ export function buildRealScale(p) {
     m2Drive.position.set(cfg.x-.80,.49+MOTHERBOARD_MOUNT.offsetY,cfg.z+.08);
     sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
     hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
+    hddDrive2.visible=!!s?.secondaryStorage?.installed;
     m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=false; // las bandejas correctas las crea towerATX.js
@@ -696,5 +706,5 @@ export function buildRealScale(p) {
     rearUsbSockets,rearVideoSockets,
     gpuBracketPorts,psuCableSockets,videoCards,sataDrive,hddDrive,m2Drive,
     sataSsdPorts,sataHddPorts,coolerFanPort,caseFanSourcePorts,
-    tray,ioShield,storageBays,caseFanMounts,fanMountGroup};
+    tray,ioShield,storageBays,hddDrive2,caseFanMounts,fanMountGroup};
 }

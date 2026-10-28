@@ -318,13 +318,13 @@ export function createWorkbench(THREE,scene,materials) {
       ctx.font='bold 29px monospace';
       ctx.fillText('PRIORIDAD DE ARRANQUE',954,606);
       const boot=String(consoleText||'').split('\n')
-        .filter(x=>/^[123]\.\s/.test(x)).slice(0,3);
+        .filter(x=>/^[1-4]\.\s/.test(x)).slice(0,4);
       boot.forEach((line,i)=>{
-        const y=622+i*48;
+        const y=614+i*38;
         ctx.fillStyle=i===0?'#275b47':'#20473a';
-        ctx.fillRect(942,y,510,43);
+        ctx.fillRect(942,y,510,34);
         ctx.fillStyle='#efffee';ctx.font='bold 27px monospace';
-        ctx.fillText(line+'  [SUBIR]',957,y+31,480);
+        ctx.fillText(line+'  [SUBIR]',957,y+27,480);
       });
     }
     // LED de alimentación y scanline sutiles.
@@ -338,9 +338,9 @@ export function createWorkbench(THREE,scene,materials) {
     if(!uv)return -1;
     const x=uv.x*canvas.width,y=(1-uv.y)*canvas.height;
     if(x<942||x>1452)return -1;
-    for(let i=0;i<3;i++){
-      const top=622+i*48;
-      if(y>=top&&y<=top+43)return i;
+    for(let i=0;i<4;i++){
+      const top=614+i*38;
+      if(y>=top&&y<=top+34)return i;
     }
     return -1;
   }

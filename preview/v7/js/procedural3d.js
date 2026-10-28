@@ -5,12 +5,12 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
-  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-4-11-drive-bays';
+  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-0-dual-hdd';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-5-1-usb-market';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-21-0-four-boot-choices';
 import { createATXTower } from './towerATX.js?v=8-4-11-drive-bays';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
@@ -656,6 +656,21 @@ window.PC3D={
   getMechanicalFault:()=>current?.mechanicalFault||null,
   getInstallerUsbPose:()=>workbench.getInstallerUsbPose(root,
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
+  getDualHddState:()=>{
+    root.updateMatrixWorld(true);
+    const upper=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
+    const lower=root.worldToLocal(assembly.hddDrive2.getWorldPosition(new THREE.Vector3()));
+    return {
+      upper:{id:current?.selected?.storage,
+        installed:!!current?.installed?.storage&&!!assembly.hddDrive.visible,
+        position:upper.toArray(),sataData:!!current?.sataData,sataPower:!!current?.sataPower},
+      lower:{id:current?.secondaryStorage?.id,
+        installed:!!current?.secondaryStorage?.installed&&!!assembly.hddDrive2.visible,
+        position:lower.toArray(),
+        sataData:!!current?.secondaryStorage?.sataData,
+        sataPower:!!current?.secondaryStorage?.sataPower}
+    };
+  },
   getHddBayAlignment:()=>{
     root.updateMatrixWorld(true);
     const disk=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));

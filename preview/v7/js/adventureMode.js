@@ -1281,8 +1281,10 @@ function createAdventureGame(api){
       'item:keyboard':st.keyboardConnected,
       'item:mouse':st.mouseConnected
     };
-    // No se puede devolver un cable, teclado o ratón todavía en uso.
-    if(connected[k]&&stock(k)<=1)return false;
+    // Cada HDD conectado necesita su propio cable de datos SATA.
+    const sataNeeded=Number(!!st.sataData)+Number(!!st.secondaryStorage?.sataData);
+    if(k==='item:sataCable'&&stock(k)<=sataNeeded)return false;
+    if(connected[k]&&k!=='item:sataCable'&&stock(k)<=1)return false;
     if(api.state().usbConnected&&api.state().usbMediaKey===k)return false;
     if(k==='item:esdStrap'&&game?.esdConnected)return false;
     return !!game&&stock(k)>=qty&&game.purchases.some(p=>p.k===k);
@@ -1497,6 +1499,65 @@ function createAdventureGame(api){
     return result;
   }
   function ramPrecisionState(){return ramPrecisionSession?.getState()||null;}
+  function installSecondHdd(k){
+    if(!game)return false;
+    const st=api.state(),id=String(k||'').split(':')[1];
+    if(!['hdd','hdd4'].includes(id)||!has(k)){
+      message('Compra un HDD SATA de 3,5 pulgadas para la segunda bahía.');return false;
+    }
+    if(st.power||st.caseClosed||!st.installed.case||!st.installed.motherboard){
+      message('Apaga el equipo, abre la caja e instala primero chasis y placa.');return false;
+    }
+    if(!st.installed.storage||!['hdd','hdd4'].includes(st.selected.storage)){
+      message('Instala primero un HDD SATA en la bahía superior.');return false;
+    }
+    if(st.secondaryStorage?.installed){
+      message('La bahía inferior ya tiene un HDD instalado.');return false;
+    }
+    if(!expend(k))return false;
+    st.secondaryStorage={id,installed:true,sataData:false,sataPower:false,installedOs:null};
+    st.osInstallTarget='ssd';
+    message('Segundo HDD instalado en la bahía inferior. Conecta SATA datos y alimentación desde su ficha 3D.','ok');
+    api.render();
+    return true;
+  }
+  function secondaryHddAction(verb){
+    if(!game)return false;
+    const st=api.state(),disk=st.secondaryStorage;
+    if(!disk?.installed){message('No hay segundo disco instalado.');return false;}
+    if(['remove','sataData','sataPower'].includes(verb)&&(st.power||st.caseClosed)){
+      message('Apaga el ordenador y abre el chasis antes de manipular el segundo HDD.');return false;
+    }
+    if(verb==='remove'){
+      if(disk.sataData||disk.sataPower){
+        message('Desconecta primero ambos conectores del segundo HDD.');return false;
+      }
+      game.stock['storage:'+disk.id]=(game.stock['storage:'+disk.id]||0)+1;
+      st.secondaryStorage={id:null,installed:false,sataData:false,sataPower:false,installedOs:null};
+      st.osInstallTarget='ssd';
+      st.biosCfg.bootOrder=(st.biosCfg.bootOrder||[]).filter(x=>x!=='hdd2');
+      if(st.biosCfg.boot==='hdd2')st.biosCfg.boot='ssd';
+      message('Segundo HDD retirado de la jaula y devuelto al inventario.','ok');
+    }else if(verb==='sataData'||verb==='sataPower'){
+      if(verb==='sataData'&&!disk.sataData&&(!st.installed.motherboard||stock('item:sataCable')<2)){
+        message('Para dos HDD necesitas dos cables SATA de datos comprados y la placa instalada.');return false;
+      }
+      if(verb==='sataPower'&&!st.installed.psu){
+        message('Instala la fuente antes de alimentar el segundo HDD.');return false;
+      }
+      disk[verb]=!disk[verb];
+      message('Segundo HDD: '+(verb==='sataData'?'cable de datos':'alimentación')+
+        (disk[verb]?' conectado.':' desconectado.'),'ok');
+    }else if(verb==='target'){
+      st.osInstallTarget='hdd2';
+      message('HDD 2 seleccionado como destino del instalador USB.','ok');
+    }else if(verb==='boot'){
+      st.biosCfg.boot='hdd2';
+      st.biosCfg.bootOrder=['hdd2','ssd','usb','pxe'];
+      message('HDD 2 seleccionado como primera unidad de arranque UEFI.','ok');
+    }else return false;
+    api.render();return true;
+  }
   function select(k){
     if(!owned(k)){message('No tienes ese objeto en el inventario.');return;}
     if(ramPrecisionSession&&game.selected!==k){
@@ -1806,6 +1867,9 @@ function createAdventureGame(api){
       if(cat==='case'&&Object.entries(st.installed).some(([part,yes])=>part!=='case'&&yes)){
         message('La caja no se puede retirar mientras queden componentes en su interior.');return;
       }
+      if(cat==='storage'&&st.secondaryStorage?.installed){
+        message('Retira antes el segundo HDD de la bahía inferior.');return;
+      }
       if(cat==='storage'&&st.selected.storage==='nvmeSSD'&&st.installed.gpu){
         message('Desmonta la GPU para acceder al tornillo M.2.');return;
       }
@@ -1971,17 +2035,22 @@ function createAdventureGame(api){
   function activateOS(){
     if(!game)return false;
     const st=api.state();
-    if(!st.osInstalled||st.installedOs?.id!=='novadesk'){
-      message('La licencia ficticia es para NovaDesk 11 instalado; las distribuciones libres no requieren licencia.','warn');
+    const second=st.biosCfg.boot==='hdd2';
+    const media=second?st.secondaryStorage?.installedOs:st.installedOs;
+    if(!st.osInstalled||media?.id!=='novadesk'){
+      message('La licencia ficticia es para NovaDesk 11 instalado en el disco elegido; las distribuciones libres no requieren licencia.','warn');
       return false;
     }
-    if(st.osActivated){message('NovaDesk 11 ya está activado.','ok');return true;}
+    if(media.activated||!second&&st.osActivated){
+      message('NovaDesk 11 ya está activado en este disco.','ok');return true;
+    }
     if(!expend('item:licenseNova')){
-      message('Compra una licencia NovaDesk 11 en la tienda. El SO funciona sin activar, pero no cumple la entrega.','warn');
+      message('Compra una licencia NovaDesk 11 para activar este disco.','warn');
       return false;
     }
-    st.osActivated=true;
-    message('✅ Licencia ficticia aplicada: NovaDesk 11 activado para este equipo.','ok');
+    media.activated=true;
+    if(!second)st.osActivated=true;
+    message('✅ Licencia ficticia aplicada a '+(second?'HDD 2':'disco principal')+'.','ok');
     api.render();return true;
   }
   function installOS(){
@@ -2828,7 +2897,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.1</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.21.0</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+
@@ -3214,6 +3283,7 @@ function createAdventureGame(api){
   return {start,exit,openStore,closeStore,setStoreCategory,renderStore,
     buyTool,useTool,openTool,openMeter,closeMeter,probeMeter,replaceMeterFuse,
     selectMeterConnector,selectMeterPin,openMeterAtPin,
+    installSecondHdd,secondaryHddAction,
     getWorkshop:()=>workshop.snapshot(),
     storeFacts,sellerMessages,demoBuild,runTechnicalDemo,cancelDemo,paint,perform,dropPart,purchase,canReturn,returnItem,exchange,select,selectVerb,stagedItems,connect,disconnect,apply,installOS,checkDelivery,
     hasInstallerUSB:()=>Object.keys(USB_PREPARED).some(id=>has('item:'+id))||workshop.owns('usbWriter')&&!!workshop.snapshot().usbOs,
