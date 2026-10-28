@@ -1391,7 +1391,8 @@ function createAdventureGame(api){
     const item='item:'+id,old=game.purchases[index];
     game.purchases[index]={k:item,price:old.price+p.fee};
     game.stock['item:osusb']--;game.stock[item]=(game.stock[item]||0)+1;
-    game.spent+=p.fee;game.selected=item;game.openSections=['inventory','actions'];
+    // Mantener abierto el flujo USB para conectarlo tras la preparación.
+    game.spent+=p.fee;game.selected=item;game.openSections=['usb','inventory'];
     message('USB de 32 GB preparado con '+p.label+' por '+format(p.fee)+
       '. Ya puedes conectarlo al PC.','ok');return true;
   }
@@ -2785,10 +2786,8 @@ function createAdventureGame(api){
         '<button type="button" data-thermal-remove'+
           (stActions.power||stActions.caseClosed?' disabled':'')+
           '>Retirar disipador para repetir montaje</button>':
-        '<p><strong>Queda pasta térmica usada sobre la CPU.</strong> Limpia antes de repetir.</p>'+
-        '<button type="button" class="primary" data-thermal-clean'+
-          (stActions.power||stActions.caseClosed?' disabled':'')+
-          '>Limpiar pasta térmica de la CPU</button>')+
+        '<p><strong>Queda pasta térmica usada sobre la CPU.</strong> '+
+          'Selecciona la CPU en 3D y usa «Limpiar pasta térmica» desde su ficha.</p>')+
       '</div>':'';
     const actions=
       thermalService+
@@ -2829,7 +2828,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.1</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+
