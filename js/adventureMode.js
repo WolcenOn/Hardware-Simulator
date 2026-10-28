@@ -1391,7 +1391,8 @@ function createAdventureGame(api){
     const item='item:'+id,old=game.purchases[index];
     game.purchases[index]={k:item,price:old.price+p.fee};
     game.stock['item:osusb']--;game.stock[item]=(game.stock[item]||0)+1;
-    game.spent+=p.fee;game.selected=item;game.openSections=['inventory','actions'];
+    // Mantener abierto el flujo USB para conectarlo tras la preparación.
+    game.spent+=p.fee;game.selected=item;game.openSections=['usb','inventory'];
     message('USB de 32 GB preparado con '+p.label+' por '+format(p.fee)+
       '. Ya puedes conectarlo al PC.','ok');return true;
   }
