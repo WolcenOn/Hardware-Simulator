@@ -343,7 +343,7 @@ export function createWorkbench(THREE,scene,materials) {
       const i=Math.floor((y-216)/72);
       if(i>=0&&i<7&&(y-216)%72<=60)return {kind:'choose',index:i};
     }
-    if(currentOsVisual==='installer'&&x>=900&&x<=1405&&y>=377&&y<=435)
+    if(currentOsVisual==='installer'&&x>=900&&x<=1405&&y>=510&&y<=568)
       return {kind:'install'};
     return null;
   }

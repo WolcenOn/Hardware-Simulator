@@ -11,7 +11,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-21-3-pcb-edge-routing';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-0-ventoy-select';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-0-ventoy-screen';
 import { createATXTower } from './towerATX.js?v=8-21-3-header-layout';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';

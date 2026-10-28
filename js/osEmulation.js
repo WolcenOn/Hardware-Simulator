@@ -169,6 +169,8 @@ function presentation(state,hardware={}){
     return {...boot,kind:'installed',progress:100};
   if(boot.kind==='desktop'&&state.bootStage>=4&&state.bootStage<6)
     return {...boot,kind:'splash',progress:state.bootStage===4?30:75};
+  if(['installer','installing'].includes(boot.kind))
+    return {...boot,targetDevice:state.osInstallTarget==='hdd2'?'hdd2':'ssd'};
   return boot;
 }
 function paint(ctx,w,h,visual){
@@ -214,7 +216,8 @@ function paint(ctx,w,h,visual){
     ctx.fillStyle='#a9becf';ctx.font='26px monospace';
     ctx.fillText('UEFI → Orden de arranque → USB / Disco interno',75,430);
     ctx.fillText('Inserta un USB instalador, o instala un SO en la unidad.',75,482);
-  }else if(visual.kind==='installer'||visual.kind==='installing'||visual.kind==='splash'){
+  }else if(visual.kind==='installer'||visual.kind==='installing'||
+    visual.kind==='splash'||visual.kind==='installed'){
     ctx.fillStyle='#ffffff';ctx.font='bold 58px sans-serif';
     ctx.fillText(visual.kind==='installer'?'Preparar instalación':
       visual.kind==='installing'?'Instalando sistema':visual.kind==='installed'?'Instalación completada':'Iniciando sesión',76,282);
@@ -225,9 +228,12 @@ function paint(ctx,w,h,visual){
       visual.kind==='installed'?'Retira el USB o cambia el orden para arrancar desde el disco.':
       'Iniciando servicios y escritorio simulado…',76,340);
     if(visual.kind==='installer'){
-      ctx.fillStyle='#1e5b54';ctx.fillRect(900,377,505,58);
+      ctx.fillStyle='#d2fff0';ctx.font='bold 27px monospace';
+      ctx.fillText('DESTINO: '+(visual.targetDevice==='hdd2'?
+        'DISCO 2 · SATA':'DISCO 1 · PRINCIPAL'),76,390);
+      ctx.fillStyle='#1e5b54';ctx.fillRect(900,510,505,58);
       ctx.fillStyle='#f3fff9';ctx.font='bold 28px monospace';
-      ctx.fillText('ENTER · INSTALAR SO',940,417);
+      ctx.fillText('ENTER · INSTALAR SO',940,550);
     }
     const progress=visual.kind==='installer'?0:(visual.progress||0);
     ctx.fillStyle='#26384d';ctx.fillRect(76,415,w-160,18);

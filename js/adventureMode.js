@@ -1159,7 +1159,7 @@ function createAdventureGame(api){
       selected:'',usbSelected:'',usbPartition:'GPT',usbISO:'novadesk',verb:'fit',connection:'atx24',videoOutput:which==='office'?'motherboard':'gpu',shopCategory:'case',openSections:['mission','shop'],
       screwed:{},messages:[],lastFeedback:null,attempts:0,inspection:'',report:null,
       purchases:[],osUSB:false,pendingDemo:false,manualOpsOpen:false,inventoryExtrasOpen:false,
-      osControlsOpen:false,briefOpen:false,riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
+      osControlsOpen:false,legacyUsbOpen:false,briefOpen:false,riskEnabled:false,riskSeed:which+'-aula-1',workshopUsbOs:workshop.snapshot().usbOs,esdConnected:false,esdRandom:root.PC_MISHAPS.createSeededRandom(which+'-esd'),esdDamage:{},esdLastRisk:null,incidents:[],
       pendingReview:0,pendingSataRepair:false,pendingSataLatent:false,
       ramPrecisionEnabled:true,ramPrecisionHistory:[],
       cpuPrecisionEnabled:true,cpuPrecisionHistory:[],
@@ -1288,6 +1288,8 @@ function createAdventureGame(api){
     // Cada HDD conectado necesita su propio cable de datos SATA.
     const sataNeeded=Number(!!st.sataData)+Number(!!st.secondaryStorage?.sataData);
     if(k==='item:sataCable'&&stock(k)<=sataNeeded)return false;
+    if(k==='item:osusb'&&
+       usbLibrary.get(game?.usbIds?.at(-1))?.mode!=='blank')return false;
     if(connected[k]&&k!=='item:sataCable'&&stock(k)<=1)return false;
     if(api.state().usbConnected&&(api.state().usbMediaKey===k||
       k==='item:osusb'&&String(api.state().usbMediaKey).startsWith('USB-')))return false;
@@ -2943,7 +2945,8 @@ function createAdventureGame(api){
       '<button type="button" data-ventoy-connect'+
       (!selectedPhysical||stActions.usbConnected?' disabled':'')+'>Conectar USB al PC</button></div>'+
       '<p class="muted">Arranca desde USB y selecciona la ISO en el monitor 3D con ↑ ↓ Enter o clic.</p>'+
-      '<details><summary>USB pregrabados (compatibilidad)</summary>'+
+      '<details class="adv-usb-legacy"'+(game.legacyUsbOpen?' open':'')+
+      '><summary>USB pregrabados (compatibilidad)</summary>'+
       '<label class="adventure-label" for="advPrepareOS">Sistema que grabar</label>'+
       '<select id="advPrepareOS">'+Object.entries(USB_PREPARED).map(([id,p])=>
         '<option value="'+p.os+'">'+p.label+' · preparación '+format(p.fee)+'</option>').join('')+
@@ -3233,6 +3236,10 @@ function createAdventureGame(api){
       const details=summary.parentElement;
       const name=details?.dataset.section;
       if(!game)return;
+      if(details.classList?.contains('adv-usb-legacy')){
+        details.open=!details.open;
+        game.legacyUsbOpen=details.open;return;
+      }
       if(details.classList?.contains('adv-manual-ops')){
         // El listener ya ha cancelado el click nativo de <summary>.
         // Alternamos también el DOM; solo guardar el flag dejaría cerrado

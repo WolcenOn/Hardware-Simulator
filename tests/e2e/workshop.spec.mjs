@@ -620,6 +620,7 @@ test('USB de tienda: preparar y conectar a USB-A real',async ({page})=>{
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
   await buy(page,'item','osusb');
   await openSection(page,'usb');
+  await page.locator('.adv-usb-legacy > summary').click();
   await page.locator('#advPrepareOS').selectOption('novadesk');
   await page.locator('[data-prepare-usb]').click();
   await expect(page.locator('#advUsbSelection')).toHaveValue('item:usbNova');
@@ -646,6 +647,7 @@ test('USB de tienda: comprar y alternar dos instaladores preparados',async ({pag
   await buy(page,'motherboard','b650');await fit(page,'motherboard:b650');
   await buy(page,'item','usbNova');
   await openSection(page,'usb');
+  await page.locator('.adv-usb-legacy > summary').click();
   await page.locator('#advUsbSelection').selectOption('item:usbNova');
   await page.locator('[data-connect-usb]').evaluate(button=>button.click());
   await expect(page.locator('#advUsbStatus')).toContainText('NovaDesk 11');
