@@ -2035,17 +2035,22 @@ function createAdventureGame(api){
   function activateOS(){
     if(!game)return false;
     const st=api.state();
-    if(!st.osInstalled||st.installedOs?.id!=='novadesk'){
-      message('La licencia ficticia es para NovaDesk 11 instalado; las distribuciones libres no requieren licencia.','warn');
+    const second=st.biosCfg.boot==='hdd2';
+    const media=second?st.secondaryStorage?.installedOs:st.installedOs;
+    if(!st.osInstalled||media?.id!=='novadesk'){
+      message('La licencia ficticia es para NovaDesk 11 instalado en el disco elegido; las distribuciones libres no requieren licencia.','warn');
       return false;
     }
-    if(st.osActivated){message('NovaDesk 11 ya está activado.','ok');return true;}
+    if(media.activated||!second&&st.osActivated){
+      message('NovaDesk 11 ya está activado en este disco.','ok');return true;
+    }
     if(!expend('item:licenseNova')){
-      message('Compra una licencia NovaDesk 11 en la tienda. El SO funciona sin activar, pero no cumple la entrega.','warn');
+      message('Compra una licencia NovaDesk 11 para activar este disco.','warn');
       return false;
     }
-    st.osActivated=true;
-    message('✅ Licencia ficticia aplicada: NovaDesk 11 activado para este equipo.','ok');
+    media.activated=true;
+    if(!second)st.osActivated=true;
+    message('✅ Licencia ficticia aplicada a '+(second?'HDD 2':'disco principal')+'.','ok');
     api.render();return true;
   }
   function installOS(){
