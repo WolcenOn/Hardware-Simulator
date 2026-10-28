@@ -618,6 +618,14 @@ export function buildRealScale(p) {
   hddDrive2.visible=false;
   storage.add(hddDrive2);
 
+  // Un segundo SSD SATA de 2,5" es una instancia distinta del disco
+  // principal. El adaptador lo sitúa en la bahía disponible de la jaula.
+  const sataDrive2=sataDrive.clone(true);
+  sataDrive2.name='SSD SATA 2 · bandeja libre';
+  sataDrive2.userData.partId='storage2';
+  sataDrive2.visible=false;
+  storage.add(sataDrive2);
+
   // M.2 2280 sobre su conector PCIe/M.2 propio de la placa.
   const m2Drive=new THREE.Group();storage.add(m2Drive);
   rounded(mm(80),.046,mm(22),.01,materials.pcbdark,m2Drive,0,0,0);
@@ -659,11 +667,19 @@ export function buildRealScale(p) {
     m2Drive.position.set(cfg.x-.80,.49+MOTHERBOARD_MOUNT.offsetY,cfg.z+.08);
     sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
     hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
-    // SSD principal ocupa el adaptador inferior: HDD añadido a la superior.
-    // Con HDD principal superior, la segunda unidad va a la inferior.
-    const secondaryBay=['hdd','hdd4'].includes(s?.selected?.storage)?'lower':'upper';
+    // HDD y SSD SATA pueden convivir, incluidos dos SSD idénticos:
+    // cada ejemplar mantiene su mesh y posición propios.
+    const secondaryId=s?.secondaryStorage?.id;
+    const secondaryHdd=['hdd','hdd4'].includes(secondaryId);
+    const secondarySsd=['sataSSD','sataSSD2'].includes(secondaryId);
+    const secondaryBay=s?.secondaryStorage?.bay||
+      (['hdd','hdd4'].includes(s?.selected?.storage)?'lower':
+        ['sataSSD','sataSSD2'].includes(s?.selected?.storage)||secondaryHdd?'upper':'lower');
     hddDrive2.position.set(...getHddBayPosition(secondaryBay));
-    hddDrive2.visible=!!s?.secondaryStorage?.installed;
+    sataDrive2.position.set(...(secondaryBay==='upper'?
+      getHddBayPosition('upper'):getSsdBayPosition()));
+    hddDrive2.visible=!!s?.secondaryStorage?.installed&&secondaryHdd;
+    sataDrive2.visible=!!s?.secondaryStorage?.installed&&secondarySsd;
     m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
     const needsSata=sataDrive.visible||hddDrive.visible;
     tray.visible=false; // las bandejas correctas las crea towerATX.js
@@ -710,5 +726,5 @@ export function buildRealScale(p) {
     rearUsbSockets,rearVideoSockets,
     gpuBracketPorts,psuCableSockets,videoCards,sataDrive,hddDrive,m2Drive,
     sataSsdPorts,sataHddPorts,coolerFanPort,caseFanSourcePorts,
-    tray,ioShield,storageBays,hddDrive2,caseFanMounts,fanMountGroup};
+    tray,ioShield,storageBays,hddDrive2,sataDrive2,caseFanMounts,fanMountGroup};
 }
