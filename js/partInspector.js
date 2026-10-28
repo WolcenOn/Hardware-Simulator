@@ -42,6 +42,7 @@ function createPartInspector(api){
   function parse(ref){
     if(!ref)return null;
     const raw=String(ref);
+    if(raw==='storage2')return {category:'storage2',id:api.state()?.secondaryStorage?.id||'',key:'storage2'};
     if(raw.startsWith('fan')&&/^fan[0-2]$/.test(raw))
       return {category:raw,id:raw,key:raw};
     const [category,...rest]=raw.split(':');
@@ -57,11 +58,14 @@ function createPartInspector(api){
   }
   function getInfo(ref){
     const t=parse(ref);if(!t)return null;
-    const catalog=api.catalog?.[groups[t.category]];
+    const catalog=api.catalog?.[t.category==='storage2'?'storage':groups[t.category]];
     const model=catalog?.[t.id]||special[t.key]||{};
-    return {...t,name:model.name||titles[t.category]||t.id,model};
+    const name=t.category==='storage2'?'HDD 2 · '+(model.name||'SATA 3,5 pulgadas'):
+      model.name||titles[t.category]||t.id;
+    return {...t,name,model};
   }
   function installed(t,st){
+    if(t.category==='storage2')return !!st.secondaryStorage?.installed;
     if(t.category.startsWith('fan'))return !!st.caseFans?.[Number(t.category.slice(-1))]?.installed;
     if(['monitor','keyboard','mouse'].includes(t.category))return true;
     if(['casePower','frontUsb3','frontUsbC'].includes(t.category))return !!st.installed?.case;
@@ -107,6 +111,14 @@ function createPartInspector(api){
     const isInstalled=installed(t,st),screw=k=>
       !g?info('Atornillado','No registrado en modo técnico'):
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
+    if(t.category==='storage2'){
+      const disk=st.secondaryStorage||{};
+      return [good('Bahía inferior · HDD 2',!!disk.installed),
+        good('SATA datos 2',!!disk.sataData),
+        good('Alimentación SATA 2',!!disk.sataPower),
+        info('Sistema instalado',window.PC_OS?.CATALOG?.[disk.installedOs?.id]?.name||'Ninguno'),
+        info('Orden UEFI',st.biosCfg?.boot==='hdd2'?'Primero':'Otra prioridad')];
+    }
     if(t.key==='item:rgbStrip')return [
       good('Tira LED instalada',!!st.rgbInstalled),
       info('Iluminación',st.rgbInstalled&&st.power?'Encendida':'Apagada')
@@ -177,6 +189,15 @@ function createPartInspector(api){
     const on=installed(t,st);
     const actions=[{verb:'sheet',label:'Ficha técnica',enabled:true}];
     if(!active)return actions;
+    if(t.category==='storage2'){
+      const disk=st.secondaryStorage||{};
+      actions.push({verb:'secondaryData',label:disk.sataData?'Desconectar SATA datos 2':'Conectar SATA datos 2',enabled:!st.power&&!st.caseClosed});
+      actions.push({verb:'secondaryPower',label:disk.sataPower?'Desconectar alimentación 2':'Conectar alimentación 2',enabled:!st.power&&!st.caseClosed});
+      actions.push({verb:'secondaryTarget',label:'Instalar SO en HDD 2',enabled:disk.installed});
+      actions.push({verb:'secondaryBoot',label:'Prioridad de arranque: HDD 2',enabled:disk.installed});
+      actions.push({verb:'secondaryRemove',label:'Retirar HDD 2',enabled:!st.power&&!st.caseClosed&&!disk.sataData&&!disk.sataPower});
+      return actions;
+    }
     const returnAction=()=>{
       // La ficha 3D usa exactamente las mismas reglas que Inventario:
       // no devuelve una pieza colocada, un consumible gastado o un cable activo.
@@ -214,6 +235,10 @@ function createPartInspector(api){
         actions.push({verb:'activate',label:'Activar NovaDesk con licencia',enabled:true});
       return actions;
     }
+    if(t.category==='storage'&&['hdd','hdd4'].includes(t.id)&&
+      st.installed.storage&&['hdd','hdd4'].includes(st.selected.storage)&&
+      !st.secondaryStorage?.installed&&ad.game?.stock?.[t.key]>0)
+      actions.push({verb:'installSecond',label:'Encajar segundo HDD en bahía inferior',enabled:!st.power&&!st.caseClosed});
     if(!on){
       if(t.category==='motherboard'&&st.installed.psu&&!st.psuAccessRouted)
         actions.push({verb:'route',label:'Apartar mazos PSU',enabled:true});
@@ -361,6 +386,21 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
+    if(verb==='installSecond'){
+      const ok=ad.installSecondHdd?.(t.key);
+      feedback={text:ad.game?.lastFeedback?.text||(ok?'Segundo HDD encajado.':'No se pudo instalar el segundo HDD.'),
+        level:ok?'ok':'warn'};
+      refresh();return;
+    }
+    if(t.category==='storage2'&&verb.startsWith('secondary')){
+      const operation={secondaryData:'sataData',secondaryPower:'sataPower',
+        secondaryTarget:'target',secondaryBoot:'boot',secondaryRemove:'remove'}[verb];
+      const ok=ad.secondaryHddAction?.(operation);
+      feedback={text:ad.game?.lastFeedback?.text||(ok?'Operación aplicada':'Operación rechazada'),
+        level:ok?'ok':'warn'};
+      if(operation==='remove'&&ok){close();return;}
+      refresh();return;
+    }
     if(verb==='caseToggle'&&t.category==='case'){
       api.caseToggle?.();
       feedback={text:api.state().caseClosed?'Panel de la caja cerrado.':'Panel de la caja abierto.',level:'ok'};
