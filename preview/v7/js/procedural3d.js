@@ -5,7 +5,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildRealScale, MOTHERBOARD_MOUNT, MM_PER_UNIT, getMotherboardMountPoints,
   getRearVideoAnchor, getGpuVideoAnchor, HDD_BAY_LAYOUT,
-  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-0-dual-hdd';
+  SSD_BAY_LAYOUT } from './partsRealScale.js?v=8-21-1-physical-bays';
 import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-4-11-drive-bays';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
@@ -658,17 +658,30 @@ window.PC3D={
     assembly.rearUsbSockets[current?.selected?.motherboard||'b650']),
   getDualHddState:()=>{
     root.updateMatrixWorld(true);
-    const upper=root.worldToLocal(assembly.hddDrive.getWorldPosition(new THREE.Vector3()));
-    const lower=root.worldToLocal(assembly.hddDrive2.getWorldPosition(new THREE.Vector3()));
+    const s=current||{},main=s.selected?.storage;
+    const mainHdd=['hdd','hdd4'].includes(main);
+    const mainSsd=['sataSSD','sataSSD2'].includes(main);
+    const second=!!s.secondaryStorage?.installed;
+    const secondaryBay=mainHdd?'lower':'upper';
+    const diskInfo=(obj,id,installed,data,power,role)=>{
+      const p=root.worldToLocal(obj.getWorldPosition(new THREE.Vector3()));
+      return {id,installed:!!installed,position:p.toArray(),
+        sataData:!!data,sataPower:!!power,role};
+    };
     return {
-      upper:{id:current?.selected?.storage,
-        installed:!!current?.installed?.storage&&!!assembly.hddDrive.visible,
-        position:upper.toArray(),sataData:!!current?.sataData,sataPower:!!current?.sataPower},
-      lower:{id:current?.secondaryStorage?.id,
-        installed:!!current?.secondaryStorage?.installed&&!!assembly.hddDrive2.visible,
-        position:lower.toArray(),
-        sataData:!!current?.secondaryStorage?.sataData,
-        sataPower:!!current?.secondaryStorage?.sataPower}
+      upper:mainHdd?
+        diskInfo(assembly.hddDrive,main,s.installed?.storage&&assembly.hddDrive.visible,
+          s.sataData,s.sataPower,'primary'):
+        diskInfo(assembly.hddDrive2,s.secondaryStorage?.id,second&&assembly.hddDrive2.visible,
+          s.secondaryStorage?.sataData,s.secondaryStorage?.sataPower,'secondary'),
+      lower:mainSsd?
+        diskInfo(assembly.sataDrive,main,s.installed?.storage&&assembly.sataDrive.visible,
+          s.sataData,s.sataPower,'primary'):
+        mainHdd?
+          diskInfo(assembly.hddDrive2,s.secondaryStorage?.id,second&&assembly.hddDrive2.visible,
+            s.secondaryStorage?.sataData,s.secondaryStorage?.sataPower,'secondary'):
+          {id:null,installed:false,position:null,sataData:false,sataPower:false,role:null},
+      secondaryBay
     };
   },
   getHddBayAlignment:()=>{
