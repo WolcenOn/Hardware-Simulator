@@ -1263,14 +1263,13 @@ bootStage:0,bootToken:++bootEpoch,bootCursor:0,biosCfg:safeBios(),usbImage:'none
 function paintEventLog(){
   const list=$('eventLog');
   if(!list)return;
-  list.replaceChildren(...state.log.map(entry=>{
-    const item=document.createElement('li');
-    const timestamp=document.createElement('span');
-    timestamp.className='log'+entry.l;
-    timestamp.textContent='['+entry.t+']';
-    item.append(timestamp,document.createTextNode(' '+entry.m));
-    return item;
-  }));
+  // Texto escapado: compatible tanto con el DOM real como con el simulador smoke.
+  const escapeLog=value=>String(value).replace(/[&<>"']/g,ch=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[ch]);
+  list.innerHTML=state.log.map(entry=>
+    '<li><span class="log'+escapeLog(entry.l)+'">['+
+    escapeLog(entry.t)+']</span> '+escapeLog(entry.m)+'</li>').join('');
 }
 function watts(){return(state.installed.cpu?p('cpu').peak:0)+(state.installed.ram?p('ram').watts:0)+(state.installed.storage?p('storage').watts:0)+(state.installed.gpu?p('gpu').watts:0)+(state.installed.motherboard?45:0)+(state.installed.cooler?(window.PC_COOLER_OPTIONS?.[state.selected.cooler]?.watts||4):0)+
  (state.caseFans||[]).filter(f=>f.installed).length*3}
