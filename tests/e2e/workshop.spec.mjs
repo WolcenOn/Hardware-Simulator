@@ -1968,7 +1968,12 @@ test('8.22.1: clic real en monitor elige ISO y teclado puede activarse y liberar
   await page.keyboard.press('Escape');
   await expect(page.locator('#virtualKeyboardPanel')).toBeHidden();
   await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','false');
-  await page.locator('#virtualKeyboardToggle').click();
+  // La misma activación debe estar disponible en la ficha del teclado 3D.
+  await page.evaluate(()=>partInspector.open('keyboard','tower'));
+  const keyboardMenu=page.locator('#partContextMenu');
+  await expect(keyboardMenu.locator('[data-part-verb="keyboardCapture"]')).toBeEnabled();
+  await keyboardMenu.locator('[data-part-verb="keyboardCapture"]').click();
+  await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','true');
   await page.locator('#viewIso').click();
   await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','false');
 });

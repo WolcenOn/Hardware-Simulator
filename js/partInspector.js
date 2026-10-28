@@ -278,6 +278,10 @@ function createPartInspector(api){
       const target=t.category;
       const flag=target==='monitor'?'monitorCable':target+'Connected';
       actions.push({verb:st[flag]?'disconnect':'connect',target,label:st[flag]?'Desconectar':'Conectar',enabled:true});
+      if(target==='keyboard'||target==='monitor')
+        actions.push({verb:'keyboardCapture',label:st.virtualKeyboardCapture?
+          'Liberar teclado de mi ordenador (Esc)':'Usar mi teclado en el monitor 3D',
+          enabled:!!st.power,reason:'Activa el foco virtual; Esc o cambiar de vista lo desactiva'});
       const os=st.biosCfg?.boot==='hdd2'?st.secondaryStorage?.installedOs:st.installedOs;
       if(target==='monitor'&&os?.id==='novadesk'&&!os.activated&&
         !(st.biosCfg?.boot!=='hdd2'&&st.osActivated))
@@ -465,6 +469,10 @@ function createPartInspector(api){
     const t=getInfo(target.ref),ad=api.adventure?.();
     if(!ad?.active){showSheet();return;}
     const prev=ad.game?.lastFeedback;
+    if(verb==='keyboardCapture'){
+      root.dispatchEvent(new CustomEvent('pc3d-toggle-virtual-keyboard'));
+      close();return;
+    }
     if(t.id==='osusb'&&t.category==='item'){
       const id=t.mediaId||ad.game?.usbSelected||ad.usbDrives?.()[0]?.id;
       if(verb==='usbStation'){ad.openUsbStation?.(id);close();return;}
