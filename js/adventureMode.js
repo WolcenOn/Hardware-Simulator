@@ -2827,7 +2827,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.20.1</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+
