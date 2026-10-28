@@ -1263,8 +1263,10 @@ assert.equal(l.s.installed.cooler,false);
 assert.equal(l.s.paste,1,'Los restos permanecen hasta limpiar');
 assert.equal(g.game.pasteNeedsCleaning,true);
 assert.equal(g.game.stock['item:screws'],screwsBeforeRemoval+4);
-assert(get('adventurePanel').innerHTML.includes('data-thermal-clean'),
-  'Tras retirar el disipador debe verse Limpiar pasta térmica');
+assert(!get('adventurePanel').innerHTML.includes('data-thermal-clean'),
+  'La limpieza no debe duplicarse como botón en el panel técnico');
+assert(get('adventurePanel').innerHTML.includes('Selecciona la CPU en 3D'),
+  'El panel debe indicar que la limpieza corresponde a la ficha de CPU');
 const screwStockClean=g.game.stock['item:screws'];
 assert.equal(g.perform('fit'),null,'No se puede volver a usar la pasta anterior');
 assert.equal(l.s.installed.cooler,false);
