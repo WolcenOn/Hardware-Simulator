@@ -1466,15 +1466,22 @@ test('v8.17.2: retirar, limpiar pasta térmica y volver a atornillar disipador',
  await expect.poll(()=>page.evaluate(()=>state.fixings.cooler)).toBe(true);
  const first=await page.evaluate(()=>adventureGame.game.stock['item:screws']);
  await page.locator('[data-thermal-remove]').evaluate(el=>el.click());
- await expect(page.locator('#adventurePanel [data-thermal-clean]')).toBeVisible();
+ await expect(page.locator('#adventurePanel [data-thermal-clean]')).toHaveCount(0);
+ await expect(page.locator('#adventurePanel')).toContainText('Selecciona la CPU en 3D');
  await expect.poll(()=>page.evaluate(()=>adventureGame.game.pasteNeedsCleaning)).toBe(true);
  expect(await page.evaluate(()=>adventureGame.game.stock['item:screws'])).toBe(first+4);
  await page.evaluate(()=>{
    adventureGame.buyTool('alcohol');adventureGame.buyTool('wipes');
+   partInspector.open('cpu:r7600','tower');
  });
- await page.locator('[data-thermal-clean]').evaluate(el=>el.click());
+ const cpu=page.locator('#partContextMenu');
+ await expect(cpu.locator('[data-part-verb="clean"]')).toBeEnabled();
+ await cpu.locator('[data-part-verb="clean"]').evaluate(el=>el.click());
  await expect.poll(()=>page.evaluate(()=>state.paste)).toBe(0);
- await expect(page.locator('#adventurePanel [data-thermal-clean]')).toHaveCount(0);
+ const supplies=await page.evaluate(()=>adventureGame.getWorkshop().supplies);
+ expect(supplies.alcohol).toBe(3);
+ expect(supplies.wipes).toBe(5);
+ await expect(cpu.locator('[data-part-verb="clean"]')).toHaveCount(0);
  await buy(page,'item','paste');
  await page.evaluate(()=>{adventureGame.select('item:paste');adventureGame.perform('apply');});
  await page.evaluate(()=>{adventureGame.select('cooler:air');adventureGame.perform('fit');});
