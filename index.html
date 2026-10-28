@@ -1633,7 +1633,7 @@ function selector(cat,items){return `<div class="field"><label>${categories[cat]
       'Curva CPU_FAN: '+biosCfg.fan,
       'Secure Boot: '+biosCfg.secure,
       '',
-      'Pulsa fila del monitor 3D o usa 1/2/3.',
+      'Pulsa fila del monitor 3D o usa 1/2/3/4.',
       'Guardar opciones desde panel BIOS.'
     ].join('\n');
   }
@@ -1665,7 +1665,9 @@ function selector(cat,items){return `<div class="field"><label>${categories[cat]
       rows.push('USB INSTALADOR: '+choice.os.name,
         state.osInstallProgress===100&&state.installedOs?.id===state.usbImage?
           'INSTALACIÓN COMPLETA · Retira USB y arranca desde disco.':
-          'Disco de destino: '+p('storage').name+' · Pulsa «Instalar SO».');
+          'Disco de destino: '+(state.osInstallTarget==='hdd2'?
+            catalog.storage[state.secondaryStorage?.id]?.name||'HDD 2':p('storage').name)+
+          ' · Pulsa «Instalar SO».');
     else if(choice.kind==='installing')
       rows.push('INSTALANDO '+(choice.os?.name||'SO')+' · '+choice.progress+'%',
         'No apagues el ordenador durante el proceso.');
@@ -1873,9 +1875,10 @@ $('osUsbToggle').textContent=state.usbConnected?'Expulsar USB del puerto trasero
 $('osInstallBtn').disabled=!!state.osInstalling;
 const media=e.bootResult;
 $('osStatus').textContent='Arranque: '+(media.message||media.code)+
-  ' · Disco: '+(state.installed.storage?p('storage').name:'no instalado')+
-  ' · SO instalado: '+(state.installedOs?.id?
-    window.PC_OS.CATALOG[state.installedOs.id]?.name||'desconocido':'ninguno')+
+  ' · Unidades: '+window.PC_OS.availableDrives(state,osHardware(e.post))
+    .map(d=>BOOT_LABELS[d.device]+' '+(d.ready?'detectado':'sin conexión')+
+      ' ('+(window.PC_OS.CATALOG[d.os?.id]?.name||'sin SO')+')').join('; ')+
+  ' · SO iniciado: '+(media.kind==='desktop'?media.os?.name||'desconocido':'ninguno')+
   (state.osInstalling?' · Instalación '+state.osInstallProgress+'%':
    state.osInstallProgress===100&&state.installedOs?' · Instalación completada':'');let cpu=state.power?(state.stress?84:(e.boot?18:6)):0,gpu=state.power&&state.installed.gpu?(state.stress?92:(e.boot?8:0)):0,tempPct=Math.min(100,Math.round(e.temp/110*100));[['cpu',cpu],['gpu',gpu],['psu',state.power?e.load:0]].forEach(([k,v])=>{$(k+'LoadText').textContent=v+'%';$(k+'Bar').style.setProperty('--w',v+'%')});$('tempLoadText').textContent=e.temp+'°C';$('tempBar').style.setProperty('--w',tempPct+'%');$('ledPower').classList.toggle('on',state.power);$('ledPost').classList.toggle('on',state.power&&e.post);$('ledBoot').classList.toggle('on',state.power&&e.boot);paintEventLog();$('fallback').innerHTML=window.PC3D?.ready?'':fallbackHTML();window.PC3D?.update?.(state,{part:p,consoleText,videoSignal:outputAvailable(e),
   osVisual:osPresentation(e)});if(adventureGame?.active)adventureGame.paint();partInspector?.refresh()}catch(err){state.lastRenderError=err?.message||String(err);console.error('Error al actualizar controles',err);showResourceError('Error en los controles: '+state.lastRenderError);}}function biosRulesHTML(e){let cfg=state.biosCfg,out=[];if(cfg.boot==='usb')out.push(['warn','USB primero: el instalador arrancará si está conectado y es compatible.']);
@@ -1987,7 +1990,7 @@ document.addEventListener('keydown',event=>{
   if(!field&&(event.key==='F2'||event.key==='Delete')){
     event.preventDefault();bios();return;
   }
-  if(!field&&state.bios&&/^[123]$/.test(event.key)){
+  if(!field&&state.bios&&/^[1-4]$/.test(event.key)){
     event.preventDefault();moveBoot(Number(event.key)-1);
   }
 });
