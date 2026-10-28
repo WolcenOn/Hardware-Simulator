@@ -1508,16 +1508,19 @@ function createAdventureGame(api){
     if(st.power||st.caseClosed||!st.installed.case||!st.installed.motherboard){
       message('Apaga el equipo, abre la caja e instala primero chasis y placa.');return false;
     }
-    if(!st.installed.storage||!['hdd','hdd4'].includes(st.selected.storage)){
-      message('Instala primero un HDD SATA en la bahía superior.');return false;
+    if(!st.installed.storage){
+      message('Instala primero la unidad principal: HDD, SSD SATA o NVMe.');return false;
     }
     if(st.secondaryStorage?.installed){
       message('La bahía inferior ya tiene un HDD instalado.');return false;
     }
+    const upper=!['hdd','hdd4'].includes(st.selected.storage);
     if(!expend(k))return false;
-    st.secondaryStorage={id,installed:true,sataData:false,sataPower:false,installedOs:null};
+    st.secondaryStorage={id,installed:true,sataData:false,sataPower:false,installedOs:null,
+      bay:upper?'upper':'lower'};
     st.osInstallTarget='ssd';
-    message('Segundo HDD instalado en la bahía inferior. Conecta SATA datos y alimentación desde su ficha 3D.','ok');
+    message('HDD adicional instalado en la bahía '+(upper?'superior':'inferior')+
+      '. El disco principal sigue en su sitio. Conecta datos y alimentación desde el HDD nuevo en 3D.','ok');
     api.render();
     return true;
   }
@@ -1539,8 +1542,10 @@ function createAdventureGame(api){
       if(st.biosCfg.boot==='hdd2')st.biosCfg.boot='ssd';
       message('Segundo HDD retirado de la jaula y devuelto al inventario.','ok');
     }else if(verb==='sataData'||verb==='sataPower'){
-      if(verb==='sataData'&&!disk.sataData&&(!st.installed.motherboard||stock('item:sataCable')<2)){
-        message('Para dos HDD necesitas dos cables SATA de datos comprados y la placa instalada.');return false;
+      const cableCount=api.part('storage').interface==='SATA'?2:1;
+      if(verb==='sataData'&&!disk.sataData&&(!st.installed.motherboard||stock('item:sataCable')<cableCount)){
+        message('Compra '+cableCount+' cable'+(cableCount>1?'s':'')+
+          ' SATA de datos en total para las unidades que los necesitan.');return false;
       }
       if(verb==='sataPower'&&!st.installed.psu){
         message('Instala la fuente antes de alimentar el segundo HDD.');return false;
@@ -1575,6 +1580,11 @@ function createAdventureGame(api){
   function perform(override=null){
     if(!game)return;
     const verb=override||game.verb;
+    // El segundo HDD se monta como una instancia adicional y NO debe pasar
+    // por api.install('storage'), que representaría la unidad ya instalada.
+    if(verb==='fit'&&String(game.selected||'').startsWith('storage:')&&
+      api.state().installed.storage&&has(game.selected))
+      return installSecondHdd(game.selected);
     if(verb==='fit'&&String(game.selected).startsWith('cooler:')&&
        game.pasteNeedsCleaning){
       message('La pasta anterior ya está usada. Pulsa «Limpiar pasta térmica» antes de volver a montar el disipador.','warn');
@@ -2897,7 +2907,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.21.0</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.21.1</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+

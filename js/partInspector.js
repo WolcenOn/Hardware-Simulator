@@ -64,7 +64,10 @@ function createPartInspector(api){
       model.name||titles[t.category]||t.id;
     return {...t,name,model};
   }
-  function installed(t,st){
+  function installed(t,st,source='tower'){
+    // Una referencia en la mesa es una unidad física libre, aunque su SKU
+    // coincida con otro componente que ya está dentro de la caja.
+    if(source==='table')return false;
     if(t.category==='storage2')return !!st.secondaryStorage?.installed;
     if(t.category.startsWith('fan'))return !!st.caseFans?.[Number(t.category.slice(-1))]?.installed;
     if(['monitor','keyboard','mouse'].includes(t.category))return true;
@@ -104,11 +107,16 @@ function createPartInspector(api){
       default:return [];
     }
   }
-  function checks(t){
+  function checks(t,source=target?.source||'tower'){
     const st=api.state(),ad=api.adventure?.(),g=ad?.game;
+    if(source==='table')return [
+      info('Ubicación física','Mesa de componentes · sin instalar'),
+      info('Unidades disponibles',String(g?.stock?.[t.key]||0)),
+      ...(t.category==='storage'?[info('Bahía','Se asigna al encajar esta unidad')]:[])
+    ];
     const esdRate=window.PC_MISHAPS?.componentEsdRisk?.(t.category,
       !!g?.esdConnected)||0;
-    const isInstalled=installed(t,st),screw=k=>
+    const isInstalled=installed(t,st,source),screw=k=>
       !g?info('Atornillado','No registrado en modo técnico'):
       good('Fijación con tornillos',!!g.screwed?.[k],'Fijar con destornillador y tornillos');
     if(t.category==='storage2'){
@@ -186,7 +194,7 @@ function createPartInspector(api){
   }
   function actionList(t){
     const st=api.state(),ad=api.adventure?.(),active=!!ad?.active;
-    const on=installed(t,st);
+    const on=installed(t,st,target?.source||'tower');
     const actions=[{verb:'sheet',label:'Ficha técnica',enabled:true}];
     if(!active)return actions;
     if(t.category==='storage2'){
@@ -237,10 +245,21 @@ function createPartInspector(api){
         actions.push({verb:'activate',label:'Activar NovaDesk con licencia',enabled:true});
       return actions;
     }
-    if(t.category==='storage'&&['hdd','hdd4'].includes(t.id)&&
-      st.installed.storage&&['hdd','hdd4'].includes(st.selected.storage)&&
-      !st.secondaryStorage?.installed&&ad.game?.stock?.[t.key]>0)
-      actions.push({verb:'installSecond',label:'Encajar segundo HDD en bahía inferior',enabled:!st.power&&!st.caseClosed});
+    if(t.category==='storage'&&target?.source==='table'&&st.installed.storage){
+      // No permitir que el disco libre use la ficha / tornillos / cable
+      // de la unidad instalada con el mismo modelo de catálogo.
+      const free=!!ad.game?.stock?.[t.key];
+      if(['hdd','hdd4'].includes(t.id)&&free&&!st.secondaryStorage?.installed){
+        const primaryHdd=['hdd','hdd4'].includes(st.selected.storage);
+        actions.push({verb:'installSecond',
+          label:'Encajar HDD adicional · bahía '+(primaryHdd?'inferior':'superior'),
+          enabled:!st.power&&!st.caseClosed,
+          reason:'El disco original permanece instalado'});
+      }else actions.push({verb:'occupiedStorage',label:st.secondaryStorage?.installed?
+        'Dos unidades ocupan las bahías disponibles':'Ya existe una unidad principal; selecciona un HDD para añadirlo',
+        enabled:false});
+      returnAction();return actions;
+    }
     if(!on){
       if(t.category==='motherboard'&&st.installed.psu&&!st.psuAccessRouted)
         actions.push({verb:'route',label:'Apartar mazos PSU',enabled:true});
@@ -299,14 +318,15 @@ function createPartInspector(api){
   function summaryHTML(){
     const st=api.state(),mounted=['case',...(st.ioShield?['item:ioShield']:[]),
       'motherboard','cpu','ram','cooler',
-      'gpu','storage','psu',...([0,1,2].filter(i=>st.caseFans?.[i]?.installed)
+      'gpu','storage',...(st.secondaryStorage?.installed?['storage2']:[]),
+      'psu',...([0,1,2].filter(i=>st.caseFans?.[i]?.installed)
         .map(i=>'fan'+i))];
     const rows=mounted.filter(part=>part==='item:ioShield'||
       part.startsWith('fan')||!!st.installed?.[part])
       .map(part=>{
         const t=getInfo(part);
         if(!t)return '';
-        const states=checks(t);
+        const states=checks(t,'tower');
         const pending=states.filter(x=>x.level==='warn').length;
         return '<button type="button" class="part-mounted-row" data-mounted-inspect="'+
           escape(t.key)+'"><b>'+escape(t.name)+'</b><span class="'+
@@ -351,7 +371,7 @@ function createPartInspector(api){
   function draw(){
     const t=getInfo(target?.ref);if(!t)return;
     const top=pop.scrollTop;
-    const mounted=installed(t,api.state());
+    const mounted=installed(t,api.state(),target?.source||'tower');
     const status=checks(t);
     pop.hidden=false;
     pop.innerHTML='<div class="part-inspector-title"><strong>'+escape(t.name)+
@@ -392,6 +412,12 @@ function createPartInspector(api){
       const ok=ad.installSecondHdd?.(t.key);
       feedback={text:ad.game?.lastFeedback?.text||(ok?'Segundo HDD encajado.':'No se pudo instalar el segundo HDD.'),
         level:ok?'ok':'warn'};
+      if(ok&&target?.source==='table'&&!ad.game?.stock?.[t.key]){
+        // La pieza desaparece de la mesa y ahora se selecciona el disco
+        // físico nuevo, en vez de mantener abierta la ficha del repuesto.
+        open('storage2','tower');
+        return;
+      }
       refresh();return;
     }
     if(t.category==='storage2'&&verb.startsWith('secondary')){

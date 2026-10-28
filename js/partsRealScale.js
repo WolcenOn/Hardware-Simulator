@@ -659,6 +659,10 @@ export function buildRealScale(p) {
     m2Drive.position.set(cfg.x-.80,.49+MOTHERBOARD_MOUNT.offsetY,cfg.z+.08);
     sataDrive.visible=['sataSSD','sataSSD2'].includes(s?.selected?.storage);
     hddDrive.visible=['hdd','hdd4'].includes(s?.selected?.storage);
+    // SSD principal ocupa el adaptador inferior: HDD añadido a la superior.
+    // Con HDD principal superior, la segunda unidad va a la inferior.
+    const secondaryBay=['hdd','hdd4'].includes(s?.selected?.storage)?'lower':'upper';
+    hddDrive2.position.set(...getHddBayPosition(secondaryBay));
     hddDrive2.visible=!!s?.secondaryStorage?.installed;
     m2Drive.visible=['nvmeSSD','nvme2'].includes(s?.selected?.storage);
     const needsSata=sataDrive.visible||hddDrive.visible;

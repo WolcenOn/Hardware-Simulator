@@ -710,7 +710,9 @@ test('Fase 1: velocidad y reloj virtual registran montaje e inspección sin tiem
   await page.locator('[data-verb="inspect"]').evaluate(el=>el.click());
   await page.locator('[data-go]').evaluate(el=>el.click());
   await expect(page.locator('#advVirtualClock')).toContainText('operaciones registradas');
-  await page.locator('#adventureBtn').click();
+  // Reiniciar la sesión exige iniciar otro encargo, no pulsar la vista aventura.
+  await openSection(page,'mission');
+  await page.locator('#advClient').selectOption('gaming');
   await expect(page.locator('#advVirtualClock')).toContainText('0 min');
   await expect(page.locator('#advWorkSpeed')).toHaveValue('normal');
 });
@@ -769,7 +771,8 @@ test('los acabados blanco y grafito se conservan al colocar la caja en el taller
   expect(white.frame).toBe(0xc0cbd5);
   await expect(page.locator('#viewportWrap')).toHaveAttribute('data-view-preset','assembly');
 
-  await page.locator('#adventureBtn').click();
+  await openSection(page,'mission');
+  await page.locator('#advClient').selectOption('gaming');
   await buy(page,'case','towerGraphite');
   await fit(page,'case:towerGraphite');
   const graphite=await page.evaluate(() => window.PC3D.getCaseFinish());
@@ -845,7 +848,7 @@ test('Fase 2b.2: SATA latente se manifiesta al encender y se repara',async ({pag
   expect(await page.evaluate(()=>state.sataData)).toBe(true);
   await page.locator('#powerBtn').evaluate(el=>el.click());
   await expect(page.locator('#advRiskStatus')).toContainText('comprobaciones pendientes: 1');
-  await openSection(page,'mission');
+  await openSection(page,'advanced');
   await page.locator('#advRiskMode').selectOption('off');
   await buy(page,'psu','psu450');await fit(page,'psu:psu450');
   await openSection(page,'actions');
@@ -1016,7 +1019,7 @@ test('8.11 CPU: orientar, alinear, apoyar y cerrar la palanca sobre visor 3D',as
   const popup=page.locator('#cpuPrecisionPopup');
   await expect(popup).toBeVisible();
   await expect(popup.locator('[role="dialog"]')).toBeVisible();
-  expect(await page.evaluate(()=>state.installed.cpu)).toBe(false);
+  expect(await page.evaluate(()=>!!state.installed.cpu)).toBe(false);
   const before=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
   await popup.locator('[data-cpu-present]').evaluate(el=>el.click());
   const after=await page.evaluate(()=>adventureGame.getExport().simulatedTime.technical);
@@ -1050,7 +1053,7 @@ test('8.11 CPU: orientar, alinear, apoyar y cerrar la palanca sobre visor 3D',as
   await expect(popup.locator('[data-cpu-capture]')).toBeVisible();
   const force=await page.evaluate(()=>adventureGame.cpuPrecisionCapture(94));
   expect(force.code).toBe('excessive_force');
-  expect(await page.evaluate(()=>state.installed.cpu)).toBe(false);
+  expect(await page.evaluate(()=>!!state.installed.cpu)).toBe(false);
   await page.evaluate(()=>adventureGame.cpuPrecisionCapture(66));
   await expect(popup).toBeHidden();
   expect(await page.evaluate(()=>state.installed.cpu)).toBe(true);
@@ -1088,9 +1091,17 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   // Playwright verifica que se dispensa durante una pulsación real.
   await page.waitForTimeout(400);
   await page.mouse.up();
-  const beforeRelease=await page.evaluate(()=>adventureGame.pasteUi.getState().used);
-  await page.waitForTimeout(220);
-  const afterRelease=await page.evaluate(()=>adventureGame.pasteUi.getState().used);
+  // Medimos el arrastre viscoso con reloj virtual determinista. CI puede
+  // pausar requestAnimationFrame al renderizar el taller WebGL.
+  const {beforeRelease,afterRelease}=await page.evaluate(()=>{
+    adventureGame.pasteUi.pointer(.5,.5);
+    adventureGame.pasteUi.pump(true);
+    for(let i=0;i<12;i++)adventureGame.pasteUi.tick(40);
+    adventureGame.pasteUi.pump(false);
+    const beforeRelease=adventureGame.pasteUi.getState().used;
+    for(let i=0;i<6;i++)adventureGame.pasteUi.tick(40);
+    return {beforeRelease,afterRelease:adventureGame.pasteUi.getState().used};
+  });
   expect(afterRelease).toBeGreaterThan(beforeRelease);
   // Para garantizar una dosis útil sin depender del reloj real CI, completar
   // con la misma API que impulsa la animación.
@@ -1123,7 +1134,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.0');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.21.1');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1721,4 +1732,52 @@ test('v8.21: se compran e instalan dos HDD 3D distintos sin sustituir el primero
   expect(await page.evaluate(()=>state.biosCfg.boot)).toBe('hdd2');
   await menu.locator('[data-part-verb="secondaryTarget"]').evaluate(el=>el.click());
   expect(await page.evaluate(()=>state.osInstallTarget)).toBe('hdd2');
+});
+
+test('8.21.1: el montaje recomendado permite añadir un HDD sin confundir piezas idénticas',async({page})=>{
+  await openGame(page);
+  await expect.poll(()=>page.evaluate(()=>window.PC3D?.ready===true)).toBe(true);
+  await page.locator('#autoBuild').click();
+  await expect.poll(()=>page.evaluate(()=>state.installed.storage)).toBe(true);
+  expect(await page.evaluate(()=>state.selected.storage)).toBe('sataSSD');
+
+  // La nueva unidad en la mesa sigue libre aunque ya haya un modelo idéntico montado.
+  await buy(page,'storage','sataSSD');
+  await page.evaluate(()=>partInspector.open('storage:sataSSD','table'));
+  const context=page.locator('#partContextMenu');
+  await expect(context.locator('.part-context-sub')).toContainText('Sin instalar');
+  await expect(context).toContainText('Mesa de componentes · sin instalar');
+  await expect(context.locator('[data-part-verb="fit"]')).toHaveCount(0);
+  await expect(context.locator('[data-part-verb="installSecond"]')).toHaveCount(0);
+
+  await buy(page,'storage','hdd');
+  await page.evaluate(()=>partInspector.open('storage:hdd','table'));
+  await expect(context.locator('.part-context-sub')).toContainText('Sin instalar');
+  const install=context.locator('[data-part-verb="installSecond"]');
+  await expect(install).toBeEnabled();
+  await expect(install).toContainText('bahía superior');
+  await install.evaluate(el=>el.click());
+
+  const snapshot=await page.evaluate(()=>({
+    primary:state.selected.storage,primaryMounted:state.installed.storage,
+    sataData:state.sataData,sataPower:state.sataPower,
+    secondary:{...state.secondaryStorage},
+    spare:adventureGame.game.stock['storage:sataSSD'],
+    geometry:window.PC3D.getDualHddState()
+  }));
+  expect(snapshot.primary).toBe('sataSSD');
+  expect(snapshot.primaryMounted).toBe(true);
+  expect(snapshot.sataData).toBe(true);
+  expect(snapshot.sataPower).toBe(true);
+  expect(snapshot.secondary.id).toBe('hdd');
+  expect(snapshot.secondary.bay).toBe('upper');
+  expect(snapshot.secondary.installed).toBe(true);
+  expect(snapshot.spare).toBe(1);
+  expect(snapshot.geometry.upper.id).toBe('hdd');
+  expect(snapshot.geometry.upper.installed).toBe(true);
+  expect(snapshot.geometry.lower.id).toBe('sataSSD');
+  expect(snapshot.geometry.lower.installed).toBe(true);
+  expect(snapshot.geometry.upper.position[1]).toBeGreaterThan(snapshot.geometry.lower.position[1]);
+  await expect(context.locator('.part-context-sub')).toContainText('Montado');
+  await expect(context).toContainText('HDD 2');
 });

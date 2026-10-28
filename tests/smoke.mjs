@@ -54,6 +54,18 @@ for(const flag of ['ramSeated','atx24','eps','frontPanel','cpuFan',
  assert.equal(l.s[flag],true,'Cableado: '+flag);
 assert(get('adventurePanel').innerHTML.includes('Montaje de demostración'));
 assert(!get('adventurePanel').innerHTML.includes('data-deliver'));
+const originalDisk=l.s.selected.storage;
+g.purchase('storage','sataSSD');
+assert.equal(g.game.stock['storage:sataSSD'],1,
+  'Un SSD idéntico en inventario no debe contarse como ya montado');
+g.purchase('storage','hdd');
+assert.equal(g.installSecondHdd('storage:hdd'),true,
+  'El montaje recomendado SATA SSD debe aceptar HDD adicional');
+assert.equal(l.s.selected.storage,originalDisk);
+assert.equal(l.s.installed.storage,true);
+assert.equal(l.s.secondaryStorage.id,'hdd');
+assert.equal(l.s.secondaryStorage.bay,'upper');
+assert.equal(g.game.stock['storage:hdd'],0);
 l.power();assert(l.s.power);l.bios();assert(l.s.bios);
 g.start('office');
 const caseRenders=[];
@@ -620,7 +632,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-21-0-dual-hdd'));
+assert(html.includes('adventureMode.js?v=8-21-1-disk-instances'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -770,7 +782,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-21-0-dual-hdd'));
+assert(html.includes('adventureMode.js?v=8-21-1-disk-instances'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1009,7 +1021,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.21.0'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.21.1'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1304,7 +1316,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
-assert(compact.includes('Modo aventura · Motor 8.21.0'));
+assert(compact.includes('Modo aventura · Motor 8.21.1'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));
