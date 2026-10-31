@@ -11,7 +11,7 @@ import { createProceduralFan } from './fanProcedural.js';
 import { createCableHarness } from './cablesProcedural.js?v=8-21-3-pcb-edge-routing';
 import {createConnector3d,getCableExit} from './connectors3d.js?v=8-4-7-cable-exits';
 import {alignRearPlug} from './portProfiles.js?v=8-4-7-cable-exits';
-import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-1-virtual-pointer';
+import { createWorkbench, WORKBENCH_LAYOUT } from './workbench3d.js?v=8-22-2-virtual-pointer';
 import { createATXTower } from './towerATX.js?v=8-21-3-header-layout';
 import { createSmoothZoom } from './smoothZoom.js?v=7-4-2-smooth-wheel';
 import { createStagingTable } from './stagingTable3d.js?v=8-17-1-purchases';
@@ -385,6 +385,39 @@ view.addEventListener('dblclick',e=>{
   if(raycaster.intersectObject(workbench.root,true).length)viewAssemblyDesk();
 });
 let lastPowerPress=-Infinity;
+// Un clic nativo de ratón (no pointerup, que OrbitControls puede capturar)
+// se interpreta sobre la superficie real del monitor WebGL.
+// Se aplica igualmente en escritorio y en los taps táctiles que generan click.
+function monitorHitAt(clientX,clientY){
+  const bounds=view.getBoundingClientRect();
+  if(!bounds.width||!bounds.height)return null;
+  const coords=new THREE.Vector2(
+    2*(clientX-bounds.left)/bounds.width-1,
+    1-2*(clientY-bounds.top)/bounds.height);
+  raycaster.setFromCamera(coords,camera);
+  return raycaster.intersectObject(workbench.display,false)[0]||null;
+}
+function monitorActionAt(clientX,clientY){
+  if(!current?.power)return null;
+  const hit=monitorHitAt(clientX,clientY);
+  if(!hit)return null;
+  if(current.bios){
+    const index=workbench.hitBootOption(hit.uv);
+    return index>=0?{kind:'boot',index,uv:hit.uv.toArray()}:null;
+  }
+  const choice=workbench.hitVentoyOption(hit.uv);
+  return choice?{...choice,uv:hit.uv.toArray()}:null;
+}
+view.addEventListener('click',e=>{
+  const action=monitorActionAt(e.clientX,e.clientY);
+  if(!action)return;
+  if(action.kind==='boot')
+    window.dispatchEvent(new CustomEvent('pc3d-boot-move',
+      {detail:{index:action.index}}));
+  else window.dispatchEvent(new CustomEvent('pc3d-ventoy-select',
+    {detail:{kind:action.kind,index:action.index}}));
+  e.preventDefault();
+},true);
 view.addEventListener('pointerdown',e=>{
   press={x:e.clientX,y:e.clientY};
 });
@@ -398,32 +431,9 @@ view.addEventListener('pointerup',e=>{
   raycaster.setFromCamera(pointer,camera);
   const hits=raycaster.intersectObjects(
     Object.values(partGroups).filter(g=>g.visible),true);
-  // En UEFI, un clic sobre la pantalla virtual selecciona la entrada
-  // del orden de arranque y la desplaza una posición hacia arriba.
-  if(current?.power&&current?.bios){
-    const monitorHits=raycaster.intersectObject(workbench.display,false);
-    if(monitorHits.length){
-      const row=workbench.hitBootOption(monitorHits[0].uv);
-      if(row>=0)window.dispatchEvent(
-        new CustomEvent('pc3d-boot-move',{detail:{index:row}}));
-      return;
-    }
-  }
-  // El mismo monitor permite elegir una ISO en Ventoy o iniciar el
-  // instalador, sin depender de un panel externo al ordenador virtual.
-  if(current?.power&&!current?.bios){
-    const hits=raycaster.intersectObject(workbench.display,false);
-    if(hits.length){
-      const action=workbench.hitVentoyOption(hits[0].uv);
-      if(action){
-        window.dispatchEvent(new CustomEvent('pc3d-ventoy-select',{detail:action}));
-        return;
-      }
-      // El monitor virtual recibe los clics como un ratón local. Una
-      // zona vacía de pantalla no debe abrir la ficha del monitor.
-      return;
-    }
-  }
+  // La pantalla se gestiona mediante el evento click nativo para
+  // distinguir un clic de una órbita/arrastre. No generar dos acciones.
+  if(current?.power&&raycaster.intersectObject(workbench.display,false).length)return;
   // El pendrive montado sobre USB-A trasero es interactivo y se puede
   // expulsar con un clic, no sólo mediante el panel de tienda.
   if(workbench.installerUsb.visible&&
@@ -682,6 +692,13 @@ window.PC3D={
     });
   },
   getOSMonitorKind:()=>workbench.getOSMonitorKind(),
+  getMonitorPointerHit:(x,y)=>{
+    const hit=monitorHitAt(x,y);
+    const action=monitorActionAt(x,y);
+    return {hit:!!hit,uv:hit?.uv?.toArray()||null,
+      action:action?{kind:action.kind,index:action.index}:null,
+      view:cameraPreset,monitorKind:workbench.getOSMonitorKind()};
+  },
   getMonitorInputPoint:(u,v)=>{
     // Proyección exacta de una coordenada UV del monitor a píxeles del
     // canvas. Útil para pruebas E2E reales de pointerdown/pointerup.

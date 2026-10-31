@@ -1407,8 +1407,13 @@ function createAdventureGame(api){
       message('Expulsa la memoria del PC de prácticas antes de reformatear.');return false;
     }
     const result=usbLibrary.installVentoy(id,partition||'GPT',confirm);
+    if(result.ok){
+      game.usbSelected=id;game.usbPartition=partition||'GPT';
+      game.openSections=['usb','inventory'];
+    }
+    // message() ya pinta una vez; el render adicional anulaba el clic
+    // de seguimiento en móvil al destruir y recrear sus elementos.
     message(result.reason,result.ok?'ok':'warn');
-    if(result.ok){game.usbSelected=id;game.openSections=['usb','inventory'];api.render();}
     return result.ok;
   }
   function copyUsbISO(id=game?.usbSelected,iso=game?.usbISO){
@@ -1417,8 +1422,11 @@ function createAdventureGame(api){
       message('Expulsa la memoria del PC antes de copiar una ISO.');return false;
     }
     const result=usbLibrary.copyISO(id,iso);
+    if(result.ok){
+      game.usbSelected=id;game.usbISO=iso;
+      game.openSections=['usb','inventory'];
+    }
     message(result.reason,result.ok?'ok':'warn');
-    if(result.ok){game.usbSelected=id;game.openSections=['usb','inventory'];api.render();}
     return result.ok;
   }
   function removeUsbISO(id=game?.usbSelected,iso=game?.usbISO){
@@ -2930,14 +2938,17 @@ function createAdventureGame(api){
       '<select id="advVentoyDrive"'+(!physicalUsbs.length?' disabled':'')+'>'+physicalOptions+'</select>'+
       selectedInfo+
       '<label for="advVentoyPartition">Tabla de particiones</label>'+
-      '<select id="advVentoyPartition"><option value="GPT">GPT / UEFI</option>'+
-      '<option value="MBR">MBR / Legacy</option></select>'+
+      '<select id="advVentoyPartition"><option value="GPT"'+
+      (game.usbPartition!=='MBR'?' selected':'')+'>GPT / UEFI</option>'+
+      '<option value="MBR"'+(game.usbPartition==='MBR'?' selected':'')+
+      '>MBR / Legacy</option></select>'+
       '<label><input type="checkbox" id="advVentoyConfirm"> Confirmo borrar el USB</label>'+
       '<div class="tools"><button type="button" data-ventoy-install'+
       (!selectedPhysical?' disabled':'')+'>Instalar Ventoy</button></div>'+
       '<label for="advVentoyISO">Archivo ISO del taller</label>'+
       '<select id="advVentoyISO">'+Object.values(root.PC_USB.ISO).map(image=>
-      '<option value="'+image.id+'">'+image.file+' · '+image.gb+' GB</option>').join('')+'</select>'+
+      '<option value="'+image.id+'"'+(game.usbISO===image.id?' selected':'')+
+      '>'+safe(image.file)+' · '+image.gb+' GB</option>').join('')+'</select>'+
       '<div class="tools"><button type="button" data-ventoy-copy'+
       (!selectedPhysical||selectedPhysical.mode!=='ventoy'?' disabled':'')+'>Copiar ISO</button>'+
       '<button type="button" data-ventoy-remove'+
@@ -3026,7 +3037,7 @@ function createAdventureGame(api){
       '<button type="button" data-exit-mode>Salir al modo técnico</button>';
     panel.innerHTML=
       '<div class="title"><h2>Taller de montaje</h2>'+
-      '<span title="Revisión de publicación">Modo aventura · Motor 8.22.1</span></div>'+
+      '<span title="Revisión de publicación">Modo aventura · Motor 8.22.2</span></div>'+
       '<div class="adv-stage-tip"><strong>'+safe(job.client)+'</strong>'+
       ' · Saldo: <b>'+format(game.budget-game.spent)+'</b>'+
       '<small>La tienda está en la barra superior. Las fichas 3D permiten montar y devolver piezas.</small>'+

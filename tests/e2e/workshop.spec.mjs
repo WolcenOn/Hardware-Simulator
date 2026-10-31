@@ -1136,7 +1136,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.1');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.2');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1863,8 +1863,11 @@ test('8.22: USB comprado con Ventoy y dos ISO arranca menú en monitor 3D',async
   await page.locator('[data-ventoy-install]').click();
   await expect(page.locator('#advUsbTools')).toContainText('Ventoy');
   await page.locator('[data-ventoy-copy]').click();
+  await expect.poll(()=>page.evaluate(()=>adventureGame.usbDrives()[0].images.length)).toBe(1);
   await page.locator('#advVentoyISO').selectOption('libreforge');
+  await expect(page.locator('#advVentoyISO')).toHaveValue('libreforge');
   await page.locator('[data-ventoy-copy]').click();
+  await expect.poll(()=>page.evaluate(()=>adventureGame.usbDrives()[0].images.length)).toBe(2);
   const before=await page.evaluate(()=>adventureGame.usbDrives());
   expect(before).toHaveLength(1);
   expect(before[0].images.map(i=>i.id)).toEqual(['novadesk','libreforge']);
@@ -1958,6 +1961,9 @@ test('8.22.1: clic real en monitor elige ISO y teclado puede activarse y liberar
   const uv={u:.25,v:1-(216+72+30)/864};
   const screen=await page.evaluate(({u,v})=>window.PC3D.getMonitorInputPoint(u,v),uv);
   expect(screen.inside).toBe(true);
+  const pointer=await page.evaluate(({x,y})=>window.PC3D.getMonitorPointerHit(x,y),screen);
+  expect(pointer.hit,JSON.stringify(pointer)).toBe(true);
+  expect(pointer.action,JSON.stringify(pointer)).toMatchObject({kind:'choose',index:1});
   await page.mouse.click(screen.x,screen.y);
   await expect.poll(()=>page.evaluate(()=>state.usbImage)).toBe('libreforge');
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('installer');

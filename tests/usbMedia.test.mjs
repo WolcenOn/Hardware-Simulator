@@ -66,3 +66,32 @@ test('capacidad, MBR, USB vacío y modelos distintos',()=>{
   assert.equal(lib.remove(b),true);
   assert.equal(lib.get(b),null);
 });
+
+test('seguridad: el almacenamiento local malformado no inyecta campos ni memorias',()=>{
+  const input={
+    seq:999999999,drives:[
+      {id:'USB-1',capacityGb:32,mode:'ventoy',partition:'GPT',
+        filesystem:'HTML',bootable:false,images:['libreforge','libreforge','bad-iso'],
+        __proto__:{admin:true},html:'<img src=x onerror=alert(1)>'},
+      {id:'USB-1',capacityGb:64,mode:'blank',images:[]},
+      {id:'USB-<script>',capacityGb:32,mode:'ventoy',images:['novadesk']},
+      {id:'USB-2',capacityGb:64,mode:'blank',images:['novadesk']}
+    ]
+  };
+  const store={getItem:()=>JSON.stringify(input),setItem(){}};
+  const lib=media.createLibrary(store),list=lib.list();
+  assert.equal(list.length,2,'rechazar IDs duplicados o inválidos');
+  assert.deepEqual(Object.keys(list[0]).sort(),[
+    'bootable','capacityGb','filesystem','id','images','mode','partition'].sort());
+  assert.equal(list[0].bootable,true);
+  assert.equal(list[0].filesystem,'exFAT');
+  assert.equal(list[0].images.length,1);
+  assert.equal(list[1].images.length,0,'un USB vacío no conserva ISO');
+  assert.equal(lib.acquire(32).drive.id,'USB-3','serie saneada y sin colisión');
+});
+test('seguridad: datos locales excesivos y dispositivos agotados',()=>{
+  const oversize=media.createLibrary({getItem:()=>'{'.repeat(49_000),setItem(){}});
+  assert.equal(oversize.list().length,0);
+  const store={getItem:()=>JSON.stringify({seq:999999,drives:[]}),setItem(){}};
+  assert.equal(media.createLibrary(store).acquire(32).ok,false);
+});

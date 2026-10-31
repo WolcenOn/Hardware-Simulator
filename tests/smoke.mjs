@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const html=read('index.html');
-assert(html.includes('usbMedia.js?v=8-22-0-ventoy'),
+assert(html.includes('usbMedia.js?v=8-22-2-validated-local-storage'),
   'Motor USB Ventoy debe cargarse antes del modo aventura');
 
 const source=html.match(/<script>\s*const \$=id=>document\.getElementById\(id\);([\s\S]*?)<\/script>/)?.[0].replace(/<\/?script>/g,'');
@@ -676,7 +676,7 @@ console.log('Fase 2b.2 OK: fallo latente, POWER válido y reparación/sustituci�
 // 8.9.1: el taller RAM se abre sobre el visor 3D, sin sliders de presión.
 assert(html.includes('id="ramPrecisionPopup"'));
 assert(html.includes('ramPrecision.js?v=8-9-1-ram-popup'));
-assert(html.includes('adventureMode.js?v=8-22-1-usb-context'));
+assert(html.includes('adventureMode.js?v=8-22-2-usb-stability'));
 g.start('office');
 assert.equal(g.getExport().ramPrecision.enabled,true,
   'Todo encargo nuevo debe habilitar el minijuego RAM por defecto');
@@ -826,7 +826,7 @@ console.log('8.10.1: anclajes por componente, consumo real y progreso parcial OK
 // 8.11: CPU se inserta únicamente tras orientar, apoyar y cerrar la palanca.
 assert(html.includes('id="cpuPrecisionPopup"'));
 assert(html.includes('cpuPrecision.js?v=8-11-0-cpu-socket'));
-assert(html.includes('adventureMode.js?v=8-22-1-usb-context'));
+assert(html.includes('adventureMode.js?v=8-22-2-usb-stability'));
 assert(html.includes('if(details.cpuPrecision)data.cpuPrecision=details.cpuPrecision'));
 g.start('office');
 buy('case','tower');fit('case:tower');
@@ -1065,7 +1065,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.22.1'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.22.2'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1360,7 +1360,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
-assert(compact.includes('Modo aventura · Motor 8.22.1'));
+assert(compact.includes('Modo aventura · Motor 8.22.2'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));

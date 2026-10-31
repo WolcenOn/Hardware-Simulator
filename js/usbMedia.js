@@ -9,18 +9,38 @@ const ISO=Object.freeze({
   terminalis:Object.freeze({id:'terminalis',file:'Terminalis_1.iso',gb:.9})
 });
 const CAPACITIES=[32,64];
+// El navegador almacena inventario educativo, nunca datos personales.
+// Los datos locales son modificables por el usuario: revalidarlos al leer.
+const MAX_LOCAL_BYTES=48_000,MAX_DEVICES=64,MAX_SERIAL=999_999;
 const clone=x=>JSON.parse(JSON.stringify(x));
 function createLibrary(storage){
   let seq=0,drives=[];
   try{
-    const saved=JSON.parse(storage?.getItem(STORAGE)||'null');
+    const raw=storage?.getItem(STORAGE)||'null';
+    if(raw.length>MAX_LOCAL_BYTES)throw new Error('Estado local demasiado grande');
+    const saved=JSON.parse(raw);
     if(saved&&Array.isArray(saved.drives)){
-      seq=Number.isInteger(saved.seq)?Math.max(0,saved.seq):0;
-      drives=saved.drives.slice(0,64).filter(d=>
-        /^USB-\d+$/.test(d.id)&&CAPACITIES.includes(d.capacityGb)&&
-        ['blank','ventoy'].includes(d.mode)&&Array.isArray(d.images))
-        .map(d=>({...d,images:[...new Set(d.images.filter(x=>ISO[x]))]}));
-      seq=Math.max(seq,...drives.map(d=>Number(d.id.slice(4))),0);
+      const seen=new Set();
+      for(const d of saved.drives.slice(0,MAX_DEVICES)){
+        if(!d||typeof d!=='object'||Array.isArray(d)||
+          !/^USB-[1-9]\d{0,5}$/.test(d.id)||seen.has(d.id)||
+          !CAPACITIES.includes(d.capacityGb)||!['blank','ventoy'].includes(d.mode)||
+          !Array.isArray(d.images))continue;
+        const items=[...new Set(d.images.filter(x=>
+          typeof x==='string'&&Object.hasOwn(ISO,x)))].slice(0,3);
+        const valid=d.mode==='ventoy'&&
+          items.reduce((n,x)=>n+ISO[x].gb,.064)<=d.capacityGb?items:[];
+        seen.add(d.id);
+        // Lista blanca de campos: sin propiedades arbitrarias de JSON.
+        drives.push({id:d.id,capacityGb:d.capacityGb,mode:d.mode,
+          partition:d.mode==='ventoy'&&['GPT','MBR'].includes(d.partition)?
+            d.partition:d.mode==='ventoy'?'GPT':null,
+          filesystem:d.mode==='ventoy'?'exFAT':null,
+          images:valid,bootable:d.mode==='ventoy'});
+      }
+      seq=Math.max(...drives.map(d=>Number(d.id.slice(4))),0);
+      if(Number.isInteger(saved.seq)&&saved.seq>=seq&&saved.seq<=MAX_SERIAL)
+        seq=saved.seq;
     }
   }catch(_e){}
   const persist=()=>{try{storage?.setItem(STORAGE,JSON.stringify({seq,drives}));}catch(_e){}};
@@ -31,6 +51,8 @@ function createLibrary(storage){
     d.images.reduce((sum,id)=>sum+ISO[id].gb,0))*1000)/1000;
   function acquire(capacityGb=32){
     if(!CAPACITIES.includes(capacityGb))return {ok:false,reason:'Capacidad no disponible.'};
+    if(drives.length>=MAX_DEVICES||seq>=MAX_SERIAL)
+      return {ok:false,reason:'Límite de memorias del taller alcanzado.'};
     const d={id:'USB-'+(++seq),capacityGb,mode:'blank',partition:null,images:[],
       filesystem:null,bootable:false};
     drives.push(d);persist();return {ok:true,drive:clone(d)};
