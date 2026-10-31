@@ -68,9 +68,12 @@ function createLibrary(storage){
     return {ok:true,drive:clone(d),reason:'Ventoy instalado. La partición de datos está vacía.'};
   }
   function copyISO(id,iso){
-    const d=find(id),image=ISO[iso];
+    const d=find(id);
     if(!d||d.mode!=='ventoy')return {ok:false,reason:'Primero instala Ventoy en esta memoria.'};
-    if(!image)return {ok:false,reason:'Imagen ISO desconocida.'};
+    // No aceptar propiedades heredadas del objeto (toString, __proto__).
+    if(typeof iso!=='string'||!Object.hasOwn(ISO,iso))
+      return {ok:false,reason:'Imagen ISO desconocida.'};
+    const image=ISO[iso];
     if(d.images.includes(iso))return {ok:false,reason:'Esa imagen ya está copiada.'};
     if(freeGb(d)<image.gb)return {ok:false,reason:'No queda espacio suficiente para '+image.file+'.'};
     d.images.push(iso);persist();

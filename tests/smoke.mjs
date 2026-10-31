@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const html=read('index.html');
-assert(html.includes('usbMedia.js?v=8-22-2-validated-local-storage'),
+assert(html.includes('usbMedia.js?v=8-22-2-safe-iso-catalog'),
   'Motor USB Ventoy debe cargarse antes del modo aventura');
 
 const source=html.match(/<script>\s*const \$=id=>document\.getElementById\(id\);([\s\S]*?)<\/script>/)?.[0].replace(/<\/?script>/g,'');

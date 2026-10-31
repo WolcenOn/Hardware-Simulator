@@ -62,6 +62,9 @@ test('capacidad, MBR, USB vacío y modelos distintos',()=>{
   assert.equal(lib.copyISO(a,'novadesk').ok,false);
   assert.equal(lib.installVentoy(a,'invalid',true).ok,false);
   assert.equal(lib.installVentoy(b,'MBR',true).ok,true);
+  assert.equal(lib.copyISO(b,'toString').ok,false,'propiedad heredada no es ISO');
+  assert.equal(lib.copyISO(b,'__proto__').ok,false,'prototipo no es ISO');
+  assert.equal(lib.get(b).images.length,0,'ninguna ISO inválida se guarda');
   assert.equal(lib.get(b).partition,'MBR');
   assert.equal(lib.remove(b),true);
   assert.equal(lib.get(b),null);
