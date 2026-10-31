@@ -1065,7 +1065,7 @@ assert.equal(get('screwPrecisionPopup').hidden,false,
   'El minijuego debe abrirse al encajar el disipador con herramientas');
 assert(get('screwPrecisionPopup').innerHTML.includes('thermalSpreadCells'),
   'El minijuego debe mostrar el mapa de pasta durante el apriete');
-assert(get('adventurePanel').innerHTML.includes('Motor 8.22.2'),
+assert(get('adventurePanel').innerHTML.includes('Motor 8.22.3'),
   'La revisión activa debe quedar identificada visualmente');
 g.screwMove(50,50);
 assert.equal(g.screwTurn(1).depth,10);
@@ -1360,7 +1360,7 @@ for(const section of ['mission','inventory','actions','delivery','workshop','usb
 assert(!compact.includes('data-section="installed"'));
 assert(!compact.includes('data-section="shop"'));
 assert(!compact.includes('data-open-store'),'Tienda no duplicada en panel izquierdo');
-assert(compact.includes('Modo aventura · Motor 8.22.2'));
+assert(compact.includes('Modo aventura · Motor 8.22.3'));
 assert(html.includes('id="labFocusToggle"'));
 assert(html.includes('id="labDiagnostics"'));
 assert(html.includes('id="labWorkspace"'));

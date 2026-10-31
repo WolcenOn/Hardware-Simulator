@@ -646,6 +646,12 @@ function getCasePowerScreenPoint(){
 window.PC3D={
   ready:true,
   update:sync,
+  // POST y progreso de instalación solo cambian la textura del monitor:
+  // evitar recalcular geometrías, cables y colisiones del PC cada 600 ms.
+  updateMonitor:(state,details={})=>{
+    workbench.updateScreen(details.consoleText??'',!!state.power,!!state.bios,
+      !!details.videoSignal,details.osVisual||null);
+  },
   updateTools:keys=>toolRack.update(keys),
   getToolRack:()=>toolRack.visible(),
   getPinBoardContacts:()=>pinBoard.contacts(),

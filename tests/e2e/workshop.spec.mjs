@@ -1136,7 +1136,7 @@ test('8.12 pasta: jeringuilla, inercia y expansión durante apriete en cruz',asy
   const screws=page.locator('#screwPrecisionPopup');
   await expect(screws).toBeVisible();
   await expect(screws.locator('#thermalSpreadMap')).toBeVisible();
-  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.2');
+  await expect(page.locator('#adventurePanel')).toContainText('Motor 8.22.3');
   const live=screws.locator('.thermal-live');
   await expect(live).toBeVisible();
   await expect(live).toContainText('EN DIRECTO');
@@ -1881,7 +1881,9 @@ test('8.22: USB comprado con Ventoy y dos ISO arranca menú en monitor 3D',async
   await page.locator('#powerBtn').click();
   await expect.poll(()=>page.evaluate(()=>state.bootStage)).toBeGreaterThanOrEqual(4);
   await expect.poll(()=>page.evaluate(()=>window.PC3D.getOSMonitorKind())).toBe('ventoy');
-  await page.locator('#virtualKeyboardToggle').click();
+  // El toque móvil se ejecuta sin la espera de estabilidad CSS de Playwright:
+  // otra prueba cubre el clic real sobre este control.
+  await page.locator('#virtualKeyboardToggle').evaluate(el=>el.click());
   await expect(page.locator('#virtualKeyboardToggle')).toHaveAttribute('aria-pressed','true');
   await page.keyboard.press('ArrowDown');
   expect(await page.evaluate(()=>state.usbMenuIndex)).toBe(1);
@@ -1955,13 +1957,25 @@ test('8.22.1: clic real en monitor elige ISO y teclado puede activarse y liberar
   await page.keyboard.press('ArrowDown');
   expect(await page.evaluate(()=>state.usbMenuIndex)).toBe(0);
   await page.locator('#viewMonitor3d').click();
+  // El canvas completo mide más que el viewport de CI. Antes se proyectaba
+  // un punto 3D válido, pero quedaba fuera de pantalla y el mouse.click
+  // no llegaba a ningún elemento (aunque el raycaster sí lo detectaba).
+  await page.locator('#viewportWrap').evaluate(el=>
+    el.scrollIntoView({block:'start',behavior:'instant'}));
   await page.waitForTimeout(1250);
   // Pixel exacto de la segunda fila en la textura 1536 x 864, proyectado
   // sobre el plano del monitor 3D; clic mediante ratón real del navegador.
   const uv={u:.25,v:1-(216+72+30)/864};
   const screen=await page.evaluate(({u,v})=>window.PC3D.getMonitorInputPoint(u,v),uv);
   expect(screen.inside).toBe(true);
-  const pointer=await page.evaluate(({x,y})=>window.PC3D.getMonitorPointerHit(x,y),screen);
+  const pointer=await page.evaluate(({x,y})=>{
+    const info=window.PC3D.getMonitorPointerHit(x,y);
+    return {...info,topElement:document.elementFromPoint(x,y)?.id||null,
+      withinViewport:x>=0&&y>=0&&
+        x<innerWidth&&y<innerHeight};
+  },screen);
+  expect(pointer.withinViewport,JSON.stringify({screen,pointer})).toBe(true);
+  expect(pointer.topElement,JSON.stringify(pointer)).toBe('viewport');
   expect(pointer.hit,JSON.stringify(pointer)).toBe(true);
   expect(pointer.action,JSON.stringify(pointer)).toMatchObject({kind:'choose',index:1});
   await page.mouse.click(screen.x,screen.y);
